@@ -1,0 +1,56 @@
+{
+  "variants": {
+    "active=false,facing=down": {
+      "model": "buildcraftreforged:block/path_marker_block",
+      "x": 180
+    },
+    "active=true,facing=down": {
+      "model": "buildcraftreforged:block/path_marker_block_active",
+      "x": 180
+    },
+    "active=false,facing=up": {
+      "model": "buildcraftreforged:block/path_marker_block"
+    },
+    "active=true,facing=up": {
+      "model": "buildcraftreforged:block/path_marker_block_active"
+    },
+    "active=false,facing=north": {
+      "model": "buildcraftreforged:block/path_marker_block",
+      "x": 90
+    },
+    "active=true,facing=north": {
+      "model": "buildcraftreforged:block/path_marker_block_active",
+      "x": 90
+    },
+    "active=false,facing=south": {
+      "model": "buildcraftreforged:block/path_marker_block",
+      "x": 90,
+      "y": 180
+    },
+    "active=true,facing=south": {
+      "model": "buildcraftreforged:block/path_marker_block_active",
+      "x": 90,
+      "y": 180
+    },
+    "active=false,facing=east": {
+      "model": "buildcraftreforged:block/path_marker_block",
+      "x": 90,
+      "y": 90
+    },
+    "active=true,facing=east": {
+      "model": "buildcraftreforged:block/path_marker_block_active",
+      "x": 90,
+      "y": 90
+    },
+    "active=false,facing=west": {
+      "model": "buildcraftreforged:block/path_marker_block",
+      "x": 90,
+      "y": 270
+    },
+    "active=true,facing=west": {
+      "model": "buildcraftreforged:block/path_marker_block_active",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

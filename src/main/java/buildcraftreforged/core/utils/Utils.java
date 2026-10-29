@@ -12,7 +12,9 @@
 package buildcraftreforged.core.utils;
 
 import buildcraftreforged.api.core.IAreaProvider;
+import buildcraftreforged.api.core.LaserKind;
 import buildcraftreforged.api.core.Position;
+import buildcraftreforged.core.EntityBlock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +41,6 @@ import org.jspecify.annotations.Nullable;
  * - addToRandomInventoryAround: ITransactor/Transactor (#23) and TileEngine (#36).
  * - addToRandomPipeAround, checkPipesConnections: IPipeTile (#34, #48).
  * - checkLegacyPipesConnections: IFramePipeConnection (#67).
- * - createLaser, createLaserBox: EntityBlock lasers (#29).
  * - preDestroyBlock: TileBuildCraft (#21), IDropControlInventory and InvUtils (#23).
  * Dropped: getItemData, the stack's NBT compound; item data lives in data components (docs/PLAN.md section 6).
  * Dropped: handleBufferedDescription; description data goes through vanilla getUpdateTag now (#20).
@@ -139,6 +140,94 @@ public class Utils {
         }
 
         return null;
+    }
+
+    /**
+     * Returns the laser as EntityBlock render data. 4.2.2 spawned it as an entity; the caller now keeps it and its
+     * BlockEntityRenderer draws it. CoreProxyClient.newEntityBlock's texture choice is done here, on both sides.
+     */
+    public static @Nullable EntityBlock createLaser(Level world, Position p1, Position p2, LaserKind kind) {
+        if (p1.equals(p2)) {
+            return null;
+        }
+
+        double iSize = p2.x - p1.x;
+        double jSize = p2.y - p1.y;
+        double kSize = p2.z - p1.z;
+
+        double i = p1.x;
+        double j = p1.y;
+        double k = p1.z;
+
+        if (iSize != 0) {
+            i += 0.5;
+            j += 0.45;
+            k += 0.45;
+
+            jSize = 0.10;
+            kSize = 0.10;
+        } else if (jSize != 0) {
+            i += 0.45;
+            j += 0.5;
+            k += 0.45;
+
+            iSize = 0.10;
+            kSize = 0.10;
+        } else if (kSize != 0) {
+            i += 0.45;
+            j += 0.45;
+            k += 0.5;
+
+            iSize = 0.10;
+            jSize = 0.10;
+        }
+
+        EntityBlock block = new EntityBlock(world, i, j, k, iSize, jSize, kSize);
+        switch (kind) {
+            case Blue:
+                block.texture = EntityBlock.blueLaserTexture;
+                break;
+
+            case Red:
+                block.texture = EntityBlock.redLaserTexture;
+                break;
+
+            case Stripes:
+                block.texture = EntityBlock.stripesLaserTexture;
+                break;
+        }
+        block.setBrightness(210);
+
+        return block;
+    }
+
+    public static @Nullable EntityBlock[] createLaserBox(Level world, double xMin, double yMin, double zMin, double xMax, double yMax, double zMax, LaserKind kind) {
+        EntityBlock lasers[] = new EntityBlock[12];
+        Position[] p = new Position[8];
+
+        p[0] = new Position(xMin, yMin, zMin);
+        p[1] = new Position(xMax, yMin, zMin);
+        p[2] = new Position(xMin, yMax, zMin);
+        p[3] = new Position(xMax, yMax, zMin);
+        p[4] = new Position(xMin, yMin, zMax);
+        p[5] = new Position(xMax, yMin, zMax);
+        p[6] = new Position(xMin, yMax, zMax);
+        p[7] = new Position(xMax, yMax, zMax);
+
+        lasers[0] = Utils.createLaser(world, p[0], p[1], kind);
+        lasers[1] = Utils.createLaser(world, p[0], p[2], kind);
+        lasers[2] = Utils.createLaser(world, p[2], p[3], kind);
+        lasers[3] = Utils.createLaser(world, p[1], p[3], kind);
+        lasers[4] = Utils.createLaser(world, p[4], p[5], kind);
+        lasers[5] = Utils.createLaser(world, p[4], p[6], kind);
+        lasers[6] = Utils.createLaser(world, p[5], p[7], kind);
+        lasers[7] = Utils.createLaser(world, p[6], p[7], kind);
+        lasers[8] = Utils.createLaser(world, p[0], p[4], kind);
+        lasers[9] = Utils.createLaser(world, p[1], p[5], kind);
+        lasers[10] = Utils.createLaser(world, p[2], p[6], kind);
+        lasers[11] = Utils.createLaser(world, p[3], p[7], kind);
+
+        return lasers;
     }
 
     /** Adds a lore line. {@code tag} was the NBT name of the 4.2.2 lore string; lore lines have no names now. */
