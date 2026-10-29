@@ -1,5 +1,11 @@
 package buildcraftreforged;
 
+import buildcraftreforged.builders.BuildersRegistry;
+import buildcraftreforged.core.CoreRegistry;
+import buildcraftreforged.energy.EnergyRegistry;
+import buildcraftreforged.factory.FactoryRegistry;
+import buildcraftreforged.silicon.SiliconRegistry;
+import buildcraftreforged.transport.TransportRegistry;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -13,5 +19,13 @@ public final class BuildcraftReforged {
 
     public BuildcraftReforged(IEventBus modBus, ModContainer container) {
         LOGGER.info("Buildcraft Reforged {} loading", container.getModInfo().getVersion());
+
+        // One registry class per module; each adds its own entries in its own file.
+        CoreRegistry.register(modBus);
+        EnergyRegistry.register(modBus);
+        FactoryRegistry.register(modBus);
+        SiliconRegistry.register(modBus);
+        TransportRegistry.register(modBus);
+        BuildersRegistry.register(modBus);
     }
 }
