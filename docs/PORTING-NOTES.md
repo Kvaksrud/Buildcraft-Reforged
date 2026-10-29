@@ -143,3 +143,85 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
 | `current.continuous` (`general`) | `BuildCraftCore` | Stored in `continuousCurrentModel`, which nothing in 4.2.2 reads. |
 | `trackNetworkUsage` (`general`) | `BuildCraftCore` | Counted packet sizes in the reflection-based `ClassMapping`, which explicit `StreamCodec`s replace. |
 | `pipes.groupItemsTrigger` (`general`) | `BuildCraftTransport` | Grouped items inside a pipe; the new transport has no in-pipe inventory (PLAN.md section 8). |
+
+## Networking (#20)
+
+- **One channel.** `core/network/PacketHandler.register(modBus)` registers every payload on one `PayloadRegistrar`,
+  version `PacketHandler.PROTOCOL_VERSION` (`"1"`; bump it when any codec changes). Payload ids are
+  `buildcraftreforged:<name>`. This replaces 4.2.2's `Packet250CustomPayload` channel, the `PacketIds` switch and the
+  reflection payload builder (`TileNetworkData`, `ClassMapping`, `TilePacketWrapper`, `PacketPayload*`), none of which
+  are ported. Each message is a `CustomPacketPayload` with an explicit `StreamCodec` field `STREAM_CODEC`.
+- **Direction is enforced by NeoForge.** Client-bound payloads are registered with `playToClient` and handled in
+  `PacketHandlerClient` (`@EventBusSubscriber(value = Dist.CLIENT)`, `RegisterClientPayloadHandlersEvent`); NeoForge
+  refuses to decode one that arrives at the server. Server-bound payloads are GUI actions only. Handlers run on the main
+  thread.
+- **Payloads so far**:
+
+  | Payload | Direction | 4.2.2 | Content |
+  |---|---|---|---|
+  | `PacketTileState` (`tile_state`) | to client | `PacketTileState`, `STATE_UPDATE` | position, up to 32 `(stateId, bytes)` |
+  | `PacketGuiWidget` (`gui_widget`) | to client | `PacketGuiWidget`, `GUI_WIDGET` | container id, widget index, bytes |
+  | `PacketGuiReturn` (`gui_return`) | to server | `PacketGuiReturn`, `GUI_RETURN` | container id, position, bytes |
+
+  Each byte payload is at most `PacketData.MAX_PAYLOAD_BYTES` (32767); the codec refuses anything longer. The
+  per-module 4.2.2 packets (gate, diamond/emerald pipe, refinery filter, assembly table, advanced workbench, architect,
+  library) are ported with their GUIs: each becomes its own payload registered in `PacketHandler`, or rides on
+  `PacketGuiReturn` when it only sets block entity fields.
+- **Opaque bytes, typed buffers.** A state, widget or GUI return payload is written with
+  `PacketData.write(registryAccess, buf -> ...)` into a `RegistryFriendlyByteBuf` (so `ItemStack` and `FluidStack`
+  codecs work) and carried as a length-prefixed byte array; the receiver reads it with `PacketData.wrap(...)`. This
+  keeps 4.2.2's "the tile writes its own bytes" shape (`IClientState.writeData/readData`,
+  `IGuiReturnHandler.writeGuiData/readGuiData`, `Widget.handleClientPacketData`) with `DataOutputStream` and
+  `DataInputStream` replaced by the buffer, and one bad state cannot shift the bytes of the next.
+
+### Block entity state sync
+
+- A block entity implements `ISyncedTile` (`getStateInstance(byte)`, `afterStateUpdated(byte)`) and keeps one
+  `IClientState` per state id, as `TileGenericPipe` did. To push: `PacketTileState packet = new
+  PacketTileState(getBlockPos(), level.registryAccess()); packet.addStateForSerialization((byte) 0, coreState);` then
+  `PacketDistributor.sendToPlayersTrackingChunk((ServerLevel) level, new ChunkPos(getBlockPos()), packet)`.
+- The client handler checks the position is loaded and the block entity is an `ISyncedTile`; an unknown state id is
+  logged and skipped, and an exception while reading is logged, not thrown.
+- The one-shot description data that 4.2.2 sent with `PacketTileUpdate` / `getDescriptionPacket` uses vanilla's
+  `getUpdateTag` and `ClientboundBlockEntityDataPacket` instead; it needs no payload of ours.
+
+### GUI return and widgets
+
+- `core/gui/BuildCraftContainer` (only its networking half so far) is the base of every Buildcraft menu, as in
+  4.2.2. Constructor `(MenuType, containerId, inventorySize)`. It keeps the widget list, `sendWidgetDataToClient`,
+  `handleWidgetClientData` and the crafters list; crafters are the players from `PlayerContainerEvent.Open`/`Close`,
+  which replace `addCraftingToCrafters`, and `broadcastChanges` calls `Widget.updateWidget(player)` for each.
+- `core/gui/widgets/Widget` likewise has only geometry, `initWidget`, `updateWidget` and `handleClientPacketData` so
+  far; drawing and mouse handling come with the GUI base classes.
+- A menu whose GUI sends settings back overrides `BuildCraftContainer.getGuiReturnHandler()` to return its block
+  entity. The block entity implements `IGuiReturnHandler`; `getLevel`, `getBlockPos` and `isRemoved` come from
+  `BlockEntity`, so it only writes `writeGuiData` and `readGuiData`. The GUI sends with
+  `new PacketGuiReturn(menu.containerId, blockEntity).sendPacket()` (4.2.2: `new PacketGuiReturn(tile).sendPacket()`).
+- 4.2.2's dimension id and entity form are dropped: the server uses the sender's own level and open menu, and no
+  4.2.2 GUI returned data for an entity.
+
+### Validation of client packets (PLAN.md section 19.2)
+
+Every server-bound packet is checked before anything changes; a packet that fails is logged at WARN
+(`Dropped <name> packet from <player>: <reason>`) and dropped, and the sender stays connected.
+
+1. **Size**: the codec refuses byte payloads over 32767 bytes and malformed lengths (NeoForge then drops the
+   connection, as for any undecodable packet).
+2. **Open menu**: `PacketHandler.checkMenuAccess(sender, containerId, pos)`: the container id is the sender's open
+   menu (never 0, the player inventory), the menu is a `BuildCraftContainer` with a return handler, the handler is at
+   the packet's position in the sender's level and not removed, and `menu.stillValid(player)` holds.
+3. **Distance**: `player.isWithinBlockInteractionRange(pos, 1.0)` and the player is alive.
+4. **Value ranges**: `readGuiData` reads every client value through `PacketData.readVarInt/readInt/readByte/
+   readBoolean/readEnum/readUtf` with its allowed range (or checks it and throws `InvalidPacketException`), and
+   changes nothing until all values are read. Any `InvalidPacketException` or runtime exception from a short or
+   garbled buffer drops the packet.
+
+Future server-bound payloads call `checkMenuAccess` and `PacketHandler.reject` the same way.
+
+### Tests
+
+`./gradlew test` runs JUnit 5 through moddev's `unitTest` (junit-fml, game loaded). `PacketCodecTest` round-trips
+each codec and checks that truncated, oversized and over-long packets fail to decode; `GuiReturnValidationTest` checks
+that a valid return is applied and that each failed check (wrong container, no menu, other position, removed block,
+invalid menu, out of reach, out-of-range value, over-long string, truncated or garbage data) is logged and dropped
+without touching the block entity. The tests use a `PacketHandler.Sender` stand-in for the player.
