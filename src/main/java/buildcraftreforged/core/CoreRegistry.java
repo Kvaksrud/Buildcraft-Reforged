@@ -27,6 +27,7 @@ public final class CoreRegistry {
     public static final DeferredItem<ItemBuildCraft> ironGearItem = gear("ironGearItem");
     public static final DeferredItem<ItemBuildCraft> goldGearItem = gear("goldGearItem");
     public static final DeferredItem<ItemBuildCraft> diamondGearItem = gear("diamondGearItem");
+    public static final DeferredItem<ItemWrench> wrenchItem = wrench("wrenchItem");
 
     static {
         CreativeTabBuildCraft.registerAll(REGISTERS.creativeModeTabs);
@@ -38,6 +39,13 @@ public final class CoreRegistry {
     private static DeferredItem<ItemBuildCraft> gear(String unlocalizedName) {
         DeferredItem<ItemBuildCraft> item = REGISTERS.items.registerItem(RegistryNames.of(unlocalizedName),
                 ItemBuildCraft::new, properties -> properties.overrideDescription("item." + unlocalizedName));
+        CreativeTabBuildCraft.MACHINES.add(item);
+        return item;
+    }
+
+    private static DeferredItem<ItemWrench> wrench(String unlocalizedName) {
+        DeferredItem<ItemWrench> item = REGISTERS.items.registerItem(RegistryNames.of(unlocalizedName), ItemWrench::new,
+                properties -> properties.overrideDescription("item." + unlocalizedName));
         CreativeTabBuildCraft.MACHINES.add(item);
         return item;
     }
