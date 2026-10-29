@@ -95,3 +95,51 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
   is what we keep: "Wood Gear" (code: "Wooden Gear"), "Stirling Engine" (code: "Steam Engine"), "Auto Workbench"
   (code: "Automatic Crafting Table"), "Chute" (code: "Hopper"), "Path Marker" (code: "Path Mark"). Parity review
   (P8) can check which one 1.6.4 actually showed.
+
+## Config (#19)
+
+- `core/BuildCraftConfiguration` holds two `ModConfigSpec`s: the common one (`config/buildcraftreforged-common.toml`)
+  and the client one (`config/buildcraftreforged-client.toml`). It replaces 4.2.2's single `buildcraft/main.conf` and
+  takes over the option reads from `BuildCraftCore`, `BuildCraftEnergy`, `BuildCraftFactory`, `BuildCraftBuilders` and
+  `BuildCraftTransport`. Fields are named after the 4.2.2 static fields they were read into
+  (`BuildCraftConfiguration.miningMultiplier` for `BuildCraftFactory.miningMultiplier`); a port calls `.get()` where
+  4.2.2 read the field. Module ports should not copy the values into static fields, so edits on disk apply.
+- FML 12 (NeoForge 26.3) has no `COMMON` type any more: the types are `LOCAL`, `CLIENT`, `SYNCED` and `STARTUP`. The
+  common spec is registered as `LOCAL` (loaded at startup on each side, not synced) with the file name
+  `buildcraftreforged-common.toml`. `pipes.durability` is block hardness, which the client also predicts; if a server
+  value that differs from the client's causes visible break desync, P3 can move it to a `SYNCED` spec.
+- **Names stay the 4.2.2 names**, including the typo `mining.cost.multipler`. 4.2.2 put every option in `general`;
+  here the dotted name is the TOML path from the root, so `mining.cost.multipler` is key `multipler` in table
+  `[mining.cost]` (TOML treats the two spellings as the same key). PLAN.md sections 6 and 19.3 call two options
+  `mining.multiplier` and `worldgen.oilWellScalar`; they are `mining.cost.multipler` and `oilWellGenerationRate` here,
+  following the "same names" rule. The `worldgen.oil` toggle from section 19.3 is 4.2.2's `modifyWorld`.
+- `core/utils/ConfigUtils` is ported as a thin wrapper over the builder with the same `get(tag, ...)` signatures and
+  `{t}` comment substitution, returning the spec values. The category argument, the `reset` overload (unused in 4.2.2)
+  and the parse helpers are gone: the spec validates, clamps and rewrites bad values itself.
+- 4.2.2 left most numbers unbounded. Bounds were added where a negative or zero value would break the code that reads
+  it: `itemLifespan` ≥ 100 (4.2.2 clamped in code), `network.*` ≥ 1, the `fuel.*`, `oilWellGenerationRate` and
+  `pipes.durability` multipliers ≥ 0, `filler.lifespan.*` ≥ 0.
+- Defaults changed by the plan: `itemLifespan` 1200 → 6000 (section 19.3). `pumping.controlList` now uses dimension
+  and fluid ids: default `+/*/*,+/minecraft:the_nether/minecraft:lava` (4.2.2: `+/*/*,+/-1/lava`); the
+  `PumpDimensionList` port (P4) parses resource locations instead of integers. `woodenPipe.item.exclusion` and
+  `woodenPipe.liquid.exclusion` list block ids (`minecraft:furnace`) instead of numeric `id:meta` or unlocalised names,
+  and moved from the `block` section to the root.
+- New options: `engines.explode` (default true) and `engines.overheatTimerSeconds` (default 300, range 1 to 86400) for
+  section 9; `fluids.netherIgnition` (default true, section 19.2); `quarry.loadsChunks` (default false, section 19.3);
+  a `transport` section for the P3 tier ladder (`transport.tiers`, section 8). It is defined but empty, and NightConfig
+  does not write empty tables, so `[transport]` appears in the file once P3 adds its first value.
+- `client.colorblindmode` is in the client file.
+
+### Dropped options
+
+| 4.2.2 option (category) | Read in | Why dropped |
+|---|---|---|
+| every `*.id` in `block` and `item` (`wrench.id`, `springBlock.id`, the five gear ids, `engine.id`, `oil.id`, `oilStill.id`, `fuel.id`, `bucketOil.id`, `bucketFuel.id`, `miningWell.id`, `drill.id`, `autoWorkbench.id`, `frame.id`, `quarry.id`, `pump.id`, `floodGate.id`, `tank.id`, `refinery.id`, `hopper.id`, `templateItem.id`, `blueprintItem.id`, `marker.id`, `pathMarker.id`, `filler.id`, `builder.id`, `architect.id`, `blueprintLibrary.id`, `laser.id`, `assemblyTable.id`, `redstoneChipset.id`, `pipe.id`, `pipeWaterproof.id`, `redPipeWire.id`, `bluePipeWire.id`, `greenPipeWire.id`, `yellowPipeWire.id`, `pipeGate.id`, `pipeGateAutarchic.id`, `pipeFacade.id`, `pipePlug.id`, `filteredBuffer.id`, one `<pipe name>.id` per pipe) | all five module classes | Numeric ids are gone; registries replace them (PLAN.md section 6). |
+| `biomes.oilDesert`, `biomes.oilOcean` | `BuildCraftEnergy` | Oil biomes are replaced by a placed feature in vanilla deserts and oceans; no biome ids (PLAN.md section 6). |
+| `update.check` (`general`) | `BuildCraftCore` | `Version.java` and every network call are removed (PLAN.md section 19). |
+| `version.seen` (`vars`) | `core/Version` | Same as `update.check`. |
+| `version` (`general`) | `BuildCraftConfiguration.save` | Version stamp written on every save; the mod version comes from `gradle.properties`. |
+| `power.framework` (`general`) | `BuildCraftCore` | Read but never used in 4.2.2; the power framework is fixed (PLAN.md section 7). |
+| `current.continuous` (`general`) | `BuildCraftCore` | Stored in `continuousCurrentModel`, which nothing in 4.2.2 reads. |
+| `trackNetworkUsage` (`general`) | `BuildCraftCore` | Counted packet sizes in the reflection-based `ClassMapping`, which explicit `StreamCodec`s replace. |
+| `pipes.groupItemsTrigger` (`general`) | `BuildCraftTransport` | Grouped items inside a pipe; the new transport has no in-pipe inventory (PLAN.md section 8). |
