@@ -225,3 +225,54 @@ each codec and checks that truncated, oversized and over-long packets fail to de
 that a valid return is applied and that each failed check (wrong container, no menu, other position, removed block,
 invalid menu, out of reach, out-of-range value, over-long string, truncated or garbage data) is logged and dropped
 without touching the block entity. The tests use a `PacketHandler.Sender` stand-in for the player.
+
+## core/utils and api/core (#22)
+
+- **Coordinates stay `int x, y, z`** in `BlockUtil` and `Utils`, as in 4.2.2, so the quarry, filler, pump and builder
+  loops port unchanged; the methods build the `BlockPos` inside. Block ids and metadata become `BlockState`: every
+  4.2.2 overload taking `int blockID` takes a `BlockState` in the same position.
+- **`ForgeDirection` → `Direction`, `UNKNOWN` → `null`.** The ordinals match (DOWN, UP, NORTH, SOUTH, WEST, EAST), so
+  `MatrixTranformations.transform`'s ordinal arithmetic is unchanged. `Position.orientation` is `@Nullable`; its
+  switches use `case null, default:` where 4.2.2 had `default:`, so a position without orientation still does not move.
+- **NBT → `ValueInput`/`ValueOutput`**, the block entity save API: `Position(ValueInput)`/`Position.writeToNBT`,
+  `INBTTagable`, and `Utils.writeInvToNBT`/`readInvFromNBT` (an `ItemStackWithSlot` list, the same `Slot` semantics) and
+  `readStacksFromNBT`/`writeStacksToNBT` (an `ItemStack.OPTIONAL_CODEC` list, by index). Tag names are the 4.2.2 ones
+  (`i`, `j`, `k`). Nest with `output.child(name)` where 4.2.2 nested compounds.
+- **Null stacks → `ItemStack.EMPTY`** (`Utils.consumeItem`, `readStacksFromNBT`).
+- **`IInventory` → `Container`** in `Utils` only; `getInventory` uses `ChestBlock.getContainer` for double chests. The
+  inventory layer itself is #23.
+- **`BCLog.logger` is the mod logger** (SLF4J, named `buildcraftreforged`); `BuildcraftReforged.LOGGER` points at it.
+  `BCLog.initLog(version)` runs first in the mod constructor.
+- **`StringUtils.localize`** is a thin wrapper over `Language.getInstance().getOrDefault(key)`, which reads
+  `en_us.json` on the server too (NeoForge's `LanguageHook`) and the selected language on the client. New code should
+  prefer `Component.translatable`.
+- **`BuildCraftAPI.softBlocks`** is a `Set<Block>`; `LAST_ORIGINAL_BLOCK`/`LAST_ORIGINAL_ITEM` are gone with numeric
+  ids. Nothing fills the set yet: 4.2.2 filled it in `BuildCraftCore.postInit` (every fluid block, every `IPlantable`,
+  plus snow layer, vine and fire), which belongs to whichever issue ports that lifecycle method.
+- **`StackWrapper`** compares item and data components (`ItemStack.isSameItemSameComponents`), with a matching
+  `hashCode`. 4.2.2 ignored damage for items without subtypes; damage is a component now, so it always counts.
+- **`SafeTimeTracker`** reads `Level.getGameTime()`. The comparison sits in package-private overloads taking the game
+  time, so it is unit-tested without a level.
+- **`BlockUtil` break path.** `getBuildCraftPlayer(ServerLevel)` stands in for `CoreProxy.getBuildCraftPlayer` and
+  returns `FakePlayerFactory.getMinecraft` for now. It and the comment in `breakBlock` are marked `SEAM(#27)`: #27
+  returns the owner-profile fake player there and fires `BlockEvent.BreakEvent` before breaking. Drops come from
+  `Block.getDrops` with that player as breaker; `breakBlock` still spawns them itself with the 4.2.2 lifespan and
+  pick-up delay, so NeoForge's `BlockDropsEvent` does not fire. `itemLifespan` and `dropBrokenBlocks` are read from
+  `BuildCraftConfiguration` on each call; the oil check in `canChangeBlock` is `TODO(#42)`.
+- **Fluid blocks.** `BlockFluid`/`IFluidBlock` → `LiquidBlock` (vanilla water and lava and NeoForge fluids alike), full
+  means `LEVEL == 0`, the fluid is `LiquidBlock.fluid`. `drainBlock` returns a `FluidStack` of `FluidType.BUCKET_VOLUME`
+  for any source block; waterlogged blocks are not drained (4.2.2 had none).
+- **`explodeBlock`** has no `Explosion` to borrow: it plays the explosion sound, sends one explosion particle and
+  `destroyBlock`s with drops (4.2.2 dropped with chance 1/3 through the explosion).
+- **`CraftingHelper.findMatchingRecipe(CraftingInput, Level)`** returns the `RecipeHolder<CraftingRecipe>` from the
+  server recipe manager, or null (also on the client). Its copy of the 1.6.4 repair handler is gone: vanilla's repair
+  recipe is an ordinary recipe in the manager now.
+- **Dropped:** `Localization` (#18), `IIconProvider` (icons are
+  atlas sprites from models now), `Utils.getItemData` (data components), `Utils.handleBufferedDescription` (description data uses vanilla
+  `getUpdateTag`, see Networking (#20)), the `@API` `package-info`. `EnumColor.DYES`
+  keeps the Ore Dictionary names.
+- **Waiting for their dependencies** (listed at the top of `Utils`): `addToRandomInventoryAround` (#23, #36),
+  `addToRandomPipeAround` and `checkPipesConnections` (#34, #48), `checkLegacyPipesConnections` (#67), `createLaser`
+  and `createLaserBox` (#29), `preDestroyBlock` (#21, #23).
+- **Unit tests** for the maths helpers (`MathUtils`, `MatrixTranformations`, `Position`, `SafeTimeTracker`,
+  `RevolvingList`, the pure `Utils` methods) run in the same JUnit setup as #20's tests.
