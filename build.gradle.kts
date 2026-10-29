@@ -70,6 +70,21 @@ neoForge {
             sourceSet(sourceSets.main.get())
         }
     }
+
+    // JUnit tests run with the game loaded (registries bootstrapped), through junit-fml.
+    unitTest {
+        enable()
+        testedMod = mods.getByName(modId)
+    }
+}
+
+dependencies {
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 configurations {

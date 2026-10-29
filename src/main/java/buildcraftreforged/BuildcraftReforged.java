@@ -3,6 +3,7 @@ package buildcraftreforged;
 import buildcraftreforged.builders.BuildersRegistry;
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.CoreRegistry;
+import buildcraftreforged.core.network.PacketHandler;
 import buildcraftreforged.energy.EnergyRegistry;
 import buildcraftreforged.factory.FactoryRegistry;
 import buildcraftreforged.silicon.SiliconRegistry;
@@ -30,5 +31,8 @@ public final class BuildcraftReforged {
         BuildersRegistry.register(modBus);
 
         BuildCraftConfiguration.register(container);
+
+        // One payload channel for every module (core/network/PacketHandler).
+        PacketHandler.register(modBus);
     }
 }
