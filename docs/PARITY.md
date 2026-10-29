@@ -46,11 +46,11 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Wrench (`wrenchItem`) | `ItemWrench` | `wrench_item` | #28 | [ ] | [ ] | [ ] | Plus `c:tools/wrench` tag both ways (section 6). |
 | Oil spring (`spring.oil`) | `BlockSpring + ItemSpring (meta 1)` | `spring_oil` | #45 | [ ] | [ ] | [ ] | Lives with oil worldgen; normal hardness, drops nothing (section 19.2). |
 | Water spring (`spring.water`) | `BlockSpring + ItemSpring (meta 0)` | dropped | — | — | — | — | Dropped with its worldgen and config entry (section 3, Dropped). |
-| Wooden Gear (`woodenGearItem`) | `ItemBuildCraft` | `wooden_gear_item` | #18 | [ ] | [ ] | [ ] | Becomes `ItemBuildCraft` with #21. |
-| Stone Gear (`stoneGearItem`) | `ItemBuildCraft` | `stone_gear_item` | #18 | [ ] | [ ] | [ ] | Becomes `ItemBuildCraft` with #21. |
-| Iron Gear (`ironGearItem`) | `ItemBuildCraft` | `iron_gear_item` | #18 | [ ] | [ ] | [ ] | Becomes `ItemBuildCraft` with #21. |
-| Gold Gear (`goldGearItem`) | `ItemBuildCraft` | `gold_gear_item` | #18 | [ ] | [ ] | [ ] | Becomes `ItemBuildCraft` with #21. |
-| Diamond Gear (`diamondGearItem`) | `ItemBuildCraft` | `diamond_gear_item` | #18 | [ ] | [ ] | [ ] | Becomes `ItemBuildCraft` with #21. |
+| Wooden Gear (`woodenGearItem`) | `ItemBuildCraft` | `wooden_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
+| Stone Gear (`stoneGearItem`) | `ItemBuildCraft` | `stone_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
+| Iron Gear (`ironGearItem`) | `ItemBuildCraft` | `iron_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
+| Gold Gear (`goldGearItem`) | `ItemBuildCraft` | `gold_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
+| Diamond Gear (`diamondGearItem`) | `ItemBuildCraft` | `diamond_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
 
 ### Triggers (core, `DefaultTriggerProvider` and `TileGenericPipe`)
 

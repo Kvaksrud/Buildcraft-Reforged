@@ -276,3 +276,54 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
   and `createLaserBox` (#29), `preDestroyBlock` (#21, #23).
 - **Unit tests** for the maths helpers (`MathUtils`, `MatrixTranformations`, `Position`, `SafeTimeTracker`,
   `RevolvingList`, the pure `Utils` methods) run in the same JUnit setup as #20's tests.
+
+## Base block, block entity and item classes (#21)
+
+- **Ticking.** `BlockBuildCraft.getTicker` returns `BlockBuildCraft::updateEntity` for every block entity type, on both
+  sides, every tick: 1.6.4's `updateEntity` cadence. It calls `TileBuildCraft.updateEntity` unless the tile's
+  `canUpdate()` (1.6.4's `TileEntity.canUpdate`, now on `TileBuildCraft`) returns false; `TileAssemblyTable` and
+  `TileAutoWorkbench` override it as in 4.2.2. `initialize()` still runs on the first tick, and again after
+  `setRemoved` (4.2.2 `invalidate`) and `clearRemoved`.
+- **Save/load.** `saveAdditional(ValueOutput)` / `loadAdditional(ValueInput)` replace `writeToNBT` / `readFromNBT`
+  and keep the tag names (`owner`). A missing tag keeps the field's default, as 4.2.2's `hasKey` checks did.
+- **Owner** stays the 4.2.2 string (player name, default `[BuildCraft]`). #27 adds the owner's game profile for the
+  fake player next to it.
+- **Removal.** 26.x has no `breakBlock` with the block entity still present; vanilla calls
+  `BlockEntity.preRemoveSideEffects` on the server before removing it. `TileBuildCraft` overrides it with 4.2.2
+  `Utils.preDestroyBlock`: drop the inventory unless an `IDropControlInventory` says no, then `destroy()`. So
+  `Utils.preDestroyBlock` is not ported as a static (#22 lists it as waiting on #21; this is its home). `destroy()`
+  now runs on the server only; no 4.2.2 `destroy()` does client work. #23 adds the `SimpleInventory` drop
+  (`SEAM(#23)`).
+- **Active-machine light.** 4.2.2 added 8 to the light value while an `IMachine` was active, by reading the tile in
+  `getLightValue`. The light engine may not read block entities in 26.x (it runs off-thread and during chunk load),
+  so `TileBuildCraft.updateEntity` copies the light into NeoForge's `AuxiliaryLightManager` when `isActive()` changes
+  and relights the block; `BlockBuildCraft.getLightEmission` reads it. Machines no longer need their own
+  `updateAllLightTypes` calls for this.
+- **Hardness.** `setHardness(5F)` becomes `BlockBuildCraft.defaultProperties(props)` = `strength(5F)`: 1.6.4 set
+  resistance to hardness × 5 and divided by 5 for explosions, so explosion resistance is 5. Registration passes the
+  block's properties through it and adds the block to `CreativeTabBuildCraft.MACHINES`, which 4.2.2's constructor did.
+- **Items.** `ItemBuildCraft(Properties)`: icons become item models, the unlocalised name becomes
+  `overrideDescription`, and `getItemDisplayName` is dropped because `Item.getName` already translates the same key.
+  `shouldPassSneakingClickToBlock` becomes NeoForge's `doesSneakBypassUse`. `ItemBlockBuildCraft` is a plain
+  `BlockItem` (no metadata). The five gears are now `ItemBuildCraft`.
+- **TileBuffer / ITileBufferHolder.** Block ids become `BlockState`s: `getBlockID` → `getBlockState`, `0` → air,
+  `blockCreated(Direction, BlockState, BlockEntity)`. `blockExists` → `isLoaded`, `isInvalid` → `isRemoved`.
+  `makeBuffer` uses `Direction.from3DDataValue(i)`, whose order is `ForgeDirection`'s. The 20-tick re-check through
+  `SafeTimeTracker` is unchanged.
+- **IMachine.allowAction(IAction)** is left out until #31 brings `IAction` (`SEAM(#31)`). `IPowerReceptor`'s
+  `getPowerReceiver(null).update()` in `updateEntity` waits for #35 (`SEAM(#35)`).
+- **Network sync.** The reflection wrappers (`TilePacketWrapper`, `@TileNetworkData`) are gone (#20). A tile writes
+  the fields 4.2.2 marked `@TileNetworkData` itself in `writePacketPayload(RegistryFriendlyByteBuf)` and reads them in
+  `readPacketPayload`; `postPacketHandling()` runs after, as in 4.2.2. Description (chunk load) and update
+  (`sendNetworkUpdate`) carry the same bytes, as 4.2.2's `PacketTileUpdate` did for both:
+  - update: `TileBuildCraft` is an `ISyncedTile`; `sendNetworkUpdate()` sends a `PacketTileState` with the payload as
+    state `TileBuildCraft.NETWORK_STATE` (0) to the players tracking the chunk (4.2.2: within
+    `NETWORK_UPDATE_RANGE`). A tile with more states uses ids from 1 and calls super in `getStateInstance` /
+    `afterStateUpdated`.
+  - description: `getUpdateTag` holds only the payload bytes (`networkData`); `handleUpdateTag` and `onDataPacket`
+    read them instead of loading the saved data, as 4.2.2's description carried only `@TileNetworkData` fields. A
+    tile that needs saved data on the client (none in 4.2.2) overrides these.
+- **SafeTimeTracker** is #22's port, copied byte for byte from its branch (with its test) so the two merge cleanly.
+- **Tests.** `TileBuildCraftTest` uses a sample tile on the furnace's block entity type (types cannot be registered
+  once the game has loaded) to check the tick, `canUpdate`, re-initialize after removal, save/load with the tag names,
+  the network payload and the removal path. The test setup is #20's `unitTest` block, copied unchanged.
