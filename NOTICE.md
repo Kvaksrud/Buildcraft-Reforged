@@ -7,6 +7,10 @@ BuildCraft was created by SpaceToad and developed by CovertJaguar, Krapht, SirSe
 Upstream: <https://github.com/BuildCraft/BuildCraft>, tag `4.2.2`.
 
 The original code and assets are distributed under the Minecraft Mod Public License 1.0.1, included as `LICENSE`.
+At tag 4.2.2, 29 source files still carried an early "BuildCraft Open Source License" header. Upstream replaced it
+with the MMPL header in commit `360d782ea` (SpaceToad, 15 February 2014); this project uses that normalised header for
+those files. `reference/README.md` lists them.
+
 Buildcraft Reforged, including its changes and new code and art, is distributed under the same licence. The complete
 source is available at <https://github.com/Kvaksrud/Buildcraft-Reforged>.
 

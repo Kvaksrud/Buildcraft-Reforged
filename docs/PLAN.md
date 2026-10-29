@@ -417,6 +417,8 @@ The 4.2.2 tree ships `buildcraft_resources/LICENSE.txt`: Minecraft Mod Public Li
 - Dependencies must be under comparable terms, except Minecraft itself and the mod loader. NeoForge is the loader, so Forge Energy is fine. JEI is an optional runtime integration, not a dependency the mod needs to work.
 - Textures and other assets sit under the same file in the repo, so they are covered too. New art and new code we write are released under the same MMPL as part of the whole.
 
+Twenty-nine files at tag 4.2.2 still carry an early "BuildCraft Open Source License" header that withholds redistribution. Decided 29 Oct 2026 (#1): they are MMPL like the rest. SpaceToad moved the codebase to MMPL in 2011 (`dcf49f49e`), the MMPL `LICENSE.txt` has shipped in the jar since 2012 (`cc350b18c`), and SpaceToad replaced the old header in exactly these 29 files with the MMPL header in `360d782ea` ("normalized file headers", 15 Feb 2014, first released in 5.0.0). `reference/` and every port of these files carry that normalised header. Optional courtesy: tell the BuildCraft organisation about the port.
+
 So releasing Buildcraft Reforged built on this code is allowed, with attribution, source publication and the MMPL kept. The licence says nothing about the project name: it neither grants nor restricts use of "BuildCraft", and it has no requirement to label a derivative as unofficial. The name stays as chosen. Telling the current maintainers (the BuildCraft GitHub organisation) about the project is an optional courtesy. This is a reading of the licence text, not legal advice.
 
 ---
@@ -499,6 +501,7 @@ Recommendation: ship 0.1.0 without it and make it a later 0.x release, because i
 | 29 Oct 2026 | P0 versions pinned: NeoForge 26.3.0.99 (no longer labelled beta), ModDevGradle 2.0.148, Gradle 9.8.2, mod-publish-plugin 2.2.1 (2.x needs `client`/`server` set for CurseForge). The project lives at the repository root, not in a `buildcraft-reforged/` subfolder. `publishMods` is a dry run without `CURSEFORGE_TOKEN`. |
 | 29 Oct 2026 | No CI checks on pull requests until the project nears release; `build.yml` comes back then. Only the tag-triggered `release.yml` exists. Builds and GameTests run locally meanwhile. |
 | 29 Oct 2026 | Tooling stays on the newest LTS: Java 25, Node 24 for anything Node-based (GitHub Actions on `checkout@v7`, `setup-java@v6`, `setup-gradle@v6`, all Node 24). |
+| 29 Oct 2026 | Licence (#1): the 29 files with the old "BuildCraft Open Source License" header are treated as MMPL, on the strength of upstream `360d782ea`. They carry its normalised MMPL header in `reference/` and in ports. Section 12. |
 
 ---
 
