@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="${mod_license}"
+issueTrackerURL="https://github.com/Kvaksrud/Buildcraft-Reforged/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+displayURL="https://github.com/Kvaksrud/Buildcraft-Reforged"
+authors="Patrick Kvaksrud"
+credits="Based on BuildCraft 4.2.2 by SpaceToad, CovertJaguar, Krapht, SirSengir and the BuildCraft team"
+description='''
+BuildCraft's Minecraft 1.6.4 machines, engines, pipes and builders, rebuilt for NeoForge with Forge Energy.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
