@@ -512,8 +512,8 @@ its per-tick refill increments `overload`, otherwise decrements it (floor 0, cei
 Constants from `PipeTransportPower` (`OVERLOAD_TICKS`, `maxPower * 0.95`).
 
 **Power Limiter** (4.2.2 `PipePowerIron.PowerMode`: 2, 4, 8, 16, 32, 64, 128 MJ/t, set by wrench or the Power Limiter
-gate action): becomes a per-pipe refill override of 20, 40, 80, 160, 320, 640, 1 280 FE/t, capped by the tier. Which
-module carries it is Q7.
+gate action): becomes a per-pipe refill override of 20, 40, 80, 160, 320, 640, 1 280 FE/t, capped by the tier. The
+Director module on a power pipe carries it (Q7, decided).
 
 ---
 
@@ -535,7 +535,7 @@ module carries it is Q7.
 |---|---|---|---|---|
 | Extractor | `PipeItemsWood`, `PipeFluidsWood` | yes | yes | no |
 | Filtered Extractor | `PipeItemsEmerald` | yes | no | no |
-| Director | `PipeItemsIron`, `PipeFluidsIron` | yes | yes | no (Q7) |
+| Director | `PipeItemsIron`, `PipeFluidsIron`, `PipePowerIron` | yes | yes | yes, as the Power Limiter (Q7) |
 | Sorter | `PipeItemsDiamond` | yes | no | no |
 | Pickup | `PipeItemsObsidian` | yes | no | no |
 | Void | `PipeItemsVoid`, `PipeFluidsVoid` | yes | yes | no |
@@ -794,7 +794,7 @@ Ported from 4.2.2 as PLAN 8.5. Transport-specific mapping:
 | `ActionPipeDirection` | Director and Colour Sorter facing. |
 | `ActionPipeColor` | Colour Tag and Colour Sorter colour. |
 | `ActionExtractionPreset` | Filtered Colour Tag (8.10); Basic Extractor (Q15). |
-| `ActionPowerLimiter` | Q7. |
+| `ActionPowerLimiter` | Director module on a power pipe (Q7). |
 | `ActionEnergyPulser`, `ActionSingleEnergyPulse` | Pulse the Basic Extractor (section 10). On pipes, modules need no power, so they have no effect there (4.2.2 used them to pulse wooden pipes). |
 
 All other triggers and actions (Pipe Signal, Redstone Input, Signal Output, Redstone Output) and every gate kind are
@@ -977,11 +977,13 @@ GameTests use structures under `src/test/resources` or are built in code, and ru
 
 ---
 
-## 15. Questions
+## 15. Decisions
 
-Each needs a decision from the plan owner. The spec currently uses the provisional rule given.
+Decided 29 Oct 2026 (#97): every provisional rule below is the rule. Q7 is settled as: a Director module on a
+power pipe is the 4.2.2 Power Limiter, with modes 20, 40, 80, 160, 320, 640 and 1 280 FE/t, switched by wrench and
+the Power Limiter gate action. References to these questions elsewhere in this file point here.
 
-| # | Question | 4.2.2 / PLAN facts | Provisional rule |
+| # | Question | 4.2.2 / PLAN facts | Rule |
 |---|---|---|---|
 | Q1 | What does the walk do at a dead end? | 4.2.2 dropped the item (`resolveDestination` → `UNKNOWN` → `dropItem`). PLAN 8.3: nothing spills; "the first inventory on that walk that accepts". | Back up to the previous junction and try its next candidate (4.2.2 bouncing already did this for Iron/Daizuli). Alternative: refuse and retry next tick with a new random walk. |
 | Q2 | Fluids: random walk or 4.2.2 even split? | 4.2.2 `PipeTransportFluids.moveFromCenter` splits among all accepting sides in proportion to free space. PLAN 8.3 says fluids use "the same walk". | Random walk, as decided. |
@@ -989,7 +991,7 @@ Each needs a decision from the plan owner. The spec currently uses the provision
 | Q4 | How much budget can a pipe accumulate? | PLAN 8.1 gives only the per-tick rate. Engines deliver in pulses (PLAN 7), so with a one-tick cap a pipe would take only one tick's worth per pulse. | Cap = 1 s of rate (`transport.burstSeconds` = 1.0) for all kinds. |
 | Q5 | How long does a pipe stay "holding" a fluid? | 4.2.2 residual fluid stayed in a pipe until it drained, indefinitely with no outlet. New pipes store nothing. | Lock for `transport.fluidLockTicks` = 20 ticks after the last flow. |
 | Q6 | Which power pipes accept power from engines and generators? | 4.2.2: only the wooden kinesis pipe (`PipeTransportPower.canPipeConnect` emitter check, `PipePowerWood`). The new ladder has no per-material behaviour and no power module. | Every power pipe accepts pushes from any adjacent non-pipe block. Alternative: only pipes with an Extractor module. |
-| Q7 | Where does the Power Limiter live? | 4.2.2 `PipePowerIron` (iron kinesis pipe, modes 2–128 MJ/t, wrench and gate action). PLAN maps "iron pipe" to the Director, whose "force the exit side" has no meaning for power; 8.5 keeps the Power Limiter action. | Not settled: Director on a power pipe acts as the limiter (modes × 10 FE/t), or a power-only module, or drop the action. |
+| Q7 | Where does the Power Limiter live? | 4.2.2 `PipePowerIron` (iron kinesis pipe, modes 2–128 MJ/t, wrench and gate action). PLAN maps "iron pipe" to the Director, whose "force the exit side" has no meaning for power; 8.5 keeps the Power Limiter action. | Director on a power pipe acts as the limiter, modes × 10 FE/t, wrench and gate action. |
 | Q8 | Which modules fit which kinds? | 4.2.2 had wood, iron, void, sandstone and emerald fluid pipes (emerald fluid was only faster), and no special power pipes besides wood and iron. | Matrix in 8.1. |
 | Q9 | Filtered Extractor modes. | PLAN 8.2: "round-robin/ordered". 4.2.2 `PipeItemsEmerald`: blocking / non-blocking, both round-robin. | 4.2.2 blocking / non-blocking. |
 | Q10 | Colour Sorter: one colour per side, or one colour and one side? | PLAN 8.2: "one colour per side". 4.2.2 `PipeItemsDaizuli`: one colour, one output side, all other items to the other sides. | 4.2.2 behaviour. |
