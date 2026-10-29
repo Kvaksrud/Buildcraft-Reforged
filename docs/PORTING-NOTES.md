@@ -15,7 +15,7 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 | `TileEntity` + `updateEntity()` | `BlockEntity` + `BlockEntityTicker` | Keep the tick cadence and `SafeTimeTracker` logic. |
 | `readFromNBT`/`writeToNBT` | the current block-entity save API (`ValueInput`/`ValueOutput` in 1.21.6+; confirm the 26.x form) | Keep the same tag names where the data survives. |
 | `IInventory`, `ISidedInventory` | `IItemHandler` via `Capabilities.Item.BLOCK` | Internal `SimpleInventory` port keeps slot semantics; expose handlers per side exactly as 4.2.2 `ISidedInventory` did. |
-| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge `IFluidHandler` capability, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. |
+| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge transfer API: `ResourceHandler<FluidResource>` via `Capabilities.Fluid.BLOCK`, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. 26.3 has no `IFluidHandler` (confirmed in #24). |
 | `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as `IEnergyStorage` via `Capabilities.Energy.BLOCK` | Section 7. |
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
@@ -419,3 +419,52 @@ Interfaces, enums, registries and base classes only; implementations land in the
   `IPipe.DrawingState`, `IPipeTile.getPipe`, `ISpecialInventory` and `ISelectiveInventory` are not expected to;
   `ISecuredInventory` and `IExtractionHandler` are P3's call. `IPipeTile` no longer extends a fluid handler; pipes
   expose `Capabilities.Fluid.BLOCK`.
+
+## Fluid tanks (#24)
+
+- **26.3 has no `IFluidHandler` or `FluidTank`.** NeoForge's fluid capability is the transfer API:
+  `Capabilities.Fluid.BLOCK` gives a `ResourceHandler<FluidResource>` with indexed slots and transactions. The API
+  mapping row now says so (here and in `docs/PLAN.md` section 6).
+- **`core/fluids/Tank`** carries Forge 1.6.4 `FluidTank`'s fields (`fluid`, `capacity`, `tile`) and its `fill(FluidStack,
+  boolean)` / `drain(int, boolean)` logic, so the 4.2.2 machine code calls them unchanged. An empty tank holds
+  `FluidStack.EMPTY` where 1.6.4 held null; `drain` returns `EMPTY` for nothing. It is also a one-slot
+  `ResourceHandler<FluidResource>`: `insert`/`extract` simulate with `fill`/`drain(..., false)`, then journal and
+  apply. Rollback goes through NeoForge's `SnapshotJournal` (`Tank` extends it; `SingleUseTank` adds its
+  `acceptedFluid` to the snapshot). A change marks the tile changed (1.6.4 posted a `FluidEvent` instead), on the
+  root commit when inside a transaction.
+- **`TankManager<T extends Tank>`** is still a `ForwardingList<T>` and implements `ResourceHandler<FluidResource>`
+  with one index per tank, so a machine exposes it directly:
+  `event.registerBlockEntity(Capabilities.Fluid.BLOCK, TYPE, (tile, side) -> tile.tankManager)`. The whole-handler
+  `insert`/`extract` keep 4.2.2's order: the first tank that takes (or gives) any fluid is the only one used. The 4.2.2
+  `fill(Direction, ...)`, `drain(Direction, ...)`, `canFill`, `canDrain` stay as plain methods for the machines'
+  own code; `getTankInfo` is gone with `FluidTankInfo` (read the handler's slots instead, as #31's
+  `TriggerFluidContainer` should).
+- **`RestrictedTank` / `SingleUseTank`** also answer `isValid` from their accepted fluids.
+- **Tag names** are 4.2.2's: a compound per tank named after it (`tank`, `tank1`, `tankFuel`, ...), holding Forge
+  1.6.4 `FluidTank`/`FluidStack` tags `FluidName`, `Amount`, `Tag` (now the components patch) or `Empty`, plus
+  `acceptedFluid` for `SingleUseTank`. `FluidName` is the registry id (`minecraft:water`); a name without a namespace
+  (1.6.4's `water`, `oil`) is looked up in `minecraft`, then `buildcraftreforged` (`FluidUtils.getFluid`).
+- **Sync.** `TankManager.writeData`/`readData` take a `RegistryFriendlyByteBuf`: per tank, the
+  `FluidStack.OPTIONAL_STREAM_CODEC`. Call them from the tile's `writePacketPayload`/`readPacketPayload` (#21), as
+  4.2.2's `TileTank` did from its payload. 4.2.2 also sent the fluid colour from the server; fluid colours are client
+  data now, so `readData` fills `Tank.colorRenderCache` from `FluidRenderer.getColorForFluidStack` (white until the
+  client has fluid models). Never call `readData` on a dedicated server.
+- **`FluidUtils`.** `handleRightClick(handler, player, hand, fill, drain)`: the side argument is gone (the handler is
+  already sided), the hand is new; containers go through `ItemAccess.forPlayerInteraction(...).oneByOne()` and the
+  item fluid capability, which also covers creative mode, so buckets and any modded container work.
+  `getFluidBlockId` → `getFluidBlock(Fluid, moving)`, the source `BlockState` (one `LiquidBlock` per fluid; its flow
+  is scheduled on placement). `pushFluidToConsumers(Tank, flowCap, TileBuffer[])` looks up each neighbour's
+  `Capabilities.Fluid.BLOCK` and moves with `ResourceHandlerUtil.move`.
+- **`BCFluid` is a `FluidType`**: 4.2.2's only addition to Forge's `Fluid` was the name key `fluid.<name>`, and names
+  live on `FluidType` now. #44 builds oil and fuel on it.
+- **`core/render/FluidRenderer`** (client only): sprites come from the fluid's `FluidModel` in the block atlas
+  (the missing model stands in for "missingno"); `setColorForFluidStack` → `getColorForFluidStack`, returning RGB from
+  the model's `FluidTintSource`; the display lists → `renderFluid(stack, stage, flowing, pose, buffer, color, light,
+  overlay)`, which writes the same 0.01–0.99 cuboid, `stage / DISPLAY_STAGES` high, into a `VertexConsumer` for a
+  `BlockEntityRenderer`. Nothing renders with it yet (#64 tank, refinery); it compiles but is not checked in game.
+- **Tooltip.** `Tank.getToolTip`/`refreshTooltip` wait for `core/gui/tooltips` (`SEAM(#25)`).
+- **Tests.** `TankManagerTest` (JUnit) covers fill/drain order, the indexed handler, commit/abort/nested
+  transactions, `SingleUseTank` and `RestrictedTank`, save/load with the tag names, the namespace-less name, and the
+  sync round trip. JUnit loads no data packs, so it binds empty default components on the fluids first. The
+  GameTests `tank_fill_and_drain` and `tank_bucket_and_save` use a `test_tank` block and block entity registered only
+  in the `gametest` source set, exposed through `Capabilities.Fluid.BLOCK`.
