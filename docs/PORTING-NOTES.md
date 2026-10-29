@@ -372,3 +372,50 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
   traces, from JVM start. After server tick 1000 the test reads a snapshot and fails on any event, logging each stack
   trace. It fails, rather than passes, when the recording is missing. Checked by hand: an HTTP connect added to the
   mod constructor makes it fail and names the line. DNS lookups without a connection are not traced.
+
+## Public api packages (#34)
+
+Ported to `buildcraftreforged.api.*`: `recipes`, `fuels`, `tools`, `filler`, `blueprints`, `inventory`, `transport`.
+Interfaces, enums, registries and base classes only; implementations land in their phases. `api/core` (#22),
+`api/power` (#35) and `api/gates` (#31) are not touched.
+
+- **Headers.** Files with a header in `reference/` keep it plus a "Modified by" line. Files with no header at 4.2.2
+  (half of the api package) get only a short "Modified by" comment naming the 4.2.2 file. The FML `@API` package
+  annotations have no NeoForge equivalent; each `package-info.java` keeps the 4.2.2 package and API version in javadoc.
+- **`api/core` and `api/gates` types.** `IFillerPattern` and `IBptContext` keep `IBox` and `Position` from
+  `buildcraftreforged.api.core` (#22), so the filler, builder and blueprint ports in P4/P6 follow their originals.
+  `StackWrapper` (item id + damage) is not used: `IronEngineCoolant` keys solid coolants by `Item`, since damage no
+  longer selects a variant after the flattening. `IFillerRegistry.getActions()` needs `IAction`; #31 adds it back.
+- **Units.** Fuel `powerPerCycle`, `AssemblyRecipe.energy` and the Refinery `energy` are FE (MJ × 10, plan section 7).
+  The types stay as 4.2.2 had them (`float`/`int`); callers pass FE values.
+- **Fluid names** in `IronEngineFuel`/`IronEngineCoolant` are registry ids (`buildcraftreforged:oil`) where 4.2.2
+  used FluidRegistry names (`oil`). `RefineryRecipes` sorts by the same id string. 1.6.4 `FluidStack.containsFluid`
+  is a private helper (same fluid and components, amount at least). `null` still means "no fluid"; an empty stack is
+  treated as `null`.
+- **Ore Dictionary in `AssemblyRecipe`.** The `(String oreName, Integer count)` pair became `(TagKey<Item>, Integer)`;
+  matching uses `ItemStack.is(tag)`. Exact stacks use `ItemStack.isSameItem` (1.6.4 `isItemEqual` ignored NBT too).
+  `assemblyRecipes` and `RefineryRecipes` stay the in-memory lookups; the silicon/factory phases fill them from the
+  JSON recipe types of plan section 6.
+- **Removed numeric-id overloads**: `IronEngineCoolant.addCoolant(int, int, FluidStack)`.
+- **Tools.** `IToolWrench` is #28's version (`(Player, InteractionHand, BlockPos)`, see "Wrench" above); this port
+  added only `IToolPipette`.
+- **Filler.** `IFillerPattern.createPatternIterator(BlockEntity, IBox, Direction)`. `getIcon()` returns the
+  sprite `Identifier` instead of a client-only `Icon`, so the interface loads on a dedicated server; `getDisplayName()`
+  returns a `Component`.
+- **Blueprints (plan section 13).** `BptSlotInfo` holds a `BlockState` (`state`) for `blockId` + `meta`, a
+  `CompoundTag cpt`, and gains `pos()`. `IBptContext` loses `mapItemStack`, `mapWorldId` and `storeId` (id
+  translation). `BptBlock` is keyed by `Block`; its default `rotateLeft` now rotates the block state clockwise (the
+  direction 4.2.2's `BptBlockRotateMeta` tables turned), `isValid` compares the whole state, block entity data goes
+  through `saveWithFullMetadata`/`loadWithComponents`, requirements skip a block with no item, and `useItem` leaves
+  the container-item swap to the caller because a stack's item is final. `getSignature`/`match` are gone.
+  `BlueprintManager.blockBptProps` is a `Map<Block, BptBlock>` with `getBptBlock(block)` creating the default on first
+  use (4.2.2 prefilled an id-indexed array). `BlockSignature` and `ItemSignature` are kept unchanged for the 1.6.4
+  importer (P9). The 4.2.2 `@Deprecated` marks on these classes are dropped: they announced 5.0's blueprint API, and
+  these classes are the live API here.
+- **Not ported here:** the 18 `bptblocks` schematics and `BptBlockUtils` (builders phase, P6); `PipeManager` and
+  `FacadeManager` (P3).
+- **Section 8 markers.** Transport and inventory types carry a "Plan section 8" paragraph saying what is expected to
+  survive P3: `PipeType`, `WireColor`, `IPipeConnection`, `ISolidSideTile` and `injectItem` (routing instantly) stay;
+  `IPipe.DrawingState`, `IPipeTile.getPipe`, `ISpecialInventory` and `ISelectiveInventory` are not expected to;
+  `ISecuredInventory` and `IExtractionHandler` are P3's call. `IPipeTile` no longer extends a fluid handler; pipes
+  expose `Capabilities.Fluid.BLOCK`.
