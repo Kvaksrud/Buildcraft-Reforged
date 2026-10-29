@@ -187,12 +187,12 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
 
 ### GUI return and widgets
 
-- `core/gui/BuildCraftContainer` (only its networking half so far) is the base of every Buildcraft menu, as in
+- `core/gui/BuildCraftContainer` (the networking half; #25 ported the rest) is the base of every Buildcraft menu, as in
   4.2.2. Constructor `(MenuType, containerId, inventorySize)`. It keeps the widget list, `sendWidgetDataToClient`,
   `handleWidgetClientData` and the crafters list; crafters are the players from `PlayerContainerEvent.Open`/`Close`,
   which replace `addCraftingToCrafters`, and `broadcastChanges` calls `Widget.updateWidget(player)` for each.
-- `core/gui/widgets/Widget` likewise has only geometry, `initWidget`, `updateWidget` and `handleClientPacketData` so
-  far; drawing and mouse handling come with the GUI base classes.
+- `core/gui/widgets/Widget` likewise had only geometry, `initWidget`, `updateWidget` and `handleClientPacketData`;
+  #25 added drawing, mouse handling and tool tips.
 - A menu whose GUI sends settings back overrides `BuildCraftContainer.getGuiReturnHandler()` to return its block
   entity. The block entity implements `IGuiReturnHandler`; `getLevel`, `getBlockPos` and `isRemoved` come from
   `BlockEntity`, so it only writes `writeGuiData` and `readGuiData`. The GUI sends with
@@ -419,3 +419,70 @@ Interfaces, enums, registries and base classes only; implementations land in the
   `IPipe.DrawingState`, `IPipeTile.getPipe`, `ISpecialInventory` and `ISelectiveInventory` are not expected to;
   `ISecuredInventory` and `IExtractionHandler` are P3's call. `IPipeTile` no longer extends a fluid handler; pipes
   expose `Capabilities.Fluid.BLOCK`.
+
+## GUI base classes and ledgers (#25)
+
+- **Ported:** `core/gui/BuildCraftContainer` (now complete), `GuiBuildCraft` with `LedgerManager` and `Ledger`,
+  `GuiAdvancedInterface`, `GuiTools`, `core/GuiIds`; and what they need that no other issue owns: `tooltips/*`,
+  `slots/` (`IPhantomSlot`, `SlotBase`, `SlotPhantom`, `SlotUntouchable`, `SlotLimited`, `SlotOutput`), `widgets/`
+  (`Widget` completed, `ButtonWidget`, `IndicatorWidget`, `IIndicatorController`, `IndicatorController`) and
+  `buttons/` (`GuiBetterButton`, `IButtonTextureSet`, `ButtonTextureSet`, `StandardButtonTextureSets`). Textures:
+  `textures/gui/ledger.png`, `textures/gui/buttons.png`, and the ledger icon `icons/energy` as a GUI sprite.
+- **Not ported yet:** `SlotValidated` and `SlotWorkbench` (Railcraft licence header on `SlotValidated`; `SlotWorkbench`
+  needs crafting), `FluidGaugeWidget` (#24's fluid rendering), the other `buttons/` classes (`GuiButtonSmall`,
+  `GuiToggleButton*`, `GuiMultiButton`, `MultiButtonController`, `IMultiButtonState`, `LockButtonState`). The first GUI
+  that uses one ports it here.
+- **Screens are generic in their menu:** `GuiBuildCraft<T extends BuildCraftContainer>`, because `MenuScreens` pairs a
+  menu type with a screen of that menu. `container` (typed `T`), `tile` and `texture` keep their 4.2.2 names. The
+  constructor is `(menu, inventory, texture, playerInventory, title[, xSize, ySize])`: 26.x fixes the size in the
+  constructor (`imageWidth`/`imageHeight` are final), where 4.2.2 GUIs assigned `xSize`/`ySize` afterwards. `inventory`
+  is what 4.2.2 passed as the `IInventory` (usually the block entity) and is handed to `initLedgers`.
+- **Drawing keeps the 1.6.4 calls.** 26.x renders through a `GuiGraphicsExtractor` per frame instead of GL state.
+  `GuiBuildCraft` stores it in `graphics` at the start of each pass, and offers the 1.6.4 calls on top:
+  `bindTexture`, `setColor` (`GL11.glColor4f`), `drawTexturedModalRect` (256 by 256 textures),
+  `drawGradientRect`, `drawString`/`drawStringWithShadow` (`fontRenderer.drawString...`; colours without alpha are
+  drawn opaque, as 1.6.4 did, which 26.x does not do by itself). Ported GUIs keep their drawing code and override
+  `drawGuiContainerBackgroundLayer(float, int, int)` and `drawGuiContainerForegroundLayer(int, int)` as before. The
+  background runs from `extractBackground`; the foreground runs after the slots, translated to the GUI corner, as in
+  1.6.4. Vanilla's title and "Inventory" labels are not drawn: 4.2.2 GUIs draw their own in the foreground.
+  `xSize`/`ySize` → `imageWidth`/`imageHeight`, `guiLeft`/`guiTop` → `leftPos`/`topPos`, `fontRenderer` → `font`,
+  `mc` → `minecraft`, `zLevel = 300` → `graphics.nextStratum()`.
+- **Mouse buttons.** 26.x numbers them 1 left, 2 middle, 3 right; widgets, ledgers and `slotClicked` keep the 1.6.4
+  numbers (0 left, 1 right, 2 middle). `GuiBuildCraft.toLegacyButton` converts at the edge. On the menu side the
+  1.6.4 click `modifier` is the `ContainerInput`, whose ids are the 1.6.4 numbers (0 pickup, 1 shift, 3 middle).
+- **Phantom slots.** `clicked` sends every click on an `IPhantomSlot` to the 4.2.2 handler, except vanilla's
+  drag-split (`QUICK_CRAFT`), and `canDragTo` keeps drags out of phantom slots (1.6.4 had no drag-split into them).
+  26.x only sends a middle click in creative; `GuiBuildCraft.mouseClicked` sends it for phantom slots in survival too,
+  as 1.6.4 did, so middle click still clears a filter slot.
+- **Buttons.** `GuiBetterButton` is an `AbstractButton` with the 4.2.2 `id`; pressing it calls the open screen's
+  `GuiBuildCraft.actionPerformed(AbstractButton)`, as 1.6.4's `GuiScreen` did. Add buttons in `init()` with
+  `addRenderableWidget`; `GuiTools.newButtonRow*` take `this::addRenderableWidget` where 4.2.2 passed `buttonList`.
+- **Ledgers** are unchanged, including `SessionVars` remembering the open ledger across GUIs and the animation
+  stepping once per frame (frame-rate dependent, as in 1.6.4). `drawIcon` takes a GUI sprite id
+  (`textures/gui/sprites/<path>.png`): 4.2.2's item-atlas icons (`buildcraft:icons/energy`) are GUI sprites now
+  (`buildcraftreforged:icons/energy`).
+- **`GuiAdvancedInterface`**: `AdvancedSlot.getIcon` returns a `TextureAtlasSprite` (which knows its atlas, so
+  `getTexture` is gone); hover text is a deferred tooltip. `FluidSlot` draws nothing until #24 ports `FluidRenderer`
+  (`SEAM(#24)`); 4.2.2 marked it unfinished too.
+- **Slots take a vanilla `Container`** where 4.2.2 took `IInventory`, as `Utils` does (#22), until #23 settles the
+  inventory layer. `StackHelper.canStacksMerge` is a private copy in `BuildCraftContainer` until #23 ports
+  `StackHelper`.
+- **Opening a menu.** Register the type with `IMenuTypeExtension.create(Container::new)` and a client constructor
+  `(int containerId, Inventory, RegistryFriendlyByteBuf)` that reads the block position and finds the block entity; open
+  it from the block's `useWithoutItem` with `player.openMenu(tile, pos)` (the tile is the `MenuProvider`); pair it with
+  its screen in `RegisterMenuScreensEvent`. This replaces `IGuiHandler` and `openGui(..., GuiIds.X, ...)`.
+- **Sample** (GameTest source set, dev runs only, never in the jar): block `buildcraftreforged:sample_gui`
+  (`/give @s buildcraftreforged:sample_gui`) opens a menu laid out like 4.2.2's Stirling engine GUI (texture copied as
+  `sample_gui.png`): a phantom slot, a counter synced by `CounterWidget` over `PacketGuiWidget` and drawn as the
+  flame gauge with a tool tip, a ledger showing the counter and step, and a `GuiBetterButton` that changes the step
+  through `PacketGuiReturn`. It is the pattern to copy for machine GUIs.
+- **No `@OnlyIn`.** NeoForge 26.3 no longer strips `@OnlyIn` members and shows a load warning for any mod using it.
+  Client-only classes (`GuiBuildCraft`, `GuiAdvancedInterface`, `GuiTools`, `GuiBetterButton`, every screen) carry a
+  `/* Client only. */` comment instead, and only client code (screen constructors, `RegisterMenuScreensEvent`) may
+  touch them. `Widget.draw` takes a `GuiBuildCraft` but only screens call it, so the server never loads the class.
+- **Tests.** `BuildCraftContainerTest` (JUnit: drag rule, widget data, button numbering). Item stacks need a loaded
+  world, so the phantom-slot and shift-click rules are the `gui_menu_slots` GameTest, and `gui_sample_menu` opens the
+  sample block's menu, checks the widget value on a client copy of the menu and runs a GUI return through
+  `PacketHandler.checkMenuAccess`. A mock player has no mod channel, so NeoForge refuses the open-screen packet: the
+  test opens the tile's menu on the server side itself, and the right-click → `openMenu` path is checked in a client
+  only. Drawing and mouse input need a client and are not tested.

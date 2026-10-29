@@ -30,6 +30,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> NO_SOCKETS = function("no_sockets");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_ROTATES_BLOCK = function("wrench_rotates_block");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_TAG = function("wrench_tag");
+    private static final ResourceKey<Consumer<GameTestHelper>> GUI_MENU_SLOTS = function("gui_menu_slots");
+    private static final ResourceKey<Consumer<GameTestHelper>> GUI_SAMPLE_MENU = function("gui_sample_menu");
 
     private BuildcraftGameTests() {
     }
@@ -40,6 +42,8 @@ public final class BuildcraftGameTests {
             registry.register(NO_SOCKETS, NoSocketsTest::noSockets);
             registry.register(WRENCH_ROTATES_BLOCK, WrenchTests::wrenchRotatesBlock);
             registry.register(WRENCH_TAG, WrenchTests::wrenchTag);
+            registry.register(GUI_MENU_SLOTS, GuiTests::menuSlots);
+            registry.register(GUI_SAMPLE_MENU, GuiTests::sampleMenu);
         });
     }
 
@@ -52,6 +56,10 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
         event.registerTest(id("wrench_tag"), new FunctionGameTestInstance(WRENCH_TAG,
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gui_menu_slots"), new FunctionGameTestInstance(GUI_MENU_SLOTS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gui_sample_menu"), new FunctionGameTestInstance(GUI_SAMPLE_MENU,
+                new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
     }
 
     /** Test-only data: puts a vanilla item in {@code c:tools/wrench} to stand in for another mod's wrench. */
