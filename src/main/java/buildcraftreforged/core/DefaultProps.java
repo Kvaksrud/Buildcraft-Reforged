@@ -8,7 +8,7 @@
  *
  * Modified by Buildcraft Reforged, 2026: block and item ids, legacy trigger and action ids, biome ids, texture paths,
  * the Forge dependency strings, the network channel name and the default language removed; registries, resource locations and the
- * payload registrar replace them (docs/PORTING-NOTES.md).
+ * payload registrar replace them. The pump dimension list default uses namespaced ids (docs/PORTING-NOTES.md).
  */
 
 package buildcraftreforged.core;
@@ -23,7 +23,7 @@ public class DefaultProps {
     public static int NETWORK_UPDATE_RANGE = 128;
     public static int PIPE_CONTENTS_RENDER_DIST = 24;
 
-    public static String PUMP_DIMENSION_LIST = "+/*/*,+/-1/lava";
+    public static String PUMP_DIMENSION_LIST = "+/*/*,+/minecraft:the_nether/minecraft:lava";
 
     public static boolean CURRENT_CONTINUOUS = false;
     public static double PIPES_DURABILITY = 0.25D;

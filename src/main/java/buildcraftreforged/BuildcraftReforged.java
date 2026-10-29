@@ -1,6 +1,7 @@
 package buildcraftreforged;
 
 import buildcraftreforged.builders.BuildersRegistry;
+import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.CoreRegistry;
 import buildcraftreforged.energy.EnergyRegistry;
 import buildcraftreforged.factory.FactoryRegistry;
@@ -27,5 +28,7 @@ public final class BuildcraftReforged {
         SiliconRegistry.register(modBus);
         TransportRegistry.register(modBus);
         BuildersRegistry.register(modBus);
+
+        BuildCraftConfiguration.register(container);
     }
 }
