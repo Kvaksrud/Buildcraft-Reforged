@@ -327,3 +327,48 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
 - **Tests.** `TileBuildCraftTest` uses a sample tile on the furnace's block entity type (types cannot be registered
   once the game has loaded) to check the tick, `canUpdate`, re-initialize after removal, save/load with the tag names,
   the network payload and the removal path. The test setup is #20's `unitTest` block, copied unchanged.
+
+## Wrench (#28)
+
+- `core/ItemWrench` keeps 4.2.2's `onItemUseFirst`, now NeoForge's `IItemExtension.onItemUseFirst(ItemStack,
+  UseOnContext)`, which runs before the block's own use, as in 1.6.4. It returns `SUCCESS` on both sides (the client
+  predicts, the server decides); `SUCCESS` swings the arm, which replaces `player.swingItem()`.
+  `shouldPassSneakingClickToBlock` is `doesSneakBypassUse`; `setFull3D` is the `minecraft:item/handheld` model parent.
+  It extends `ItemBuildCraft`, as in 4.2.2. Registry name `wrench_item`, key `item.wrenchItem`, after the
+  gears in the creative tab (4.2.2 id order). The 4.2.2 stack size (64) is unchanged.
+- `api/tools/IToolWrench` (this PR, so #34 skips it): `canWrench(Player, InteractionHand, BlockPos)` and
+  `wrenchUsed(Player, InteractionHand, BlockPos)`. The hand is new because a player has two.
+- **Rotation.** NeoForge has no `Block.rotateBlock(World, x, y, z, ForgeDirection)`. Our blocks that 4.2.2 let the
+  wrench rotate implement `core/IRotatableBlock` with their 4.2.2 `rotateBlock` body. Every other block goes through
+  `core/RotationHelper.rotateVanillaBlock`, standing in for Forge's 1.6.4 `RotationHelper`: it turns the block's
+  facing property around the clicked face's axis (around the vertical axis for horizontal-only facings), skipping
+  states that cannot survive, or cycles an axis property; doors, beds, double chests and extended pistons are left
+  alone.
+- **`c:tools/wrench` in both directions.** Our wrench is in the tag (`data/c/tags/item/tools/wrench.json`), so other
+  mods that check the tag accept it. Our blocks check wrenches through `core/WrenchHelper` (`isWrench`, `canWrench`,
+  `wrenchUsed`) wherever 4.2.2 tested `instanceof IToolWrench`; it accepts `IToolWrench` items and any item in the tag.
+- Recipe `data/buildcraftreforged/recipe/wrench_item.json` is the 4.2.2 one: iron ingots around a stone gear, with
+  exact items, as 4.2.2 did not use the Ore Dictionary here.
+
+## JEI (#32)
+
+- Compile-only against `mezz.jei:jei-26.3-common-api` and `jei-26.3-neoforge-api` (`jei_version` in
+  `gradle.properties`) from `https://maven.blamejared.com`. JEI is declared as an optional dependency in
+  `neoforge.mods.toml`.
+- `platform/jei/BuildCraftJeiPlugin` is an empty `@JeiPlugin`. JEI finds it by the annotation and nothing else refers
+  to it, so it is never loaded without JEI. Recipe categories arrive with the features they show (#72, #68, #74).
+- `./gradlew runClient -Pwith_jei` (or any run task) adds JEI to the dev runs; without the flag they run without it.
+
+## GameTests (#33)
+
+- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. `BuildcraftGameTests`
+  registers test functions (`RegisterEvent` on `Registries.TEST_FUNCTION`) and instances (`RegisterGameTestsEvent`)
+  in the `buildcraftreforged` namespace. Run them with `./gradlew runGameTestServer`; there is no CI until release.
+- The source set also adds an always-on data pack (`gametest_data`) that puts `minecraft:debug_stick` in
+  `c:tools/wrench`, standing in for another mod's wrench. Dev runs see it too; the jar does not.
+- **No sockets** (`no_sockets`): Java 25 has no SecurityManager, so `runGameTestServer` starts the JVM with a Flight
+  Recorder recording (`build.gradle.kts`) that uses Java 25 method tracing on socket connects and binds
+  (`sun.nio.ch.Net`), datagram sends and HTTP/FTP URL connections, plus socket read and write events, all with stack
+  traces, from JVM start. After server tick 1000 the test reads a snapshot and fails on any event, logging each stack
+  trace. It fails, rather than passes, when the recording is missing. Checked by hand: an HTTP connect added to the
+  mod constructor makes it fail and names the line. DNS lookups without a connection are not traced.

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "G": "buildcraftreforged:stone_gear_item",
+    "I": "minecraft:iron_ingot"
+  },
+  "pattern": [
+    "I I",
+    " G ",
+    " I "
+  ],
+  "result": {
+    "id": "buildcraftreforged:wrench_item"
+  }
+}

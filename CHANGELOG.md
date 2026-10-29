@@ -8,3 +8,6 @@ The release workflow uploads the top section.
 ### Added
 - Project bootstrap: NeoForge 26.3 build, licence and notice, release workflow on tags. The mod loads and does
   nothing yet.
+- Wrench: rotates blocks as in 4.2.2. It is in the `c:tools/wrench` tag, and Buildcraft Reforged blocks accept any
+  wrench in that tag.
+- Optional JEI support (an empty plugin for now; the game runs with or without JEI).

@@ -8,6 +8,7 @@ plugins {
 val minecraftVersion = property("minecraft_version") as String
 val minecraftVersionRange = property("minecraft_version_range") as String
 val neoVersion = property("neo_version") as String
+val jeiVersion = property("jei_version") as String
 val modId = property("mod_id") as String
 val modName = property("mod_name") as String
 val modLicense = property("mod_license") as String
@@ -34,6 +35,35 @@ sourceSets.main {
     }
 }
 
+// GameTests (PLAN.md section 17) live in their own source set: part of the mod in dev runs, never in the jar.
+val gametest: SourceSet = sourceSets.create("gametest") {
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+}
+
+// The no-sockets GameTest (#33) reads this recording. It traces every socket connect and bind, every datagram send,
+// and every HTTP and FTP URL connection, with stack traces, from JVM start.
+val socketTraceFilter = listOf(
+    "sun.nio.ch.Net::connect",
+    "sun.nio.ch.Net::bind",
+    "sun.nio.ch.DatagramChannelImpl::send",
+    "sun.net.www.protocol.http.HttpURLConnection::connect",
+    "sun.net.www.protocol.ftp.FtpURLConnection::connect",
+).joinToString(";")
+val socketRecording = listOf(
+    "name=buildcraftreforged-sockets",
+    "settings=none",
+    "+jdk.MethodTrace#enabled=true",
+    "+jdk.MethodTrace#stackTrace=true",
+    "+jdk.MethodTrace#filter=$socketTraceFilter",
+    "+jdk.SocketRead#enabled=true",
+    "+jdk.SocketRead#threshold=0ms",
+    "+jdk.SocketRead#stackTrace=true",
+    "+jdk.SocketWrite#enabled=true",
+    "+jdk.SocketWrite#threshold=0ms",
+    "+jdk.SocketWrite#stackTrace=true",
+).joinToString(",")
+
 neoForge {
     version = neoVersion
 
@@ -49,7 +79,9 @@ neoForge {
         }
         register("gameTestServer") {
             type = "gameTestServer"
+            sourceSet = gametest
             systemProperty("neoforge.enabledGameTestNamespaces", modId)
+            jvmArgument("-XX:StartFlightRecording:$socketRecording")
         }
         register("data") {
             clientData()
@@ -68,6 +100,7 @@ neoForge {
     mods {
         register(modId) {
             sourceSet(sourceSets.main.get())
+            sourceSet(gametest)
         }
     }
 
@@ -87,8 +120,31 @@ tasks.test {
     useJUnitPlatform()
 }
 
+neoForge.addModdingDependenciesTo(gametest)
+
 configurations {
     runtimeClasspath.get().extendsFrom(create("localRuntime"))
+    named(gametest.runtimeClasspathConfigurationName) { extendsFrom(getByName("localRuntime")) }
+}
+
+repositories {
+    maven("https://maven.blamejared.com") {
+        name = "BlameJared (JEI)"
+        content {
+            includeGroup("mezz.jei")
+            includeGroup("net.mezzdev.config")   // JEI's own runtime dependency
+        }
+    }
+}
+
+dependencies {
+    // JEI is optional (PLAN.md section 6): compile against its API only; the plugin class is loaded by JEI alone.
+    compileOnly("mezz.jei:jei-$minecraftVersion-common-api:$jeiVersion")
+    compileOnly("mezz.jei:jei-$minecraftVersion-neoforge-api:$jeiVersion")
+    // ./gradlew runClient -Pwith_jei puts JEI in the dev runs; without the flag they run without it.
+    if (providers.gradleProperty("with_jei").isPresent) {
+        "localRuntime"("mezz.jei:jei-$minecraftVersion-neoforge:$jeiVersion")
+    }
 }
 
 val generateModMetadata = tasks.register<ProcessResources>("generateModMetadata") {
@@ -96,6 +152,7 @@ val generateModMetadata = tasks.register<ProcessResources>("generateModMetadata"
         "minecraft_version" to minecraftVersion,
         "minecraft_version_range" to minecraftVersionRange,
         "neo_version" to neoVersion,
+        "jei_version" to jeiVersion,
         "mod_id" to modId,
         "mod_name" to modName,
         "mod_license" to modLicense,
