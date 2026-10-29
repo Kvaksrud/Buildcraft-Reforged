@@ -419,3 +419,52 @@ Interfaces, enums, registries and base classes only; implementations land in the
   `IPipe.DrawingState`, `IPipeTile.getPipe`, `ISpecialInventory` and `ISelectiveInventory` are not expected to;
   `ISecuredInventory` and `IExtractionHandler` are P3's call. `IPipeTile` no longer extends a fluid handler; pipes
   expose `Capabilities.Fluid.BLOCK`.
+
+## Triggers and actions (#31)
+
+- **Registries replace numeric ids.** `api/gates/ActionManager` holds two NeoForge registries,
+  `buildcraftreforged:trigger` (`TRIGGER_REGISTRY`) and `buildcraftreforged:action` (`ACTION_REGISTRY`), synced to
+  clients. `CoreRegistry.register` adds them in `NewRegistryEvent`. Every `ModuleRegisters` has `triggers` and
+  `actions` registers, so energy (engine heat, Engine Overheating) and transport (pipe triggers and actions) add their
+  own in their registry class. Entries are named after the 4.2.2 `BuildCraft*` field with `RegistryNames.of`
+  (`triggerMachineActive` → `trigger_machine_active`, `actionOn` → `action_on`) and held as
+  `DeferredHolder<ITrigger, BCTrigger>`; call `.get()` where 4.2.2 used the field.
+- **Legacy ids are gone**: `getLegacyId`, the `int legacyId` constructor arguments, `getTriggerFromLegacyId` and the
+  `DefaultProps.TRIGGER_*`/`ACTION_*` constants. The 4.2.2 unique tags stay (`getUniqueTag`, the
+  `ActionManager.triggers`/`actions` maps, filled by the `BCTrigger`/`BCAction` constructors as in 4.2.2, with the
+  `buildcraft.filteredBuffer.*` alias), so the P9 importer can map 4.2.2 gate saves. New saves and packets use
+  `ActionManager.TRIGGER_CODEC`/`ACTION_CODEC` and the `*_STREAM_CODEC`s (registry ids).
+- **Parameters.** `TriggerParameter` holds `ItemStack.EMPTY` instead of null and keeps one item. `writeToNBT`/
+  `readFromNBT` take `ValueOutput`/`ValueInput` under the 4.2.2 key `stack`; the numeric `itemID` branch is gone.
+  `TriggerParameter.CODEC`/`STREAM_CODEC` serialise it for data components. 4.2.2 never kept triggers in item NBT
+  (gates saved them in the pipe's tile data and lost them when removed), so no component is registered here: #60 puts
+  the gate's trigger, parameter and action lists in a component on the gate item if it keeps them, built from these
+  codecs. What 1.6.4 kept in the parameter stack's NBT is now its data components, compared with item and components.
+- **Signatures.** `isTriggerActive(@Nullable Direction side, BlockEntity tile, @Nullable ITriggerParameter)`; `side`
+  is the tile's side facing the gate (4.2.2 passed `o.getOpposite()`), null for 4.2.2's `UNKNOWN`. Providers take
+  `(Block, @Nullable BlockEntity)`.
+- **Inventory and fluid triggers read capabilities.** 4.2.2's `instanceof IInventory` / `IFluidHandler` became
+  `Capabilities.Item.BLOCK` / `Capabilities.Fluid.BLOCK` lookups on the tile's side (`BCTrigger.getCapability`), so
+  vanilla and other mods' blocks count too. The slot walk is 4.2.2's `InventoryIterator` walk over the handler's
+  indices: `canPutStackInSlot` → `isValid`, `canStacksMerge` → same item and components, `getMaxStackSize` of the slot
+  → `getCapacityAsInt(slot, resource)`. Tanks are handler indices; `fill(simulate)` is an insert of 1 mB in a
+  transaction that is never committed; `FluidContainerRegistry.getFluidForFilledItem` → `FluidUtil.getFirstStackContained`.
+  `ISpecialInventory` is still checked first, as in 4.2.2. #23 may swap the walk for its `InventoryIterator` port; the
+  semantics must stay.
+- **Machine trigger, blocked state (plan 8.3).** `TriggerMachine`'s boolean became `State { Active, Inactive, Blocked }`
+  (tags `buildcraft.work.scheduled`, `.done`, and the new `.blocked`; registry `trigger_machine_blocked`).
+  `IMachine.isBlocked()` is a default method returning false; a machine whose output is refused overrides it. While
+  blocked, "Work Done" is false: the machine still has work. `DefaultTriggerProvider` offers all three on an `IMachine`.
+- **`IMachine.allowAction(IAction)`** is back (resolves #21's `SEAM(#31)`); every machine implements it as in 4.2.2.
+- **Icons** are GUI sprites: `getIcon()` returns an `Identifier` in the GUI atlas, `buildcraftreforged:triggers/<4.2.2
+  icon name>`, from `ActionTriggerIconProvider` (same index constants, plus `Trigger_Machine_Blocked` = 36). The
+  4.2.2 PNGs it registered are copied to `textures/gui/sprites/triggers/`. `registerIcons` and `IIconProvider` are
+  gone. The blocked icon has no art yet (plan section 8.6 art list).
+- **Descriptions** stay the 4.2.2 English strings from `getDescription()`; #60 may switch the gate GUI to
+  translation keys.
+- **Empty parameter.** `TriggerInventoryLevel` treats a parameter without a stack as no parameter (false); with null
+  stacks gone this is the 4.2.2 null check, which would otherwise have thrown.
+- **`IFillerRegistry.getActions()`** is back (left out by #34).
+- **Tests.** GameTests `trigger_registries`, `trigger_machine`, `trigger_inventory`, `trigger_fluid` use a test-only
+  block (`gametest_trigger_block`, registered by the gametest source set, not in the jar): an `IMachine` with two item
+  slots and a 4000 mB tank as capabilities. The inventory test also reads a vanilla chest.

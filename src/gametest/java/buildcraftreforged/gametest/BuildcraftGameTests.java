@@ -1,6 +1,7 @@
 package buildcraftreforged.gametest;
 
 import buildcraftreforged.BuildcraftReforged;
+import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -30,6 +31,10 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> NO_SOCKETS = function("no_sockets");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_ROTATES_BLOCK = function("wrench_rotates_block");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_TAG = function("wrench_tag");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_REGISTRIES = function("trigger_registries");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_MACHINE = function("trigger_machine");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_INVENTORY = function("trigger_inventory");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_FLUID = function("trigger_fluid");
 
     private BuildcraftGameTests() {
     }
@@ -40,6 +45,10 @@ public final class BuildcraftGameTests {
             registry.register(NO_SOCKETS, NoSocketsTest::noSockets);
             registry.register(WRENCH_ROTATES_BLOCK, WrenchTests::wrenchRotatesBlock);
             registry.register(WRENCH_TAG, WrenchTests::wrenchTag);
+            registry.register(TRIGGER_REGISTRIES, TriggerTests::registries);
+            registry.register(TRIGGER_MACHINE, TriggerTests::machine);
+            registry.register(TRIGGER_INVENTORY, TriggerTests::inventory);
+            registry.register(TRIGGER_FLUID, TriggerTests::fluid);
         });
     }
 
@@ -52,6 +61,11 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
         event.registerTest(id("wrench_tag"), new FunctionGameTestInstance(WRENCH_TAG,
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        for (ResourceKey<Consumer<GameTestHelper>> trigger : List.of(TRIGGER_REGISTRIES, TRIGGER_MACHINE, TRIGGER_INVENTORY,
+                TRIGGER_FLUID)) {
+            event.registerTest(trigger.identifier(), new FunctionGameTestInstance(trigger,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        }
     }
 
     /** Test-only data: puts a vanilla item in {@code c:tools/wrench} to stand in for another mod's wrench. */
