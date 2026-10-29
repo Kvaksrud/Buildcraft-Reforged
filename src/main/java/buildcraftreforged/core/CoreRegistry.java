@@ -1,3 +1,15 @@
+/**
+ * Copyright (c) 2011-2014, SpaceToad and the BuildCraft Team
+ * http://www.mod-buildcraft.com
+ *
+ * BuildCraft is distributed under the terms of the Minecraft Mod Public
+ * License 1.0, or MMPL. Please check the contents of the license located in
+ * http://www.mod-buildcraft.com/MMPL-1.0.txt
+ *
+ * Modified by Buildcraft Reforged, 2026: the registration half of buildcraft/BuildCraftCore.java, on DeferredRegister;
+ * numeric ids, Configuration and LanguageRegistry names removed.
+ */
+
 package buildcraftreforged.core;
 
 import net.minecraft.world.item.Item;
@@ -24,7 +36,7 @@ public final class CoreRegistry {
     private CoreRegistry() {
     }
 
-    // TODO(#21): ItemBuildCraft once the base classes are ported.
+    // TODO(#21): new ItemBuildCraft() once the base classes are ported, as in 4.2.2.
     private static DeferredItem<Item> gear(String unlocalizedName) {
         DeferredItem<Item> item = REGISTERS.items.registerSimpleItem(RegistryNames.of(unlocalizedName),
                 properties -> properties.overrideDescription("item." + unlocalizedName));

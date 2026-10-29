@@ -9,6 +9,10 @@ file records the concrete choices behind it. Keep it current.
   `silicon/SiliconRegistry`, `transport/TransportRegistry`, `builders/BuildersRegistry`. Each is the registration half
   of the 4.2.2 module class (`BuildCraftCore`, `BuildCraftEnergy`, ...). Content for a module goes in that module's
   class only; `BuildcraftReforged` calls each class's `register(modBus)` and needs no change when entries are added.
+- **Headers**: #1 is decided; the 29 old-header files are MMPL. A registry class that ports entries from its 4.2.2
+  module class carries the normalised MMPL header from upstream `360d782ea` (as in `reference/`, see
+  `reference/README.md`) plus a "Modified by" line, as `CoreRegistry` does. Add it to the other registry classes when
+  their first ported entry lands.
 - **`core/ModuleRegisters`** bundles every `DeferredRegister` a module needs, all in the `buildcraftreforged`
   namespace: blocks, items, block entity types, menus, fluids, fluid types, recipe types, recipe serializers, sound
   events, data components, creative tabs. Each registry class owns one instance (`REGISTERS`). NeoForge allows several
@@ -36,7 +40,7 @@ file records the concrete choices behind it. Keep it current.
 - A tab with no items is hidden by vanilla, so `FACADES` stays invisible until facades exist. Its icon is plain stone
   bricks until `ItemFacade.getStack` is ported.
 - The five gears (`BuildCraftCore`'s first items, and the `MACHINES` icon) are registered in `CoreRegistry` as plain
-  `Item`s, written from behaviour while #1 is open. They switch to `ItemBuildCraft` with #21.
+  `Item`s. They switch to `ItemBuildCraft` with #21.
 
 ## Localisation (#18)
 
