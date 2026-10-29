@@ -16,7 +16,7 @@ Written 29 Oct 2026 from a clone of https://github.com/BuildCraft/BuildCraft. Ev
 | Name, ids | Display name "Buildcraft Reforged", mod id `buildcraftreforged`, Java package `buildcraftreforged`. |
 | Licence | MMPL 1.0.1, unchanged, because the licence requires it. Full source published. Original copyright headers kept, with a "modified by" line added. No naming or "unofficial" wording required by the licence; none added. |
 | Target version | Newest NeoForge 26.x at kick-off (26.3 as of writing). Version-specific code isolated so following 26.4 and later is routine. |
-| Build | Gradle 9.1+, ModDevGradle 2.0.14x, Java 25, single jar, one Gradle project with packages mirroring the original modules. |
+| Build | Gradle 9.8, ModDevGradle 2.0.148, Java 25, single jar, one Gradle project with packages mirroring the original modules. |
 | Publishing | GitHub Actions. Tag `v*` → build → upload to CurseForge and a GitHub release via the mod-publish-plugin. No Modrinth for now. |
 | Versioning | Development series **0.x**, first release **0.1.0**. Every 0.x upload is marked beta on CurseForge. 1.0.0 is reserved for the moment every row in `docs/PARITY.md` is ticked and the tier ladder has survived a playtest. Minor bump per phase landed (0.2 after P2, and so on), patch bump for fixes. |
 | Structure | A fresh repository, not a fork. The 4.2.2 sources are vendored read-only under `reference/` for diffing, never compiled. |
@@ -141,10 +141,10 @@ As of 29 Oct 2026:
 | Item | Value |
 |---|---|
 | Minecraft | 26.3 (released 15 Sep 2026); 26.2 on 16 Jun 2026; 26.1 on 24 Mar 2026 |
-| NeoForge | 26.3.0.xx-beta; every 26.x NeoForge build still carries the beta label |
+| NeoForge | 26.3.0.99 at kick-off (29 Oct 2026). The beta label was dropped from 26.3.0.76 on |
 | Java | 25 |
-| Gradle | 9.1 or newer |
-| ModDevGradle | 2.0.141 at the 26.1 release; check the plugin portal at kick-off |
+| Gradle | 9.8.2 (wrapper) |
+| ModDevGradle | 2.0.148 at kick-off |
 | Version scheme | NeoForge `26.3.0.N`: first three parts are the Minecraft version |
 
 Context: the NeoForge audience in 2026 still sits overwhelmingly on Minecraft 1.21.1 (roughly two thirds of the ~20 700 tracked 1.21.1 modpacks are NeoForge; the 26.1 line is a small but growing slice). The 26.x choice stands. A thin `platform` package keeps a 1.21.1 backport possible later; nothing in this plan targets it.
@@ -496,6 +496,7 @@ Recommendation: ship 0.1.0 without it and make it a later 0.x release, because i
 | 29 Oct 2026 | Blueprints stored as block states in a new versioned format; 1.6.4 importer explained (13.5). |
 | 29 Oct 2026 | 1.6.4 blueprint importer ships in a later 0.x release as phase P9, not in 0.1.0. |
 | 29 Oct 2026 | Audit (section 19): remove `Version.java` and all network access. Buildcraft Reforged has no call-home of any kind. Client packets validated server-side, blueprint paths fixed, Nether fluid explosion replaced by fire, quarry chunk loading off by default, oil geysers capped, item lifespan back to vanilla. |
+| 29 Oct 2026 | P0 versions pinned: NeoForge 26.3.0.99 (no longer labelled beta), ModDevGradle 2.0.148, Gradle 9.8.2, mod-publish-plugin 2.2.1 (2.x needs `client`/`server` set for CurseForge). The project lives at the repository root, not in a `buildcraft-reforged/` subfolder. `publishMods` is a dry run without `CURSEFORGE_TOKEN`. |
 
 ---
 
@@ -526,16 +527,16 @@ P9 starts only after a 0.x release has shipped the new format. P3 is the largest
 mod_id=buildcraftreforged
 mod_version=0.1.0
 minecraft_version=26.3
-neoforge_version=26.3.0.XX-beta
-curseforge_project_id=XXXXXX
+neo_version=26.3.0.99
+curseforge_project_id=          # empty until the CurseForge project exists (#3)
 ```
 
 ### build.gradle.kts (publishing part)
 
 ```kotlin
 plugins {
-    id("net.neoforged.moddev") version "2.0.141"   // check latest
-    id("me.modmuss50.mod-publish-plugin") version "0.8.4"   // check latest
+    id("net.neoforged.moddev") version "2.0.148"
+    id("me.modmuss50.mod-publish-plugin") version "2.2.1"
 }
 
 publishMods {
@@ -555,7 +556,7 @@ publishMods {
     }
     github {
         accessToken = providers.environmentVariable("GITHUB_TOKEN")
-        repository = "<owner>/buildcraft-reforged"
+        repository = "Kvaksrud/Buildcraft-Reforged"
         commitish = "main"
         tagName = "v${project.version}"
     }
@@ -611,7 +612,7 @@ Release procedure: bump `mod_version`, write the CHANGELOG section, commit, `git
 | A | Oil biomes | **Decided**: placed feature. |
 | B | Blueprint storage | **Decided**: block states, new format. Importer in a later 0.x release as P9, not 0.1.0 (13.5). |
 | C | Pipe rendering performance | Mitigated by design: cached model per connection mask, renderer only on segments with flow, per-segment record at most twice a second. Profile in P3. |
-| D | NeoForge 26.x is beta and moves | Pin exact versions in `gradle.properties`; keep version-specific code in `platform/`. |
+| D | NeoForge 26.x moves fast | Pin exact versions in `gradle.properties`; keep version-specific code in `platform/`. |
 | E | Textures are 16× and 2013-era; new art needed for three materials, ten modules, red light, flow frames | Keep the style. Budget art time in P3. Resource packs can replace. |
 | F | Separate BuildCraft-Localization repository | English only in 0.x; check that repo's licence before importing other languages. |
 | G | Name | **Decided**: "Buildcraft Reforged", as is. |
