@@ -1,0 +1,31 @@
+/*
+ * Modified by Buildcraft Reforged, 2026: ported from buildcraft/api/transport/IExtractionHandler.java (no file header
+ * at 4.2.2); Level and BlockPos in place of World and i, j, k.
+ */
+
+package buildcraftreforged.api.transport;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+
+/**
+ * Implement and register with the PipeManager if you want to suppress connections from wooden pipes.
+ *
+ * <p>Ported from 4.2.2 {@code buildcraft.api.transport.IExtractionHandler}. <b>Plan section 8:</b> the wooden pipe
+ * becomes the Extractor module and the Basic Extractor (8.2); P3 decides whether they still ask registered handlers.
+ * {@code PipeManager}, the 4.2.2 registry for these handlers, is ported with P3 for that reason.
+ */
+public interface IExtractionHandler {
+
+    /**
+     * Can this pipe extract items from the block located at these coordinates?
+     * param extractor can be null
+     */
+    boolean canExtractItems(Object extractor, Level world, BlockPos pos);
+
+    /**
+     * Can this pipe extract liquids from the block located at these coordinates?
+     * param extractor can be null
+     */
+    boolean canExtractFluids(Object extractor, Level world, BlockPos pos);
+}
