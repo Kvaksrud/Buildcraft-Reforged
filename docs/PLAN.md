@@ -502,6 +502,7 @@ Recommendation: ship 0.1.0 without it and make it a later 0.x release, because i
 | 29 Oct 2026 | No CI checks on pull requests until the project nears release; `build.yml` comes back then. Only the tag-triggered `release.yml` exists. Builds and GameTests run locally meanwhile. |
 | 29 Oct 2026 | Tooling stays on the newest LTS: Java 25, Node 24 for anything Node-based (GitHub Actions on `checkout@v7`, `setup-java@v6`, `setup-gradle@v6`, all Node 24). |
 | 29 Oct 2026 | Licence (#1): the 29 files with the old "BuildCraft Open Source License" header are treated as MMPL, on the strength of upstream `360d782ea`. They carry its normalised MMPL header in `reference/` and in ports. Section 12. |
+| 29 Oct 2026 | Transport (#97): the 21 provisional rules in `docs/TRANSPORT.md` section 15 are the rules. Q7: a Director module on a power pipe is the Power Limiter (20–1 280 FE/t, wrench and gate action), so the Director fits all three pipe kinds. |
 
 ---
 
