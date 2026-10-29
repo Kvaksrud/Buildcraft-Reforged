@@ -6,5 +6,5 @@ The release workflow uploads the top section.
 ## [0.1.0] - unreleased
 
 ### Added
-- Project bootstrap: NeoForge 26.3 build, licence and notice, CI build on pull requests. The mod loads and does
+- Project bootstrap: NeoForge 26.3 build, licence and notice, release workflow on tags. The mod loads and does
   nothing yet.

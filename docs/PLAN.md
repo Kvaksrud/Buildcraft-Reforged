@@ -163,7 +163,7 @@ buildcraft-reforged/
 ├── CHANGELOG.md                keep-a-changelog style; the release workflow reads the top section
 ├── README.md
 ├── .github/workflows/
-│   ├── build.yml               PR + push: build, run GameTests
+│   ├── build.yml               PR + push: build, run GameTests (added near release, see section 14)
 │   └── release.yml             tag v*: build, publishMods (CurseForge + GitHub)
 ├── docs/
 │   ├── PLAN.md                 this file
@@ -497,6 +497,8 @@ Recommendation: ship 0.1.0 without it and make it a later 0.x release, because i
 | 29 Oct 2026 | 1.6.4 blueprint importer ships in a later 0.x release as phase P9, not in 0.1.0. |
 | 29 Oct 2026 | Audit (section 19): remove `Version.java` and all network access. Buildcraft Reforged has no call-home of any kind. Client packets validated server-side, blueprint paths fixed, Nether fluid explosion replaced by fire, quarry chunk loading off by default, oil geysers capped, item lifespan back to vanilla. |
 | 29 Oct 2026 | P0 versions pinned: NeoForge 26.3.0.99 (no longer labelled beta), ModDevGradle 2.0.148, Gradle 9.8.2, mod-publish-plugin 2.2.1 (2.x needs `client`/`server` set for CurseForge). The project lives at the repository root, not in a `buildcraft-reforged/` subfolder. `publishMods` is a dry run without `CURSEFORGE_TOKEN`. |
+| 29 Oct 2026 | No CI checks on pull requests until the project nears release; `build.yml` comes back then. Only the tag-triggered `release.yml` exists. Builds and GameTests run locally meanwhile. |
+| 29 Oct 2026 | Tooling stays on the newest LTS: Java 25, Node 24 for anything Node-based (GitHub Actions on `checkout@v7`, `setup-java@v6`, `setup-gradle@v6`, all Node 24). |
 
 ---
 
@@ -578,10 +580,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: "25" }
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew build --no-daemon
       - run: ./gradlew publishMods --no-daemon
         env:
@@ -589,7 +591,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-`build.yml` runs the same build plus `runGameTestServer` on every PR and push to `main`.
+`build.yml` (the same build plus `runGameTestServer` on every PR and push to `main`) is left out until the project nears release; until then builds and GameTests run locally.
 
 Release procedure: bump `mod_version`, write the CHANGELOG section, commit, `git tag v0.1.0`, `git push --tags`. Nothing else is manual. The CurseForge project (name "Buildcraft Reforged", MMPL, source link) must exist and `CURSEFORGE_TOKEN` must be a repository secret before the first tag.
 
