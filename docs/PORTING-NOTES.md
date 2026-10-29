@@ -14,7 +14,7 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 | Block metadata | `BlockState` properties | Engines: facing. Pipes: waterlogged plus model data. |
 | `TileEntity` + `updateEntity()` | `BlockEntity` + `BlockEntityTicker` | Keep the tick cadence and `SafeTimeTracker` logic. |
 | `readFromNBT`/`writeToNBT` | the current block-entity save API (`ValueInput`/`ValueOutput` in 1.21.6+; confirm the 26.x form) | Keep the same tag names where the data survives. |
-| `IInventory`, `ISidedInventory` | `IItemHandler` via `Capabilities.Item.BLOCK` | Internal `SimpleInventory` port keeps slot semantics; expose handlers per side exactly as 4.2.2 `ISidedInventory` did. |
+| `IInventory`, `ISidedInventory` | Vanilla `Container`, `WorldlyContainer`; exposed as `ResourceHandler<ItemResource>` via `Capabilities.Item.BLOCK` (26.x has no `IItemHandler`) | Internal `SimpleInventory` port keeps slot semantics; handlers per side exactly as 4.2.2 `ISidedInventory` did. See Inventory (#23). |
 | Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge `IFluidHandler` capability, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. |
 | `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as `IEnergyStorage` via `Capabilities.Energy.BLOCK` | Section 7. |
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
@@ -292,8 +292,7 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
   `BlockEntity.preRemoveSideEffects` on the server before removing it. `TileBuildCraft` overrides it with 4.2.2
   `Utils.preDestroyBlock`: drop the inventory unless an `IDropControlInventory` says no, then `destroy()`. So
   `Utils.preDestroyBlock` is not ported as a static (#22 lists it as waiting on #21; this is its home). `destroy()`
-  now runs on the server only; no 4.2.2 `destroy()` does client work. #23 adds the `SimpleInventory` drop
-  (`SEAM(#23)`).
+  now runs on the server only; no 4.2.2 `destroy()` does client work. #23 added the `InvUtils` drop.
 - **Active-machine light.** 4.2.2 added 8 to the light value while an `IMachine` was active, by reading the tile in
   `getLightValue`. The light engine may not read block entities in 26.x (it runs off-thread and during chunk load),
   so `TileBuildCraft.updateEntity` copies the light into NeoForge's `AuxiliaryLightManager` when `isActive()` changes
@@ -419,3 +418,58 @@ Interfaces, enums, registries and base classes only; implementations land in the
   `IPipe.DrawingState`, `IPipeTile.getPipe`, `ISpecialInventory` and `ISelectiveInventory` are not expected to;
   `ISecuredInventory` and `IExtractionHandler` are P3's call. `IPipeTile` no longer extends a fluid handler; pipes
   expose `Capabilities.Fluid.BLOCK`.
+
+## Inventory (#23)
+
+- **`IInventory` → `Container`, `ISidedInventory` → `WorldlyContainer`.** Every class in `core/inventory` keeps its
+  name, fields and control flow on the vanilla interfaces: `getSizeInventory` → `getContainerSize`, `getStackInSlot`
+  → `getItem`, `decrStackSize` → `removeItem`, `getStackInSlotOnClosing` → `removeItemNoUpdate`,
+  `setInventorySlotContents` → `setItem`, `getInventoryStackLimit` → `getMaxStackSize`, `onInventoryChanged` →
+  `setChanged`, `isUseableByPlayer` → `stillValid`, `isItemValidForSlot` → `canPlaceItem`; `getAccessibleSlotsFromSide`
+  → `getSlotsForFace`, `canInsertItem` → `canPlaceItemThroughFace`, `canExtractItem` → `canTakeItemThroughFace`.
+  `openChest`/`closeChest` become `startOpen`/`stopOpen` where 4.2.2 forwarded them; the name methods are gone
+  (`SimpleInventory.getInvName` stays as a plain method). `isEmpty` and `clearContent` are new and implemented.
+- **Null stacks → `ItemStack.EMPTY`** throughout; `ITransactor.remove` and `InvUtils.moveOneItem` return `EMPTY`
+  for "nothing". `Transactor.add` still returns a copy whose count is the amount moved (count 0 reads as empty).
+- **Sides.** `ForgeDirection` → `Direction`, `UNKNOWN` → `null`. A null side reaches every slot of a
+  `WorldlyContainer` (NeoForge's unsided convention); 4.2.2 passed `UNKNOWN`'s ordinal 6 to
+  `getAccessibleSlotsFromSide`. #34's `api/inventory` interfaces (`ISpecialInventory`, ...) take a plain `Direction`;
+  `TransactorSpecial` passes null through for `UNKNOWN`.
+- **Item capability.** NeoForge 26.x replaced `IItemHandler` with `ResourceHandler<ItemResource>` and transactions.
+  `InvUtils.getItemHandler(inv, side)` gives other blocks the 4.2.2 `ISidedInventory` view: a `WorldlyContainer` is
+  wrapped per side in NeoForge's `WorldlyContainerWrapper` (slots of `getSlotsForFace`, `canPlaceItemThroughFace`,
+  `canTakeItemThroughFace`); a plain `Container` in `VanillaContainerWrapper` (every slot from every side, checks
+  `canPlaceItem`), as 4.2.2 treated a plain `IInventory`. Stack limits come from `Container.getMaxStackSize(stack)`.
+  - **For machine ports:** a tile that held items in 4.2.2 implements `Container` (or `WorldlyContainer` if it was
+    sided), usually by delegating to a `SimpleInventory` field, and its module's `RegisterCapabilitiesEvent` listener
+    calls `TileBuildCraft.registerItemHandler(event, type)`. `TileBuildCraft.getItemHandler(side)` can be overridden.
+    No module registers one yet.
+- **Drops.** `TileBuildCraft.preRemoveSideEffects` now does 4.2.2 `Utils.preDestroyBlock`'s drop:
+  `InvUtils.dropItems` (4.2.2's scatter and 10-tick pick-up delay) then `wipeInventory`, for any tile that is a
+  `Container`, unless `IDropControlInventory.doDrop()` says no. It no longer calls vanilla's
+  `Containers.dropContents`.
+- **`TransactorHandler`** (new, no 4.2.2 counterpart): an `ITransactor` over an item `ResourceHandler`, so machines can
+  push into or pull from blocks that expose only the capability (most modded blocks now). `getTransactorFor` returns
+  it for a `ResourceHandler`. Adds use `ResourceHandlerUtil.insertStacking` (matching stacks first, as
+  `TransactorSimple`); `doAdd`/`doRemove` false roll the transaction back. Callers look the handler up with the side
+  themselves; the `orientation` argument is unused.
+- **`StackHelper`.** `canStacksMerge` is `ItemStack.isSameItemSameComponents` (1.6.4 `isItemEqual` + tag equality;
+  damage is a component, so damaged tools still do not merge). `isMatchingItem` compares the item and, with
+  `matchNBT`, the component patch minus `DAMAGE`, with 4.2.2's asymmetry (a base without data matches any data).
+  `matchDamage` has nothing left to compare: no item has subtypes now, and 4.2.2 ignored damage for items without.
+  Wildcards stay as constants (`WILDCARD_VALUE`) but no stack carries one.
+- **Ore Dictionary → item tags.** `isCraftingEquivalent(base, comparison, true)` accepts a comparison sharing one of
+  base's `c` tags whose path has a slash (`c:ingots/iron`, not `c:ingots`): the counterpart of an Ore Dictionary
+  name. `isCraftingEquivalent(oreID, comparison)` takes a nullable `TagKey<Item>` (4.2.2: an int, -1 for none) for
+  `TileAdvancedCraftingTable`. `CraftingFilter` uses the first.
+- **`StackFilter.FUEL`** is `stack.has(DataComponents.COOKING_FUEL)`, the furnace's own fuel test in 26.x (fuel became
+  a data component).
+- **`SimpleInventory` save** keeps the `items` list; entries are `ItemStackWithSlot` (`Slot` byte, as 4.2.2). 4.2.2
+  also read an int `index` written by older versions; there are no such saves.
+- **`api/inventory`** came from #34 already; this port uses it unchanged.
+- **Tests.** `TransactorTest` (simple, round-robin, handler transactors; `moveOneItem`), `SidedAccessTest` (sided
+  iterator, transactor and capability on a crafting-machine-shaped `WorldlyContainer`; plain inventories from every
+  side) and `InventoryTest` (`SimpleInventory` slots and save, mapper, concatenator, copy, `StackHelper`). The unit
+  test setup loads no registries, so items have no data components and no `ItemStack` of a real item can be made;
+  the tests' `ItemComponents` binds a minimal component map (stack size, damage) to the five items they use. Binding
+  vanilla's full set needs bound tags and fails.
