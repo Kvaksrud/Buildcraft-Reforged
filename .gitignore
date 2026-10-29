@@ -16,3 +16,6 @@ out/
 run/
 runs/
 *.log
+
+# Session hand-over files
+.handoff/
