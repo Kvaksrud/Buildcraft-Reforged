@@ -210,7 +210,7 @@ Rule: port class by class, keeping names, field names, constants and control flo
 | `readFromNBT`/`writeToNBT` | the current block-entity save API (`ValueInput`/`ValueOutput` in 1.21.6+; confirm the 26.x form) | Keep the same tag names where the data survives. |
 | `IInventory`, `ISidedInventory` | `IItemHandler` via `Capabilities.Item.BLOCK` | Internal `SimpleInventory` port keeps slot semantics; expose handlers per side exactly as 4.2.2 `ISidedInventory` did. |
 | Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge transfer API: `ResourceHandler<FluidResource>` via `Capabilities.Fluid.BLOCK`, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. 26.3 has no `IFluidHandler` (confirmed in #24). |
-| `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as `IEnergyStorage` via `Capabilities.Energy.BLOCK` | Section 7. |
+| `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as NeoForge's `EnergyHandler` (26.x's transaction-based replacement for `IEnergyStorage`) via `Capabilities.Energy.BLOCK` | Section 7. Adapter `api/power/PowerEnergyHandler` (#35). |
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
 | `ISimpleBlockRenderingHandler`, `TileEntitySpecialRenderer` | JSON models + blockstates for static blocks; `BlockEntityRenderer` for engines, quarry arm, lasers, markers, refinery, tank fluid; pipes per section 8 | Keep the 16× textures. |
@@ -255,6 +255,8 @@ Mekanism stores its own unit internally and exposes `IEnergyStorage` with a conv
 | Triggers | Engine heat and machine triggers unchanged; thresholds × 10. New trigger: Engine Overheating (section 9). |
 
 Unit tests pin the ported `PowerHandler` against values recorded from the 4.2.2 code paths (pulse sizes, perdition).
+
+NeoForge 26.x has no `IEnergyStorage`: `Capabilities.Energy.BLOCK` is the transaction-based `EnergyHandler`. "`canReceive() == false`" means `insert` returns 0 on that side (`PowerEnergyHandler.canReceive()`); see `docs/PORTING-NOTES.md`, "Power (#35)".
 
 ---
 

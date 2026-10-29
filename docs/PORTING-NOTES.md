@@ -19,7 +19,7 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 
 | `IInventory`, `ISidedInventory` | Vanilla `Container`, `WorldlyContainer`; exposed as `ResourceHandler<ItemResource>` via `Capabilities.Item.BLOCK` (26.x has no `IItemHandler`) | Internal `SimpleInventory` port keeps slot semantics; handlers per side exactly as 4.2.2 `ISidedInventory` did. See Inventory (#23). |
 | Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge `IFluidHandler` capability, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. |
-| `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as `IEnergyStorage` via `Capabilities.Energy.BLOCK` | Section 7. |
+| `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as NeoForge's `EnergyHandler` (26.x's transaction-based replacement for `IEnergyStorage`) via `Capabilities.Energy.BLOCK` | Section 7. Adapter `api/power/PowerEnergyHandler` (#35). |
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
 | `ISimpleBlockRenderingHandler`, `TileEntitySpecialRenderer` | JSON models + blockstates for static blocks; `BlockEntityRenderer` for engines, quarry arm, lasers, markers, refinery, tank fluid; pipes per section 8 | Keep the 16× textures. |
@@ -681,3 +681,75 @@ Interfaces, enums, registries and base classes only; implementations land in the
   `PacketHandler.checkMenuAccess`. A mock player has no mod channel, so NeoForge refuses the open-screen packet: the
   test opens the tile's menu on the server side itself, and the right-click → `openMenu` path is checked in a client
   only. Drawing and mouse input need a client and are not tested.
+
+## Power (#35)
+
+Ported to `buildcraftreforged.api.power`: `PowerHandler` (with `Type`, `PerditionCalculator`, `PowerReceiver`),
+`IPowerReceptor`, `IPowerEmitter`, `ILaserTarget`; new `PowerEnergyHandler`. Plan section 7.
+
+### Scaling: MJ × 10 = FE, stored as `long`
+
+Every energy value the 4.2.2 power api handled in `float` MJ is a `long` in FE, 10 FE per MJ:
+
+| 4.2.2 (MJ, `float`) | Here (FE, `long`) |
+|---|---|
+| `configure(min, max, activation, maxStored)` | same four values × 10 (`TileRefinery` `configure(50, 150, 25, 1000)` → `configure(500, 1500, 250, 10000)`) |
+| `energyStored`, `receiveEnergy`, `useEnergy`, `addEnergy`, `setEnergy`, `powerRequest` | FE, `long` |
+| `PerditionCalculator.DEFAULT_POWERLOSS` 1 MJ/t | 10 FE/t |
+| `PerditionCalculator.MIN_POWERLOSS` 0.01 MJ/t | 0.1 FE/t |
+| `configurePowerPerdition(loss, regularity)` | `loss` × 10, `regularity` unchanged: engines' `(1, 100)` → `(10, 100)` = 0.1 FE/t |
+| `new PerditionCalculator(x)` | `x` × 10 (laser 0.5 → 5F, quarry `2 * miningMultiplier` → `20 * miningMultiplier`) |
+| `ILaserTarget.receiveLaserEnergy(float)` | `receiveLaserEnergy(long)` |
+| NBT `powerProvider` / `storedEnergy` (`float`) | the same tag names; `storedEnergy` is a `long` |
+
+- **Fractions.** Receive limits, storage and pulses are whole FE: no 4.2.2 caller used a fraction finer than 0.1 MJ
+  except `PipeItemsWood`'s `64.1f` (→ 641 FE) and `TileEngineWood.maxEnergyExtracted` = `1 + MIN_POWERLOSS` =
+  1.01 MJ (→ 10 FE, see "For the engines" below). The perdition rate stays a `float` in FE/t because 0.1 FE/t is common
+  (engines, pump, the minimum): `PowerHandler` keeps the fraction already lost in thousandths of an FE
+  (`perditionDebt`) and reports the stored energy rounded up, so 0.1 FE/t loses exactly 1 FE every 10 ticks and
+  10 FE per 100 ticks, as 4.2.2 lost 1 MJ per 100 ticks. The fraction is not saved (under 1 FE) and is cleared when
+  the store empties. `PerditionCalculator.applyPerdition` takes and returns `double` FE so a custom calculator sees
+  that fraction; the 4.2.2 rule that a calculator which loses nothing is replaced by `DEFAULT_PERDITION` is kept.
+- **Tax.** `getTaxPercent()` is still a fraction; the tax is rounded down to whole FE. Nothing in 4.2.2 overrode it.
+- **Unit tests.** `PowerHandler` has a package-private constructor taking a game-time supplier, so
+  `PowerHandlerTest` drives perdition, `doWork` and source fading without a level. `SafeTimeTracker`'s
+  `markTimeIfDelay(long, long)` is public for that.
+
+### Forge Energy
+
+- **No `IEnergyStorage` in 26.x.** `Capabilities.Energy.BLOCK` is `EnergyHandler`: `int insert/extract` inside a
+  `Transaction`, amounts as `long`. `PowerEnergyHandler` is the adapter: one per `(IPowerReceptor, side)`, looking
+  the side's `PowerReceiver` up on every call.
+- **Registering.** In a module's `RegisterCapabilitiesEvent` listener:
+  `PowerEnergyHandler.registerEnergyHandler(event, TYPE)` for a block entity type whose tile implements
+  `IPowerReceptor`. A side whose `getPowerReceiver(side)` is null has no capability.
+- **Inserting** (`canReceive()`): allowed on a non-null side with a receiver, unless the receptor is an
+  `IPowerEmitter` with `canEmitPowerFrom(side)` true. That is how an engine's output side refuses FE (plan section 7)
+  without a new interface. It works as 4.2.2's `receiveEnergy` from a power pipe (`Type.PIPE`): no minimum, the tax
+  taken, at most `maxEnergyReceived` per call (4.2.2's pipes capped themselves through `powerRequest`), limited by free
+  space. The null side reports amount and capacity but never accepts.
+- **Transactions.** An insert changes only the stored energy, through a `SnapshotJournal` inside `PowerHandler`
+  (shared by every side's adapter), so an aborted transaction leaves nothing behind. On the root commit the sides that
+  inserted are marked as power sources (`updateSources`) and `applyWork` runs, as `receiveEnergy` did. Perdition is
+  not applied inside a transaction; the next `update()` does it.
+- **Extracting** always returns 0: 4.2.2 machines never handed power back and engines push on their pulse.
+- **Ticking.** `TileBuildCraft.updateEntity` calls `getPowerReceiver(null).update()` for an `IPowerReceptor`, as
+  4.2.2 did (`SEAM(#35)` removed), skipping a null receiver.
+- **`ForgeDirection` → `Direction`**, `UNKNOWN` → `null`; `powerSources` is still indexed by ordinal.
+
+### For the engines (#36)
+
+- An engine tile implements `IPowerReceptor` and `IPowerEmitter` (`canEmitPowerFrom(side)` = `side == orientation`),
+  returns `level` from `getWorld()`, and registers `PowerEnergyHandler.registerEnergyHandler`. Call
+  `level.invalidateCapabilities(worldPosition)` when the orientation changes so cached lookups re-ask.
+- Engine constants × 10: `configure(minEnergyReceived(), maxEnergyReceived(), 10, getMaxEnergy())`,
+  `configurePowerPerdition(10, 100)`; `maxEnergyReceived`/`maxEnergyExtracted`/`getMaxEnergy` are wood
+  500/10/1000 FE, stone 2000/1000/10000, iron 20000/5000/100000 (`minEnergyReceived`: wood 0,
+  stone and iron the `TileEngine` default of 20). `TileEngineWood.maxEnergyExtracted` 1.01 MJ becomes 10 FE:
+  the redstone engine gains 10 FE every 16 ticks, and the extra 0.01 MJ only showed when more than 1 MJ was
+  waiting; 10 FE keeps plan section 7's 10 FE per pulse.
+- `sendPower` to a BuildCraft receptor is unchanged: `receiveEnergy(Type.ENGINE, extracted, side)` with the min/max and
+  eat-excess rules pinned in `PowerHandlerTest`. A neighbour that is only an FE `EnergyHandler` (another mod) gets the
+  pulse through `insert` in a transaction; that path, and what `getPowerToExtract` uses as min/max for it, is the
+  engine port's call.
+- The doWork conversion `useEnergy(10, maxEnergyReceived(), true) * 0.95F` needs a rounding rule in FE.

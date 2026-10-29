@@ -15,6 +15,8 @@
 package buildcraftreforged.core;
 
 import buildcraftreforged.BuildcraftReforged;
+import buildcraftreforged.api.power.IPowerReceptor;
+import buildcraftreforged.api.power.PowerHandler;
 import buildcraftreforged.core.inventory.InvUtils;
 import buildcraftreforged.core.network.IClientState;
 import buildcraftreforged.core.network.ISyncedTile;
@@ -100,8 +102,11 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
             updateMachineLight();
         }
 
-        // SEAM(#35): 4.2.2 called ((IPowerReceptor) this).getPowerReceiver(null).update() here; the PowerHandler
-        // port brings it back.
+        if (this instanceof IPowerReceptor receptor) {
+            PowerHandler.PowerReceiver receiver = receptor.getPowerReceiver(null);
+            if (receiver != null)
+                receiver.update();
+        }
     }
 
     /**
