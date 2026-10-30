@@ -753,3 +753,48 @@ Every energy value the 4.2.2 power api handled in `float` MJ is a `long` in FE, 
   pulse through `insert` in a transaction; that path, and what `getPowerToExtract` uses as min/max for it, is the
   engine port's call.
 - The doWork conversion `useEnergy(10, maxEnergyReceived(), true) * 0.95F` needs a rounding rule in FE.
+
+## Pipe block, block entity, connections and waterlogging (#48)
+
+New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes were read for behaviour only.
+
+- **Table.** `TransportRegistry.PIPE_DEFINITIONS` lists `PipeDefinition(kind, material)` rows; each row registers one
+  block and one `ItemBlockBuildCraft`. #48 registers wood, stone and gold for item, fluid and power (9 pipes, the
+  materials with 4.2.2 textures); #53 extends the material list to all ten. `PipeMaterial` holds the tier and the
+  config id (`wood` … `ender`). One block class per kind (`BlockPipeItems`, `BlockPipeFluids`, `BlockPipePower`)
+  under the abstract `BlockPipe`; one block entity type, `pipe` (`TilePipe`), valid for every pipe block.
+- **Names.** The 4.2.2 pipe class name is the unlocalised name: `PipeItemsGold` → registry name `pipe_items_gold`,
+  translation key `item.PipeItemsGold` for both block and item (the key is in the 4.2.2 language file). Copper,
+  netherite and ender have no 4.2.2 key or texture yet (#53, PLAN 8.6).
+- **Block state** is `waterlogged` only (`SimpleWaterloggedBlock`). Connections live in `TilePipe.connectionMask`,
+  bit `d` = `Direction.get3DDataValue()`. The mask is not saved; it is recomputed on the server tick after the pipe
+  loads or is placed, after `neighborChanged`, after a neighbour capability cache (`BlockCapabilityCache`, one per side,
+  for the pipe kind's capability) invalidates, and after a plug or module changes on the pipe or a neighbouring pipe.
+  Pipes tick on the server only. A pipe whose neighbour pipe disagrees about their shared side tells it to look again,
+  which covers chunk loads and same-tick placement. The mask is synced as the network payload (one byte); the client
+  refreshes model data and re-meshes the section.
+- **Connection rule** (`PipeConnections.canConnect`, level-free and unit-tested): plug → override (`IPipeConnection`
+  on the neighbour block entity, ignored by the Isolator) → pipe to pipe (no far plug, same kind, no module ban) →
+  pipe to block (not structure, not Isolator, kind capability on the facing side). Items: `Capabilities.Item.BLOCK`
+  with `size() > 0`. Fluids: `Capabilities.Fluid.BLOCK` with `size() > 0`. Power: any `Capabilities.Energy.BLOCK`
+  handler except `EmptyEnergyHandler`, because NeoForge 26.3's `EnergyHandler` has no `canReceive`/`canExtract`.
+- **Modules and plugs** exist only as data so far: `TilePipe.setModuleType(PipeModuleType)` and
+  `setPlugged(Direction, boolean)`, saved as `module` and `plugs`. `PipeModuleType` knows only the connection-rule
+  facts (Isolator, the four self-banned modules of Q16). #55 replaces the type with the module object; #61 calls
+  `setPlugged`.
+- **Hardness.** Registered with 0.25 (`DefaultProps.PIPES_DURABILITY`); `BlockPipe.getDestroyProgress` reads
+  `pipes.durability` at break time, so the configured value applies without a restart.
+- **Shape.** `PipeShapes`: the 4.2.2 centre (4–12 px) plus an arm per connected side, 64 shapes built once, read from
+  the block entity in `getShape`.
+- **Model.** Blockstate files use the custom block-state model type `buildcraftreforged:pipe` with one `texture`.
+  `PipeBlockStateModel.Unbaked` bakes two north-facing templates (`block/pipe_centre_face`, `block/pipe_arm`) six
+  ways each into twelve parts and stores the part list of every mask (64 lists); rendering looks the list up by the
+  mask in the block entity's model data (`TilePipe.CONNECTIONS`). The geometry key is the model plus the mask.
+  The item model is a straight vertical pipe (`block/pipe_inventory`). Textures are the 4.2.2 ones: `pipeItemsWood_standard`,
+  `pipeItemsStone`, `pipeItemsGold` and the fluid and power equivalents, under `textures/block/pipe_<kind>_<material>.png`.
+- **Not here:** routing and the pipe capabilities of TRANSPORT.md 6.2 (#50–#52; `injectItem` returns 0 with a SEAM),
+  the network graph (#49; SEAMs where the mask changes, on load and on removal), `Utils.checkPipesConnections` and
+  `addToRandomPipeAround` (still waiting in `Utils`), facades (`isSolidOnSide` is false), the Structure Pipe (#54).
+- **GameTests** (`PipeTests`): chest and pipe bits and breaking the chest; each kind against chest, cauldron and an
+  energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
+  The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
