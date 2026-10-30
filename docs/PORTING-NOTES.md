@@ -574,3 +574,43 @@ Interfaces, enums, registries and base classes only; implementations land in the
 - **Tests.** GameTests `trigger_registries`, `trigger_machine`, `trigger_inventory`, `trigger_fluid` use a test-only
   block (`gametest_trigger_block`, registered by the gametest source set, not in the jar): an `IMachine` with two item
   slots and a 4000 mB tank as capabilities. The inventory test also reads a vanilla chest.
+
+## Markers and path markers (#29, #30)
+
+- **Package and names.** The markers stay in `builders` as in 4.2.2: `BlockMarker`, `TileMarker`, `BlockPathMarker`,
+  `TilePathMarker`, `EventHandlerBuilders`, registered in `BuildersRegistry` as `marker_block` and
+  `path_marker_block` (block entity types `marker` and `path_marker`). `Box`, `BlockIndex`, `DefaultAreaProvider`,
+  `EntityBlock` and `core/render/RenderEntityBlock` are in `core`.
+- **`EntityBlock` is render data, not an entity.** 4.2.2 spawned an `EntityBlock` for every laser
+  (`Utils.createLaser`/`createLaserBox`) and an `EntityPowerLaser` between linked path markers. Here
+  `Utils.createLaser` returns an unspawned `EntityBlock` (position, size, texture `Identifier`, brightness 210) that
+  the calling block entity keeps, and its `BlockEntityRenderer` draws it through `RenderEntityBlock.doRenderBlock`
+  inside `submitCustomGeometry`. `setDead()` only marks it. `Box.getLasers()` and `TileMarker.getLasers()`/
+  `getSignals()` hand the arrays to a renderer. Later ports that made `EntityBlock`s (filler, builder, quarry arm)
+  should do the same.
+- **`builders/render/RenderMarker`** (new) is the renderer for both marker types: the red box and blue signal lasers,
+  and for path markers the link laser with `RenderLaser`'s 16x1x1 model box and `textures/entity/laser_1.png`, drawn
+  once by the marker at the lower position. It renders off screen with a render box of the marker inflated by 64.
+  `core/render/RenderLaser` itself is not ported yet.
+- **`RenderingMarkers` becomes JSON models.** `models/block/template_marker.json` has the 1.6.4 marker shape (two
+  crossed full-texture planes and the 2x2 cap at 9/16); the blockstates rotate it per `FACING` as vanilla's end rod.
+- **Metadata → `BlockMarker.FACING`** (the clicked face). `canPlaceBlockOnSide`/`BuildersProxy.canPlaceTorch`
+  ("renderAsNormalBlock") is `canSurvive`: the block behind must be `isSolidRender()`. The 4.2.2 neighbour check and
+  drop stay in `neighborChanged`/`onPlace`.
+- **Material.circuits** becomes no collision, instant break, light 7 (`setLightValue(0.5F)`), `PushReaction.POPPED`.
+  **Not waterloggable**: 1.6.4 water washed a marker off like a torch, and a block without collision does the same.
+- **Path marker texture.** `getBlockTexture`'s active icon is `BlockPathMarker.ACTIVE`, which the server keeps equal
+  to `tryingToConnect` (4.2.2 re-rendered on the client when it changed). The cap always uses the active texture.
+- **Sync.** `TileMarker` writes `origin` (vectO, vect[3], min/max) then `showSignals`; `TilePathMarker` adds
+  `tryingToConnect` and the two link positions, which replace the tracked laser entity. The client rebuilds its
+  lasers in `postPacketHandling` as 4.2.2 did.
+- **Removal versus unload.** 4.2.2's `invalidate` → `destroy` ran on block removal only; 26.x `setRemoved` also runs on
+  chunk unload, so the unlinking lives in `destroy()` (from `preRemoveSideEffects`) and `onChunkUnloaded` only drops a
+  path marker from the available list.
+- **Save.** Tag names are 4.2.2's (`vectO`, `vect0..2` with `i/j/k`; `x0..z1`). 26.x does not tick block entities in
+  border chunks, so a marker loaded but not yet initialised writes back what it loaded instead of dropping the box or
+  link. `initVectO` is cleared after linking, so a second `initialize` (after `clearRemoved`) does not relink.
+- **Textures** are the 4.2.2 files renamed: `block/marker_block`, `block/path_marker_block(_active)`,
+  `block/red_laser`, `block/blue_laser`, `block/stripes_laser`, `entity/laser_1`.
+- **Recipe**: lapis lazuli over a redstone torch, as 4.2.2. The path marker recipe was commented out in 4.2.2, so the
+  path marker stays creative-only.

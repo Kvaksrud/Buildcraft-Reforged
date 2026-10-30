@@ -1,0 +1,7 @@
+{
+  "parent": "buildcraftreforged:block/template_marker",
+  "textures": {
+    "marker": "buildcraftreforged:block/path_marker_block_active",
+    "cap": "buildcraftreforged:block/path_marker_block_active"
+  }
+}
