@@ -9,11 +9,13 @@
  * NBT becomes ValueInput/ValueOutput; invalidate becomes setRemoved; Utils.preDestroyBlock becomes
  * preRemoveSideEffects; the active-machine light goes through the auxiliary light manager; the reflection packet
  * wrappers become writePacketPayload/readPacketPayload, sent as the vanilla update tag and as state 0 of a
- * PacketTileState.
+ * PacketTileState. The inventory drop uses InvUtils (#23); getItemHandler and registerItemHandler expose the item
+ * capability per side.
  */
 package buildcraftreforged.core;
 
 import buildcraftreforged.BuildcraftReforged;
+import buildcraftreforged.core.inventory.InvUtils;
 import buildcraftreforged.core.network.IClientState;
 import buildcraftreforged.core.network.ISyncedTile;
 import buildcraftreforged.core.network.PacketData;
@@ -22,6 +24,7 @@ import com.mojang.serialization.Codec;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
@@ -31,6 +34,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -41,8 +45,12 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.world.AuxiliaryLightManager;
 import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile {
@@ -117,10 +125,11 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
      */
     @Override
     public void preRemoveSideEffects(BlockPos pos, BlockState state) {
-        // SEAM(#23): BlockEntity drops a vanilla Container here; the SimpleInventory port adds InvUtils.dropItems and
-        // wipeInventory.
-        if (!(this instanceof IDropControlInventory) || ((IDropControlInventory) this).doDrop()) {
-            super.preRemoveSideEffects(pos, state);
+        if (this instanceof Container inventory && level != null) {
+            if (!(this instanceof IDropControlInventory) || ((IDropControlInventory) this).doDrop()) {
+                InvUtils.dropItems(level, inventory, pos.getX(), pos.getY(), pos.getZ());
+                InvUtils.wipeInventory(inventory);
+            }
         }
 
         if (level != null) {
@@ -148,6 +157,23 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
     public void onBlockPlacedBy(@Nullable LivingEntity entity, ItemStack stack) {
         if (entity instanceof Player)
             owner = ((Player) entity).getGameProfile().name();
+    }
+
+    /**
+     * The item capability (Capabilities.Item.BLOCK) on side: InvUtils.getItemHandler, which follows 4.2.2's
+     * ISidedInventory rules for a tile that is a WorldlyContainer and shows every slot for one that is a plain
+     * Container. Null for a tile without an inventory. Override to expose something else.
+     */
+    public @Nullable ResourceHandler<ItemResource> getItemHandler(@Nullable Direction side) {
+        return InvUtils.getItemHandler(this, side);
+    }
+
+    /**
+     * Registers getItemHandler as the item capability of type. A module's registry class calls this from its
+     * RegisterCapabilitiesEvent listener for each tile type that holds items (4.2.2: implements IInventory).
+     */
+    public static void registerItemHandler(RegisterCapabilitiesEvent event, BlockEntityType<? extends TileBuildCraft> type) {
+        event.registerBlockEntity(Capabilities.Item.BLOCK, type, TileBuildCraft::getItemHandler);
     }
 
     /** Called by preRemoveSideEffects (4.2.2 Utils.preDestroyBlock) before the block entity goes. */
