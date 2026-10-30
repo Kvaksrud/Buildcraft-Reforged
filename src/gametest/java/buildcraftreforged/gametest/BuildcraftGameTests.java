@@ -1,6 +1,7 @@
 package buildcraftreforged.gametest;
 
 import buildcraftreforged.BuildcraftReforged;
+import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -16,6 +17,7 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -30,6 +32,12 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> NO_SOCKETS = function("no_sockets");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_ROTATES_BLOCK = function("wrench_rotates_block");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_TAG = function("wrench_tag");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_FILL_AND_DRAIN = function("tank_fill_and_drain");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_BUCKET_AND_SAVE = function("tank_bucket_and_save");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_REGISTRIES = function("trigger_registries");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_MACHINE = function("trigger_machine");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_INVENTORY = function("trigger_inventory");
+    private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_FLUID = function("trigger_fluid");
     private static final ResourceKey<Consumer<GameTestHelper>> MARKERS = function("markers");
     private static final ResourceKey<Consumer<GameTestHelper>> PATH_MARKERS = function("path_markers");
 
@@ -42,9 +50,21 @@ public final class BuildcraftGameTests {
             registry.register(NO_SOCKETS, NoSocketsTest::noSockets);
             registry.register(WRENCH_ROTATES_BLOCK, WrenchTests::wrenchRotatesBlock);
             registry.register(WRENCH_TAG, WrenchTests::wrenchTag);
+            registry.register(TANK_FILL_AND_DRAIN, FluidTankTests::fillAndDrain);
+            registry.register(TANK_BUCKET_AND_SAVE, FluidTankTests::bucketAndSave);
+            registry.register(TRIGGER_REGISTRIES, TriggerTests::registries);
+            registry.register(TRIGGER_MACHINE, TriggerTests::machine);
+            registry.register(TRIGGER_INVENTORY, TriggerTests::inventory);
+            registry.register(TRIGGER_FLUID, TriggerTests::fluid);
             registry.register(MARKERS, MarkerTests::markers);
             registry.register(PATH_MARKERS, MarkerTests::pathMarkers);
         });
+        FluidTankTests.register(event);
+    }
+
+    @SubscribeEvent
+    static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        FluidTankTests.registerCapabilities(event);
     }
 
     @SubscribeEvent
@@ -56,6 +76,15 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
         event.registerTest(id("wrench_tag"), new FunctionGameTestInstance(WRENCH_TAG,
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("tank_fill_and_drain"), new FunctionGameTestInstance(TANK_FILL_AND_DRAIN,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("tank_bucket_and_save"), new FunctionGameTestInstance(TANK_BUCKET_AND_SAVE,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        for (ResourceKey<Consumer<GameTestHelper>> trigger : List.of(TRIGGER_REGISTRIES, TRIGGER_MACHINE, TRIGGER_INVENTORY,
+                TRIGGER_FLUID)) {
+            event.registerTest(trigger.identifier(), new FunctionGameTestInstance(trigger,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        }
         event.registerTest(id("markers"), new FunctionGameTestInstance(MARKERS,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
         event.registerTest(id("path_markers"), new FunctionGameTestInstance(PATH_MARKERS,

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import buildcraftreforged.api.gates.IAction;
 import buildcraftreforged.core.network.PacketTileState;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -79,6 +80,11 @@ class TileBuildCraftTest {
 
         @Override
         public boolean manageSolids() {
+            return false;
+        }
+
+        @Override
+        public boolean allowAction(IAction action) {
             return false;
         }
 

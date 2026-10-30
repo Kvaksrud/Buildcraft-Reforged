@@ -13,8 +13,10 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 - **New registry name.** Section 6's rule as implemented in #18 (`RegistryNames.of`): the 4.2.2 unlocalised name,
   camel case to snake case, dots to underscores (`engineWood` → `engine_wood`, `spring.oil` → `spring_oil`). Names
   built from a metadata number (`pipe_gate_0`, `redstone_chipset_0`) are placeholders; the owning issue may rename
-  them when it splits the variants. Triggers and actions show their 4.2.2 unique tag, which is what `ActionManager`
-  keys them by; #31 decides the id form. GUIs name the menu they become.
+  them when it splits the variants. Triggers and actions are entries of the `buildcraftreforged:trigger` and
+  `buildcraftreforged:action` registries (#31), named after their 4.2.2 `BuildCraft*` field by the same rule
+  (`triggerMachineActive` → `trigger_machine_active`). Rows still showing a dotted name list the 4.2.2 unique tag
+  until their issue registers them; `ActionManager.triggers`/`actions` still resolve that tag. GUIs name the menu they become.
 - **Issue.** The 0.1.0 sub-issue that ports the row. Two or more issues means the row is done when all of them are.
 - **Ticks.** Change `[ ]` to `[x]` in the same pull request that makes it true: *compiles* (registered and builds),
   *renders* (model, texture or screen in game), *behaves* (matches 4.2.2 plus the plan's deliberate changes,
@@ -56,19 +58,19 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Machine active | `TriggerMachine` | `buildcraft.work.scheduled` | #31 | [ ] | [ ] | [ ] |  |
-| Machine inactive | `TriggerMachine` | `buildcraft.work.done` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory empty | `TriggerInventory` | `buildcraft.inventory.empty` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory contains | `TriggerInventory` | `buildcraft.inventory.contains` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory space | `TriggerInventory` | `buildcraft.inventory.space` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory full | `TriggerInventory` | `buildcraft.inventory.full` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory below 25% | `TriggerInventoryLevel` | `buildcraft.inventorylevel.below_25` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory below 50% | `TriggerInventoryLevel` | `buildcraft.inventorylevel.below_50` | #31 | [ ] | [ ] | [ ] |  |
-| Inventory below 75% | `TriggerInventoryLevel` | `buildcraft.inventorylevel.below_75` | #31 | [ ] | [ ] | [ ] |  |
-| Fluid tank empty | `TriggerFluidContainer` | `buildcraft.fluid.empty` | #31 | [ ] | [ ] | [ ] |  |
-| Fluid tank contains | `TriggerFluidContainer` | `buildcraft.fluid.contains` | #31 | [ ] | [ ] | [ ] |  |
-| Fluid tank space | `TriggerFluidContainer` | `buildcraft.fluid.space` | #31 | [ ] | [ ] | [ ] |  |
-| Fluid tank full | `TriggerFluidContainer` | `buildcraft.fluid.full` | #31 | [ ] | [ ] | [ ] |  |
+| Machine active | `TriggerMachine` | `trigger_machine_active` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.work.scheduled`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Machine inactive | `TriggerMachine` | `trigger_machine_inactive` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.work.done`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory empty | `TriggerInventory` | `trigger_empty_inventory` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventory.empty`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory contains | `TriggerInventory` | `trigger_contains_inventory` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventory.contains`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory space | `TriggerInventory` | `trigger_space_inventory` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventory.space`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory full | `TriggerInventory` | `trigger_full_inventory` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventory.full`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory below 25% | `TriggerInventoryLevel` | `trigger_inventory_below25` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventorylevel.below_25`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory below 50% | `TriggerInventoryLevel` | `trigger_inventory_below50` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventorylevel.below_50`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Inventory below 75% | `TriggerInventoryLevel` | `trigger_inventory_below75` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.inventorylevel.below_75`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Fluid tank empty | `TriggerFluidContainer` | `trigger_empty_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.empty`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Fluid tank contains | `TriggerFluidContainer` | `trigger_contains_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.contains`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Fluid tank space | `TriggerFluidContainer` | `trigger_space_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.space`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Fluid tank full | `TriggerFluidContainer` | `trigger_full_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.full`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
 | Redstone input active | `TriggerRedstoneInput` | `buildcraft.redtone.input.active` | #60 | [ ] | [ ] | [ ] | Offered by the pipe itself (`TileGenericPipe.getTriggers`). Tag misspelt in 4.2.2. |
 | Redstone input inactive | `TriggerRedstoneInput` | `buildcraft.redtone.input.inactive` | #60 | [ ] | [ ] | [ ] | As above. |
 
@@ -76,10 +78,10 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Redstone output | `ActionRedstoneOutput` | `buildcraft.redstone.output` | #31 | [ ] | [ ] | [ ] |  |
-| Machine on | `ActionMachineControl` | `buildcraft.machine.on` | #31 | [ ] | [ ] | [ ] |  |
-| Machine off | `ActionMachineControl` | `buildcraft.machine.off` | #31 | [ ] | [ ] | [ ] |  |
-| Machine loop | `ActionMachineControl` | `buildcraft.machine.loop` | #31 | [ ] | [ ] | [ ] |  |
+| Redstone output | `ActionRedstoneOutput` | `action_redstone` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.redstone.output`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Machine on | `ActionMachineControl` | `action_on` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.machine.on`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Machine off | `ActionMachineControl` | `action_off` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.machine.off`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
+| Machine loop | `ActionMachineControl` | `action_loop` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.machine.loop`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
 
 ## energy (`BuildCraftEnergy`)
 
@@ -403,3 +405,4 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 |---|---|---|---|---|---|---|---|
 | Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |
+| Machine blocked trigger | `TriggerMachine` | `trigger_machine_blocked` | #31 | [x] | [ ] | [ ] | Section 8.3. Tag `buildcraft.work.blocked`; true while `IMachine.isBlocked()`. Its sprite `triggers/trigger_machine_blocked` is new art, not drawn yet. |
