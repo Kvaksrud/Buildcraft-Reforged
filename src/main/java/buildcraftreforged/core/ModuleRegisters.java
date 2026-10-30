@@ -1,6 +1,9 @@
 package buildcraftreforged.core;
 
 import buildcraftreforged.BuildcraftReforged;
+import buildcraftreforged.api.gates.ActionManager;
+import buildcraftreforged.api.gates.IAction;
+import buildcraftreforged.api.gates.ITrigger;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -35,6 +38,8 @@ public final class ModuleRegisters {
     public final DeferredRegister.DataComponents dataComponents =
             DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, BuildcraftReforged.MOD_ID);
     public final DeferredRegister<CreativeModeTab> creativeModeTabs = create(Registries.CREATIVE_MODE_TAB);
+    public final DeferredRegister<ITrigger> triggers = create(ActionManager.TRIGGER_REGISTRY_KEY);
+    public final DeferredRegister<IAction> actions = create(ActionManager.ACTION_REGISTRY_KEY);
 
     private static <T> DeferredRegister<T> create(ResourceKey<? extends Registry<T>> key) {
         return DeferredRegister.create(key, BuildcraftReforged.MOD_ID);
@@ -52,5 +57,7 @@ public final class ModuleRegisters {
         soundEvents.register(modBus);
         dataComponents.register(modBus);
         creativeModeTabs.register(modBus);
+        triggers.register(modBus);
+        actions.register(modBus);
     }
 }
