@@ -5,16 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import buildcraftreforged.api.power.IPowerReceptor;
+import buildcraftreforged.api.power.PowerHandler;
 import buildcraftreforged.api.gates.IAction;
 import buildcraftreforged.core.network.PacketTileState;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
@@ -135,6 +139,40 @@ class TileBuildCraftTest {
         tick(tile);
         assertEquals(1, tile.initializeCalls);
         assertEquals(3, tile.updateCalls);
+    }
+
+    static class PowerTile extends TileBuildCraft implements IPowerReceptor {
+        final PowerHandler powerHandler = new PowerHandler(this, PowerHandler.Type.MACHINE);
+        int nullSideLookups;
+
+        PowerTile() {
+            super(BlockEntityTypes.FURNACE, POS, STATE);
+        }
+
+        @Override
+        public PowerHandler.PowerReceiver getPowerReceiver(Direction side) {
+            if (side == null)
+                nullSideLookups++;
+            return powerHandler.getPowerReceiver();
+        }
+
+        @Override
+        public void doWork(PowerHandler workProvider) {
+        }
+
+        @Override
+        public Level getWorld() {
+            return level;
+        }
+    }
+
+    @Test
+    void updatesThePowerReceiverEveryTick() {
+        // 4.2.2 TileBuildCraft.updateEntity: receptor.getPowerReceiver(null).update().
+        PowerTile tile = new PowerTile();
+        tick(tile);
+        tick(tile);
+        assertEquals(2, tile.nullSideLookups);
     }
 
     @Test
