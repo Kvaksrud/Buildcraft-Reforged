@@ -206,10 +206,10 @@ class TileBuildCraftTest {
         assertEquals("[BuildCraft]", tag.getStringOr("owner", ""));
         assertEquals(42, tag.getIntOr("energy", 0));
 
-        tag.putString("owner", "Patrick");
+        tag.putString("owner", "Steve");
         SampleTile loaded = new SampleTile();
         loaded.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, tag));
-        assertEquals("Patrick", loaded.getOwner());
+        assertEquals("Steve", loaded.getOwner());
         assertEquals(42, loaded.energy);
     }
 
