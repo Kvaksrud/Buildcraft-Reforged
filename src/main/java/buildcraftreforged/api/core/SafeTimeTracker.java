@@ -6,7 +6,8 @@
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
  *
  * Modified by Buildcraft Reforged, 2026: World becomes Level, getTotalWorldTime becomes getGameTime; the time
- * comparison moved into package-private overloads that take the game time, for unit tests.
+ * comparison moved into overloads that take the game time, for unit tests (public, so PowerHandler's tests can
+ * drive it).
  */
 package buildcraftreforged.api.core;
 
@@ -28,7 +29,7 @@ public class SafeTimeTracker {
         return markTimeIfDelay(world.getGameTime(), delay);
     }
 
-    boolean markTimeIfDelay(long currentTime, long delay) {
+    public boolean markTimeIfDelay(long currentTime, long delay) {
         if (currentTime < lastMark) {
             lastMark = currentTime;
             return false;
