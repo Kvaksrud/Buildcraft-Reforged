@@ -16,6 +16,7 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -30,6 +31,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> NO_SOCKETS = function("no_sockets");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_ROTATES_BLOCK = function("wrench_rotates_block");
     private static final ResourceKey<Consumer<GameTestHelper>> WRENCH_TAG = function("wrench_tag");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_FILL_AND_DRAIN = function("tank_fill_and_drain");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_BUCKET_AND_SAVE = function("tank_bucket_and_save");
 
     private BuildcraftGameTests() {
     }
@@ -40,7 +43,15 @@ public final class BuildcraftGameTests {
             registry.register(NO_SOCKETS, NoSocketsTest::noSockets);
             registry.register(WRENCH_ROTATES_BLOCK, WrenchTests::wrenchRotatesBlock);
             registry.register(WRENCH_TAG, WrenchTests::wrenchTag);
+            registry.register(TANK_FILL_AND_DRAIN, FluidTankTests::fillAndDrain);
+            registry.register(TANK_BUCKET_AND_SAVE, FluidTankTests::bucketAndSave);
         });
+        FluidTankTests.register(event);
+    }
+
+    @SubscribeEvent
+    static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        FluidTankTests.registerCapabilities(event);
     }
 
     @SubscribeEvent
@@ -51,6 +62,10 @@ public final class BuildcraftGameTests {
         event.registerTest(id("wrench_rotates_block"), new FunctionGameTestInstance(WRENCH_ROTATES_BLOCK,
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
         event.registerTest(id("wrench_tag"), new FunctionGameTestInstance(WRENCH_TAG,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("tank_fill_and_drain"), new FunctionGameTestInstance(TANK_FILL_AND_DRAIN,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("tank_bucket_and_save"), new FunctionGameTestInstance(TANK_BUCKET_AND_SAVE,
                 new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
     }
 
