@@ -34,6 +34,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -195,12 +196,19 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
     public void postPacketHandling() {
     }
 
-    /** 4.2.2 sent to players within NETWORK_UPDATE_RANGE; #20 sends to the players tracking the chunk. */
+    /**
+     * 4.2.2 sent to players within NETWORK_UPDATE_RANGE; #20 sends to the players tracking the chunk. Only players whose
+     * connection negotiated our channel get it: a client without the mod, or a GameTest mock player, would otherwise
+     * make NeoForge throw.
+     */
     public void sendNetworkUpdate() {
         if (level instanceof ServerLevel serverLevel) {
             PacketTileState packet = new PacketTileState(worldPosition, level.registryAccess());
             packet.addStateForSerialization(NETWORK_STATE, networkState);
-            PacketDistributor.sendToPlayersTrackingChunk(serverLevel, ChunkPos.containing(worldPosition), packet);
+            for (ServerPlayer player : serverLevel.getChunkSource().chunkMap.getPlayers(ChunkPos.containing(worldPosition), false)) {
+                if (player.connection.hasChannel(PacketTileState.TYPE))
+                    PacketDistributor.sendToPlayer(player, packet);
+            }
         }
     }
 

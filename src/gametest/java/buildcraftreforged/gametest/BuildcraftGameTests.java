@@ -40,6 +40,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> TRIGGER_FLUID = function("trigger_fluid");
     private static final ResourceKey<Consumer<GameTestHelper>> MARKERS = function("markers");
     private static final ResourceKey<Consumer<GameTestHelper>> PATH_MARKERS = function("path_markers");
+    private static final ResourceKey<Consumer<GameTestHelper>> GUI_MENU_SLOTS = function("gui_menu_slots");
+    private static final ResourceKey<Consumer<GameTestHelper>> GUI_SAMPLE_MENU = function("gui_sample_menu");
 
     private BuildcraftGameTests() {
     }
@@ -58,6 +60,8 @@ public final class BuildcraftGameTests {
             registry.register(TRIGGER_FLUID, TriggerTests::fluid);
             registry.register(MARKERS, MarkerTests::markers);
             registry.register(PATH_MARKERS, MarkerTests::pathMarkers);
+            registry.register(GUI_MENU_SLOTS, GuiTests::menuSlots);
+            registry.register(GUI_SAMPLE_MENU, GuiTests::sampleMenu);
         });
         FluidTankTests.register(event);
     }
@@ -89,6 +93,10 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
         event.registerTest(id("path_markers"), new FunctionGameTestInstance(PATH_MARKERS,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("gui_menu_slots"), new FunctionGameTestInstance(GUI_MENU_SLOTS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gui_sample_menu"), new FunctionGameTestInstance(GUI_SAMPLE_MENU,
+                new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
     }
 
     /** Test-only data: puts a vanilla item in {@code c:tools/wrench} to stand in for another mod's wrench. */
