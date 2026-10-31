@@ -3357,3 +3357,19 @@ New code from `docs/TRANSPORT.md` 10, 11 and Q17; the 4.2.2 `PipeStructureCobble
   and `plug_facade_laser_crafting` (8 plugs and 6 stone facades made under lasers).
 - **Not checked without a client:** the Structure Pipe and Basic Extractor models and items, the stripes and the
   item slide, the JEI entries for plugs and facades (one per facade, the recipe pages).
+
+## Energy table (#46)
+
+- **Generated, not written.** `docs/ENERGY-TABLE.md` is written by the unit test `EnergyTableTest` from the real
+  values: it builds each engine and machine block entity and reads its power handler (min and max intake, activation,
+  store, and the perdition its calculator applies to a full store in one tick), the engine methods, the public
+  constants, the shipped fuel data map and recipe files, and the config defaults (`mining.cost.multipler`, the
+  `transport.tiers` power caps, the fuel multipliers). Private and package-private values (Stirling output range,
+  laser send rate, Advanced Crafting Table cost, the quarry's digging configuration through `dig()`) are read by
+  reflection, so no class changed for it. The test fails when the committed file differs;
+  `./gradlew test --tests buildcraftreforged.EnergyTableTest -PupdateEnergyTable` rewrites it. The Gradle `test` task
+  takes the file as an input, so editing it re-runs the check.
+- **Not from the code.** The 4.2.2 power pipe caps (`docs/PLAN.md` section 2) are a constant in the test, since the
+  tier ladder replaced those pipes. The prose notes (the redstone engine's 10 FE every 16 ticks, the 10 FE/t idle loss)
+  name literals inside methods the test cannot reach. Machines added later (the builder, #78) need a row added to
+  the test. Recorded 1 Nov 2026.
