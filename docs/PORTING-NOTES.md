@@ -800,6 +800,139 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
   energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
   The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
 
+## Fuel and coolant registry (#43)
+
+4.2.2 registered combustion engine fuels and coolants in code (`BuildCraftEnergy.preInit`). They are data now:
+three NeoForge data maps declared in `api/fuels/FuelDataMaps` and registered by `EnergyRegistry`. Decided 2026-10-31.
+
+| Data map | File | Key | Value |
+| --- | --- | --- | --- |
+| `buildcraftreforged:combustion_fuels` | `data/buildcraftreforged/data_maps/fluid/combustion_fuels.json` | fluid | `{"power_per_cycle": FE, "total_burning_time": ticks}` |
+| `buildcraftreforged:combustion_coolants` | `data/buildcraftreforged/data_maps/fluid/combustion_coolants.json` | fluid | `{"degrees_cooling_per_mb": float}` |
+| `buildcraftreforged:solid_coolants` | `data/buildcraftreforged/data_maps/item/solid_coolants.json` | item | `{"fluid": fluid, "amount": mB}` |
+
+- **Values.** Oil 30 FE per cycle for 5000 ticks, fuel 60 FE for 25000 ticks (4.2.2: 3 and 6 MJ, × 10). Water cools
+  0.0023 heat per mB (heat units are unchanged); an ice block counts as 2000 mB of water. Lava stays out, as it was
+  commented out in 4.2.2. All values are synced to clients (not mandatory).
+- **Oil and fuel before #42.** Their entries carry a `neoforge:registered` condition on the fluid, so they load once
+  #42 registers `buildcraftreforged:oil` and `buildcraftreforged:fuel` and are skipped quietly until then. Key the
+  source fluid, not the flowing one; tanks hold source fluids. #42/#44 need no code change here.
+- **Lookups (the API for #44).** Unchanged 4.2.2 entry points: `IronEngineFuel.getFuelForFluid(Fluid)` returns a
+  `Fuel` (`liquid`, `powerPerCycle` in FE, `totalBurningTime`) or `null`; `IronEngineCoolant.getCoolant(FluidStack)`,
+  `getCoolant(ItemStack)`, `getFluidCoolant(ItemStack)` and `isCoolant(Fluid)`. Each reads the data map first and
+  falls back to the 4.2.2 code-registered maps (`fuels`, `liquidCoolants`, `solidCoolants`, filled by `addFuel` and
+  `addCoolant`), which stay for other mods. Data wins when both name a fluid. `getFuelForFluid` builds a new `Fuel`
+  for data entries on each call, so callers may cache it per fuel change; `getFluidCoolant` builds a new stack for data
+  entries. Solid coolants are a fluid and an amount, not a `FluidStack`: a `FluidStack` cannot be decoded while data
+  maps load, because fluid components are bound after them.
+- **Config multipliers.** 4.2.2 multiplied the oil and fuel burning times by `fuel.oil.combustion` and
+  `fuel.fuel.combustion` when it registered them. The new `IronEngineFuel.burningTimeMultipliers` (fluid id →
+  `DoubleSupplier`) applies them at lookup to data-map fuels, `(int) (time * multiplier)` as in 4.2.2, so a config
+  change applies without a reload. `EnergyRegistry` puts the two config values there.
+- **Data packs** add a fuel or coolant with a file at the same path (entries merge; `"replace": true` overrides an
+  entry, `"remove"` drops one). Tags work as keys, as in every data map.
+- **Tests.** `FuelRegistryTest` (JUnit) checks the shipped files against the 4.2.2 values and the code-registered
+  fallback; no data packs load there, so the data maps are empty. The GameTest `fuels` reads the loaded data maps:
+  water, ice, and lava from the GameTest data pack behind the same condition (plus an entry for a missing fluid that
+  the condition skips), data over code, the multiplier, and oil and fuel at 30/5000 and 60/25000 once #42 has
+  registered them.
+
+## Pipe network graph and cache (#49)
+
+New code from `docs/TRANSPORT.md` 3.4, package `buildcraftreforged.transport.graph`. No routing, budgets or source
+ticking yet (#50–#52).
+
+- **Classes.** `PipeNetworkManager` builds and caches networks; it reads the level only through `PipeWorld` (a
+  position → pipe lookup, "is this a loaded non-pipe block", and an endpoint-cache factory), so the whole graph is
+  unit-tested on a stub (`PipeNetworkManagerTest`). `LevelPipeWorld` is the real `PipeWorld`; `PipeNetworks` keeps one
+  manager per `ServerLevel` (created on first `get`, dropped on `LevelEvent.Unload`). `TilePipe` implements
+  `PipeWorld.Pipe` (`getPipeType`, `getTier`, `getConnectionMask`, `getModuleType`).
+- **Network.** `PipeNetwork`: `kind`, `id` (per manager, for logs), `nodes[]`, `endpoints[]`, `sourceNodes[]` (nodes with
+  `PipeModuleType.isSource()`: Extractor, Filtered Extractor, Pickup; sorted by `BlockPos.asLong`), mutable
+  `sourceCursor`, `isValid()`, `indexOf(pos)` / `node(pos)`. Node 0 is the pipe the build started from, then BFS order
+  with neighbours in side order, so the same world always builds the same arrays.
+- **Node.** `PipeNode`: `pos`, `tier`, `module` (the `PipeModuleType` at build time; #55 swaps in the module object),
+  `connectionMask`, `pipe` (the `PipeWorld.Pipe`, i.e. the `TilePipe`, for budgets and records), and `next(side)`: a node
+  index (`PipeNode.isNode`), `PipeNode.NONE` (-1), or an endpoint (`PipeNode.isEndpoint`, `PipeNode.endpointIndex`).
+  A side leads to another node only when both masks have the bit; a connected side towards an unloaded position or
+  towards a pipe block without a live block entity is `NONE`, never an endpoint.
+- **Endpoint.** `PipeNetwork.Endpoint(pos, face, node, side, cache)`: the block, its face towards the pipe (the
+  capability context), the node index and the node's side towards it, and a `BlockCapabilityCache` for the kind's
+  capability (`Capabilities.Item.BLOCK`, `Fluid.BLOCK`, `Energy.BLOCK`). The cache's listener invalidates the network;
+  its validity check is `network.isValid()`, so caches of dropped networks unregister themselves. The cache is read
+  once when it is created, because NeoForge only notifies caches that were read since their last invalidation.
+- **Dirty means unmapped** (a simplification of the 3.4 text, 31 Oct 2026). The manager keeps `byPos` for valid
+  networks only; `invalidate(pos)` drops the networks at `pos` and at its six neighbours and unmaps all their nodes,
+  so there is no separate dirty set that could grow with positions that are no longer pipes. `isDirty(pos)` is "the
+  next `get` builds". Dropping the neighbours' networks too is what makes merging work when only the new pipe has
+  reported a change; it also drops an adjacent network of another kind, which only costs a rebuild.
+- **Invalidation sources** (`PipeNetworks.invalidate(level, pos)`, a no-op on the client and when the level has no
+  manager yet): `TilePipe.onLoad`, `setRemoved` (block break and chunk unload), a connection-mask change in
+  `updateConnections`, `onConfigurationChanged` (plug or module change, even when the mask stays the same), and the
+  endpoint caches. Chest contents, tank levels and energy levels never invalidate. Masks settle on the server tick
+  after a block change (#48), so a network asked for in the same tick as a placement can still be the old shape; it
+  is invalidated again when the mask changes.
+- **Lookups never load chunks or create block entities**: `LevelPipeWorld.getPipe` uses
+  `LevelChunk.getBlockEntity(pos, CHECK)` behind `isLoaded`. `IMMEDIATE` would replace a removed pipe's block entity
+  with a fresh one during a build.
+- **Structure pipes** have no network: `get` returns null for them (TRANSPORT 11).
+
+### For #50 (item walk), #51 (fluids) and #52 (power)
+
+- Get the network with `PipeNetworks.get(serverLevel, pos)` (null when the position holds no loaded pipe, or a structure
+  pipe). It is cheap when cached. Do not keep a network across ticks without checking `isValid()`; get it again.
+- Walk with `network.nodes[i].next(side)`; `in` sides and paths are node indices. Destinations are
+  `network.endpoints[PipeNode.endpointIndex(next)]`; read the handler live with `endpoint.cache().getCapability()`
+  (cast to the kind's handler type; null when the block lost it, which the next tick's rebuild removes). Never call
+  `getCapability` from an invalidation listener.
+- Per-pipe state (budgets, fluid locks, flow records, overflow) stays on the block entity: `(TilePipe) node.pipe`.
+- The source tick (TRANSPORT 6.1) is not here: `PipeNetworkManager.networks()` lists the valid networks built so far,
+  in build order, but a network is only built when something asks for it. The tick has to make sure every source pipe's
+  network exists (for example source pipes ask for theirs when they load or when their module is fitted) and then
+  walk `networks()` with `sourceNodes` / `sourceCursor`, at `LevelTickEvent.Post` on the server.
+- `PipeModuleType.isSource()` decides `sourceNodes`; when #55 replaces the type with module objects, keep that method
+  (or its equivalent) and rebuild the network on a module change (`onConfigurationChanged` already invalidates).
+
+## Tier pipes: registration, recipes, textures and the tier table (#53)
+
+New code from `docs/TRANSPORT.md` 2.1, 2.2 and Q17 (decided 29 Oct 2026); the 4.2.2 pipe registration
+(`BuildCraftTransport.buildPipe`) was read for the recipe shapes only.
+
+- **Registration.** `TransportRegistry.PIPE_DEFINITIONS` now lists every material, so the table is the 30 tier pipes:
+  item, fluid and power × wood, stone, iron, copper, gold, quartz, diamond, emerald, netherite, ender, in that creative
+  tab order. Names follow the #48 rule (`pipe_power_netherite`, key `item.PipePowerNetherite`). The twelve keys 4.2.2
+  never had are added to `en_us.json` in the 4.2.2 wording ("Copper Transport Pipe", "Quartz Fluid Pipe",
+  "Emerald Kinesis Pipe"). The 4.2.2 `tip.*` lines describe the old per-material behaviour and are left unused.
+- **Pipe Sealant** (`pipe_waterproof`, key `item.pipeWaterproof`) is registered here because the fluid-pipe recipe
+  needs it: one green dye, shapeless, gives one, as 4.2.2 `loadRecipes`. Texture: the 4.2.2 `items/pipeWaterproof.png`.
+- **Recipes** (Q17), hand-written JSON like the rest of `data/` (the project has no datagen providers yet):
+  item pipe = `material, glass, material` in a row, 8 pipes; fluid pipe = item pipe + Pipe Sealant, shapeless, 1;
+  power pipe = item pipe + redstone, shapeless, 1; and the 4.2.2 uncrafting of a fluid or power pipe back into its item
+  pipe (`pipe_items_<material>_from_pipe_<kind>_<material>`). Materials: `#minecraft:planks` and `#c:stones`, where
+  4.2.2 used the Ore Dictionary (`plankWood`, `stone`; `c:stones` also takes andesite, diorite, granite, tuff and
+  deepslate), and exact items elsewhere: iron, copper, gold and netherite ingots, block of quartz, diamond, emerald,
+  ender pearl, `minecraft:glass`.
+- **Tier table.** `transport.tiers.<material>.itemsPerSecond`, `fluidPerTick` and `powerPerTick` in the common config
+  (`PipeTierConfig`, defined inside #19's `transport` section). Defaults are `PipeTierStats.defaults`: 1 item/s,
+  20 mB/t and 80 FE/t at tier 1, doubling per tier. Each value is a plain validated `define`, not `defineInRange`,
+  because NeoForge clamps an out-of-range number to the nearest bound while TRANSPORT.md 2.2 wants the tier default;
+  a missing, non-numeric or below-1 value is replaced by the default and logged by the config spec (one warning per
+  key). `BlockPipe.getTierStats()` returns the caps in use (defaults until the config is loaded); routing (#50–#52)
+  applies them. `transport.burstSeconds`, `fluidLockTicks` and `maxRouteVisits` belong to those issues.
+- **Textures.** Every 4.2.2 pipe texture is one material colour plus a kind overlay: diagonal dots for items, dark
+  green (`#223505`) sealant brackets for fluids, red L-bars for power. The 4.2.2 files are used where the material and
+  kind existed: items wood, stone, iron, gold, quartz, diamond (`pipeItemsDiamond_center`, the Sorter's side colours
+  left out), emerald; fluids wood, stone, iron, gold, emerald; power wood, stone, gold, quartz, diamond. The other 13 are
+  new, made by recolouring the 4.2.2 gold texture of the same kind: copper `#C8683A`, netherite `#3F3537`, ender
+  `#22796A` in all three kinds; quartz and diamond fluid pipes and the emerald power pipe in the 4.2.2 colours of
+  those materials (quartz takes its pixels from `pipeItemsQuartz`); and the iron power pipe, because 4.2.2 only had
+  the Power Limiter's mode textures (`pipePowerIronM2`…`M128`), which would be wrong on a plain pipe.
+- **Tests.** Unit (`PipeTiersTest`): the default ladder against the table; config with all tiers, a missing tier and
+  invalid values (zero, a string) run through the spec's correction; 30 registered blocks and items with the right
+  kind, tier and caps; every pipe has a blockstate, item definition, item model, texture, loot table and recipe.
+  GameTests (`TierPipeTests`): every pipe and the sealant crafts from its recipe in the server's recipe manager with
+  the right count, uncrafting included; every pipe places and reports the loaded config's caps.
+
 ## Status panel (#26)
 
 New code for plan section 10 (no 4.2.2 original), in `buildcraftreforged.core.status` plus `core/gui/StatusLedger`.

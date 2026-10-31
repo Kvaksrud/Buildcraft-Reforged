@@ -1,0 +1,6 @@
+{
+  "parent": "buildcraftreforged:block/pipe_inventory",
+  "textures": {
+    "pipe": "buildcraftreforged:block/pipe_fluids_netherite"
+  }
+}
