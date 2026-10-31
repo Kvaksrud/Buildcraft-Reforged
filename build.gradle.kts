@@ -122,6 +122,22 @@ tasks.test {
     useJUnitPlatform()
 }
 
+// Dev client defaults: music off and GUI scale 4. Only keys options.txt does not have yet are written, so what the
+// player changes in game sticks.
+val devClientOptions = tasks.register("devClientOptions") {
+    val options = layout.projectDirectory.file("run/options.txt").asFile
+    doLast {
+        options.parentFile.mkdirs()
+        val lines = if (options.exists()) options.readLines().toMutableList() else mutableListOf()
+        mapOf("soundCategory_music" to "0.0", "guiScale" to "4").forEach { (key, value) ->
+            if (lines.none { it.startsWith("$key:") })
+                lines += "$key:$value"
+        }
+        options.writeText(lines.joinToString("\n", postfix = "\n"))
+    }
+}
+tasks.matching { it.name == "runClient" }.configureEach { dependsOn(devClientOptions) }
+
 neoForge.addModdingDependenciesTo(gametest)
 
 configurations {
