@@ -1,0 +1,30 @@
+{
+  "values": {
+    "minecraft:lava": {
+      "neoforge:conditions": [
+        {
+          "type": "neoforge:registered",
+          "registry": "minecraft:fluid",
+          "value": "minecraft:lava"
+        }
+      ],
+      "value": {
+        "power_per_cycle": 10,
+        "total_burning_time": 20000
+      }
+    },
+    "buildcraftreforged:not_a_fluid": {
+      "neoforge:conditions": [
+        {
+          "type": "neoforge:registered",
+          "registry": "minecraft:fluid",
+          "value": "buildcraftreforged:not_a_fluid"
+        }
+      ],
+      "value": {
+        "power_per_cycle": 10,
+        "total_burning_time": 1
+      }
+    }
+  }
+}

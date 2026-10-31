@@ -46,6 +46,7 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_KINDS_AND_ENDPOINTS = function("pipe_kinds_and_endpoints");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_PLUGS_AND_MODULES = function("pipe_plugs_and_modules");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_WATERLOGGING = function("pipe_waterlogging");
+    private static final ResourceKey<Consumer<GameTestHelper>> FUELS = function("fuels");
 
     private BuildcraftGameTests() {
     }
@@ -70,6 +71,7 @@ public final class BuildcraftGameTests {
             registry.register(PIPE_KINDS_AND_ENDPOINTS, PipeTests::kindsAndEndpoints);
             registry.register(PIPE_PLUGS_AND_MODULES, PipeTests::plugsAndModules);
             registry.register(PIPE_WATERLOGGING, PipeTests::waterlogging);
+            registry.register(FUELS, FuelTests::fuels);
         });
         FluidTankTests.register(event);
     }
@@ -114,10 +116,15 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         event.registerTest(id("pipe_waterlogging"), new FunctionGameTestInstance(PIPE_WATERLOGGING,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("fuels"), new FunctionGameTestInstance(FUELS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
     }
 
     /** Test-only capabilities (see {@link PipeTests#ENERGY_BLOCK}). */
-    /** Test-only data: puts a vanilla item in {@code c:tools/wrench} to stand in for another mod's wrench. */
+    /**
+     * Test-only data: puts a vanilla item in {@code c:tools/wrench} to stand in for another mod's wrench, and adds lava
+     * as a combustion engine fuel (see {@link FuelTests}).
+     */
     @SubscribeEvent
     static void addTestData(AddPackFindersEvent event) {
         event.addPackFinders(id("gametest_data"), PackType.SERVER_DATA, Component.literal("Buildcraft Reforged GameTest data"),
