@@ -41,6 +41,11 @@ public class ModuleDirector extends PipeModule {
         super(PipeModuleType.DIRECTOR);
     }
 
+    /** The Colour Sorter shares the facing (4.2.2 {@code PipeItemsDaizuli} uses {@code PipeLogicIron}). */
+    protected ModuleDirector(PipeModuleType type) {
+        super(type);
+    }
+
     public @Nullable Direction getFacing() {
         return facing;
     }
@@ -68,8 +73,10 @@ public class ModuleDirector extends PipeModule {
             return false;
         if (!(level.getBlockEntity(pipe.getBlockPos().relative(side)) instanceof TilePipe neighbour))
             return true;
+        // 4.2.2 refused any PipeItemsWood, which the emerald and emzuli pipes extend.
         PipeModuleType module = neighbour.getModuleType();
-        return module != PipeModuleType.EXTRACTOR && module != PipeModuleType.FILTERED_EXTRACTOR;
+        return module != PipeModuleType.EXTRACTOR && module != PipeModuleType.FILTERED_EXTRACTOR
+                && module != PipeModuleType.FILTERED_COLOUR_TAG;
     }
 
     /**
@@ -115,7 +122,9 @@ public class ModuleDirector extends PipeModule {
         // A Director fitted before its pipe's connections settled has no facing yet; give it the first valid one.
         if (facing == null)
             switchPosition(pipe);
-        // 4.2.2 switchOnRedstone (Q11): every change of redstone power moves the facing on.
+        // 4.2.2 switchOnRedstone (Q11): every change of redstone power moves the facing on. Not the Colour Sorter (8.9).
+        if (type != PipeModuleType.DIRECTOR)
+            return;
         boolean power = pipe.getLevel().hasNeighborSignal(pipe.getBlockPos());
         if (lastPower != null && power != lastPower)
             switchPosition(pipe);

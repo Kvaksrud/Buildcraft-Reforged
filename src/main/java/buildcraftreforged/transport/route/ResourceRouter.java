@@ -86,6 +86,17 @@ public final class ResourceRouter<R extends Resource> {
     public TransferResult push(PipeNetwork network, int start, @Nullable Direction in, long sourcePos, R resource,
             int amount, long now, RandomSource random, Settings settings, Predicate<PipeNode> canEnter,
             TransactionContext transaction) {
+        return push(network, start, in, sourcePos, resource, amount, now, random, settings, canEnter,
+                PipeWalk.NO_COLOUR, transaction);
+    }
+
+    /**
+     * {@link #push(PipeNetwork, int, Direction, long, Resource, int, long, RandomSource, Settings, Predicate,
+     * TransactionContext)} for an item that starts the walk with colour {@code colour} (docs/TRANSPORT.md 8.10).
+     */
+    public TransferResult push(PipeNetwork network, int start, @Nullable Direction in, long sourcePos, R resource,
+            int amount, long now, RandomSource random, Settings settings, Predicate<PipeNode> canEnter, int colour,
+            TransactionContext transaction) {
         if (amount <= 0 || resource.isEmpty())
             return TransferResult.SOURCE_EMPTY;
 
@@ -99,7 +110,12 @@ public final class ResourceRouter<R extends Resource> {
             public boolean accepts(PipeNetwork.Endpoint endpoint) {
                 return simulateInsert(handlers.handler(endpoint), resource, 1, transaction) > 0;
             }
-        }, random, settings.maxRouteVisits());
+
+            @Override
+            public R resource() {
+                return resource;
+            }
+        }, random, settings.maxRouteVisits(), colour);
         if (route == null)
             return TransferResult.NO_DESTINATION;
 

@@ -184,6 +184,7 @@ public final class BuildcraftGameTests {
                 registry.register(throughput(material), helper -> ItemRoutingTests.throughput(helper, material));
             }
             ModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            RoutingModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlockedOutputTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
@@ -338,6 +339,11 @@ public final class BuildcraftGameTests {
         for (String name : ModuleTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, ModuleTests.MAX_TICKS)));
+        }
+        // #56 and #57 modules: lines of pipes, chests and item entities, in the padded area like item routing.
+        for (String name : RoutingModuleTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, RoutingModuleTests.MAX_TICKS)));
         }
         // #63 blocked output: a machine, pipes and chests, in the padded area like item routing.
         for (String name : BlockedOutputTests.TESTS.keySet()) {

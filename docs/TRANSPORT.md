@@ -692,6 +692,13 @@ Connects only to pipes and ignores connection overrides (`canPipeConnect` return
 `ignoreConnectionOverrides` true). It never has endpoints, so walks pass through it but never deliver from it to a
 machine (PLAN 8.3 "Isolator excludes machines").
 
+As built (#56, #57, 2026-10-31): the walk's steps 5–6 and the colour are hooks on `PipeWalk.Rules` and the module
+(`orderCandidates`, `walkColour`); each walk frame keeps its own colour, so a colour picked up on a branch that is
+backed out of is dropped. A dye used on the pipe sets a Colour Tag's or Colour Sorter's colour, because the sneaking
+wrench that changed it in 4.2.2 now removes the module (Q18). The Pickup's touch is its own block's box. The
+Filtered Colour Tag steps its cursor only when its pipe has an item's budget. See `docs/PORTING-NOTES.md`, "Pipe
+modules: Sorter, Pickup, Void, Colour Tag, Colour Sorter, Filtered Colour Tag and Isolator".
+
 ---
 
 ## 9. Flow records and their sync (#59)

@@ -13,6 +13,7 @@ import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNetworkManager;
 import buildcraftreforged.transport.graph.PipeNode;
 import buildcraftreforged.transport.graph.PipeWorld;
+import buildcraftreforged.transport.module.CandidateOrder;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.Arrays;
@@ -110,8 +111,10 @@ class PipeRoutingTest {
     private static final class StubPipe implements PipeWorld.Pipe {
         final byte mask;
         final @Nullable PipeModuleType module;
-        /** A Director's facing: the only side the walk may leave by. */
+        /** A Director's facing: the only side the walk may leave by; a Colour Sorter's output side. */
         @Nullable Direction output;
+        /** A Colour Tag's or Colour Sorter's colour. */
+        int colour = 1;
 
         StubPipe(byte mask, @Nullable PipeModuleType module) {
             this.mask = mask;
@@ -121,6 +124,20 @@ class PipeRoutingTest {
         @Override
         public boolean allowsOutput(Direction side) {
             return module != PipeModuleType.DIRECTOR || side == output;
+        }
+
+        @Override
+        public int orderCandidates(int[] sides, int count, @Nullable Resource resource, int walkColour,
+                RandomSource random) {
+            if (module != PipeModuleType.COLOUR_SORTER)
+                return -1;
+            return CandidateOrder.colourSorter(sides, count, output == null ? -1 : output.get3DDataValue(),
+                    walkColour == colour, random);
+        }
+
+        @Override
+        public int walkColour(int walkColour) {
+            return module == PipeModuleType.COLOUR_TAG ? colour : walkColour;
         }
 
         @Override
@@ -172,7 +189,7 @@ class PipeRoutingTest {
                     long pos = BlockPos.asLong(x, 0, z);
                     switch (rows[z].charAt(x)) {
                     case 'C' -> chests.put(pos, new Chest(Integer.MAX_VALUE));
-                    case 'P', 'V', 'D' -> pipes.put(pos, null);
+                    case 'P', 'V', 'D', 'T', 'S' -> pipes.put(pos, null);
                     default -> {
                     }
                     }
@@ -181,7 +198,7 @@ class PipeRoutingTest {
             for (int z = 0; z < rows.length; z++) {
                 for (int x = 0; x < rows[z].length(); x++) {
                     char c = rows[z].charAt(x);
-                    if (c != 'P' && c != 'V' && c != 'D')
+                    if (c != 'P' && c != 'V' && c != 'D' && c != 'T' && c != 'S')
                         continue;
                     long pos = BlockPos.asLong(x, 0, z);
                     byte mask = 0;
@@ -192,6 +209,8 @@ class PipeRoutingTest {
                     pipes.put(pos, new StubPipe(mask, switch (c) {
                     case 'V' -> PipeModuleType.VOID;
                     case 'D' -> PipeModuleType.DIRECTOR;
+                    case 'T' -> PipeModuleType.COLOUR_TAG;
+                    case 'S' -> PipeModuleType.COLOUR_SORTER;
                     default -> null;
                     }));
                 }
@@ -361,6 +380,64 @@ class PipeRoutingTest {
         assertEquals(grid.node(3, 0), route.sink());
         TransferResult result = grid.push(1, 0, Direction.WEST, 5, 100, true);
         assertEquals(5, result.moved());
+    }
+
+    // Colour Tag and Colour Sorter (docs/TRANSPORT.md 8.8, 8.9, section 14 #57)
+
+    @Test
+    void colourTagThenColourSorterSendsTaggedItemsOutOfTheOutputOnly() {
+        // Tag (1,1) red, then a Colour Sorter (3,1), red, output east: every walk ends east.
+        Grid grid = new Grid(
+                "...C.",
+                "CTPSC",
+                "...C.");
+        grid.pipes.get(pos(3, 1)).output = Direction.EAST;
+        RandomSource random = RandomSource.create(3);
+        for (int i = 0; i < 200; i++) {
+            PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+            assertNotNull(route);
+            assertEquals(pos(4, 1), grid.destination(route));
+        }
+        // Tagged another colour: never east, the two other chests about half each.
+        grid.pipes.get(pos(1, 1)).colour = 2;
+        int north = 0;
+        for (int i = 0; i < 2000; i++) {
+            PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+            assertNotNull(route);
+            long destination = grid.destination(route);
+            assertTrue(destination == pos(3, 0) || destination == pos(3, 2));
+            if (destination == pos(3, 0))
+                north++;
+        }
+        assertEquals(0.5, north / 2000.0, 0.05);
+        // The output full: a matching item goes elsewhere (4.2.2 FindDest drops the output side).
+        grid.pipes.get(pos(1, 1)).colour = 1;
+        grid.chest(4, 1).capacity = 0;
+        PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+        assertNotNull(route);
+        assertTrue(grid.destination(route) == pos(3, 0) || grid.destination(route) == pos(3, 2));
+    }
+
+    @Test
+    void colourAppliesOnlyAfterTheTagAndIsDroppedWhenItsBranchIsBackedOutOf() {
+        // The junction (1,1) may first enter the dead-end Colour Tag (1,0); backing out of it drops the colour, so the
+        // Colour Sorter (3,1), red like the tag, never sends anything out of its output east.
+        Grid grid = new Grid(
+                ".T...",
+                "CPPSC",
+                "...C.");
+        grid.pipes.get(pos(3, 1)).output = Direction.EAST;
+        RandomSource random = RandomSource.create(9);
+        for (int i = 0; i < 500; i++) {
+            PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+            assertNotNull(route);
+            assertEquals(pos(3, 2), grid.destination(route));
+        }
+        // A walk that starts with the colour (the Filtered Colour Tag) goes out of the output.
+        PipeWalk.Route route = PipeWalk.walk(grid.network, grid.node(1, 1), Direction.WEST, pos(0, 1),
+                endpoint -> true, random, 4096, 1);
+        assertNotNull(route);
+        assertEquals(pos(4, 1), grid.destination(route));
     }
 
     // Director (docs/TRANSPORT.md 8.4, section 14 #55)

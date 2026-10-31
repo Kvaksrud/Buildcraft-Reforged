@@ -1835,6 +1835,90 @@ New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transpo
   `allowsOutput`.
 - **#52:** read `ModuleDirector.getPowerLimit()` on a power pipe whose module is a Director.
 
+## Pipe modules: Sorter, Pickup, Void, Colour Tag, Colour Sorter, Filtered Colour Tag and Isolator (#56, #57)
+
+New code from `docs/TRANSPORT.md` 8.5–8.11, package `buildcraftreforged.transport.module`; the 4.2.2
+`PipeItemsDiamond`, `GuiDiamondPipe`, `ContainerDiamondPipe`, `PipeItemsObsidian`, `PipeItemsVoid`, `PipeFluidsVoid`,
+`PipeItemsLapis`, `PipeItemsDaizuli`, `PipeItemsEmzuli`, `GuiEmzuliPipe`, `ContainerEmzuliPipe` and the sandstone pipes
+were read for behaviour only. Recorded 2026-10-31.
+
+- **Walk hooks (4.2 steps 5–6).** `PipeWalk.Rules` gained `resource()` (what is routed; `ResourceRouter` passes it),
+  `order(node, sides, count, colour, random)` and `colourAfter(node, colour)`. By default they ask the pipe:
+  `PipeWorld.Pipe.orderCandidates` (returns how many of the reordered sides to try, or -1 for the uniform permutation,
+  which is unchanged and draws the same random numbers as before) and `PipeWorld.Pipe.walkColour`; `TilePipe` hands
+  both to its module (`PipeModule.orderCandidates`, `PipeModule.walkColour`). `PipeWalk.shuffle` is the uniform
+  permutation, shared with the modules.
+- **Walk colour.** An `int`, `PipeWalk.NO_COLOUR` (-1) or an `EnumColor` ordinal. Each walk frame keeps the colour
+  its children see, set when the pipe is entered, so backing out of a branch drops a colour picked up in it, and a
+  pipe's own filter reads the colour it was entered with (4.2.2 `FindDest` before `ReachedCenter`). A walk can start
+  with a colour: `PipeWalk.walk(…, colour)`, `ResourceRouter.push(…, canEnter, colour, transaction)` and
+  `ItemRouting.extract(…, filter, colour)` are new overloads; the old signatures pass `NO_COLOUR`. The colour is not
+  part of `Route` and never reaches the stack inserted at the destination.
+- **Sorter.** `ModuleSorter`: 54 ghost slots (`SimpleInventory`, saved as `filters`), row `d` = side `d` in side
+  order. `CandidateOrder.sorter` (level-free) is 8.5: matching sides weighted by matching slot count, drawn without
+  replacement; else the sides with empty rows, uniformly; a filtered row that does not match is never tried. Only
+  `ItemResource`s are sorted ("same item" = `ItemResource.is(item)`). Menu `buildcraftreforged:sorter`,
+  `ContainerSorter` (4.2.2 slot layout), `GuiSorter` on 4.2.2 `filter.png` or `filter_cb.png` (client
+  `colorBlindMode`).
+- **Pickup.** `ModulePickup`, a source (already `isSource`). `openSide(mask)`: needs exactly one connection.
+  `range(tier)` is Q12 and `suckingBox(pos, open, d)` is 4.2.2 `getSuckingBox` (unit-tested against the 4.2.2
+  arithmetic for all sides). Each tick, only when the pipe has an item's budget: the pipe's own block (4.2.2's touch,
+  `onEntityCollidedWithBlock`; done by box, so `BlockPipe` needs no `entityInside`), then `d = 1 … range`; entities in
+  each box in level order; the first that moves anything ends the tick, as does `NO_CAPACITY`; an entity that cannot
+  route is left alone and the next one is tried. Item entities shrink by what moved; arrows with `Pickup.ALLOWED` go
+  in as their pickup stack, one; at `d = 1` an `AbstractMinecartContainer` gives up to the budget from its first
+  stack. The walk starts on the open side with no source block. 4.2.2's `entitiesDropped` list is left out: a module
+  never drops anything. The client particle (`TileEntityPickupFX`) is #59's.
+- **Void and Isolator** have no settings and stay plain `PipeModule`s: the Void is the walk's sink by type (#50) and
+  the Isolator a connection rule (#48), on item and fluid pipes.
+- **Colour Tag.** `ModuleColourTag`: `color` (byte, the 4.2.2 key), black when new. `walkColour` returns its colour.
+  Wrench: next colour. 4.2.2's sneaking wrench (previous colour) now removes the module (Q18), so **a dye used on the
+  pipe sets the colour** (`PipeModule.useItem`, called from `BlockPipe.useItemOn` for any item that is not a block,
+  gate, wire or wrench; new, decided 2026-10-31). Gate: the sixteen Pipe Color actions, the first active one applies.
+- **Colour Sorter.** `ModuleColourSorter extends ModuleDirector` for the facing (4.2.2 Daizuli uses `PipeLogicIron`):
+  same validity, `UP`-first placement, wrench `switchPosition`, Pipe Direction actions; no redstone toggle; every side
+  stays open (`allowsOutput` true), the sorting is `CandidateOrder.colourSorter` (8.9). Colour as the Colour Tag
+  (`color`, dye, Pipe Color); 4.2.2's sneaking wrench (next colour) now removes the module. Gate list: the sixteen
+  colours, then one direction per connected side.
+- **Director validity.** A Director (and so a Colour Sorter) no longer faces a pipe with a Filtered Colour Tag either:
+  4.2.2 refused every `PipeItemsWood`, which `PipeItemsEmzuli` extends.
+- **Filtered Colour Tag.** `ModuleFilteredColourTag extends ModuleExtractor` (facing, wrench, exclusion list as #55);
+  now a source type (`PipeModuleType.isSource`). Four ghost filters (`filters`), `slotColors[i]` (0 none, else colour +
+  1; 4.2.2 keys `slotColors[0]` …), `currentFilter`; the active flags are not saved and only gate actions set them
+  (`setActivePresets`: red, blue, green, yellow → filters 0–3; cleared on every resolution). One attempt =
+  `nextFilter` (4.2.2 `incrementFilter`), then `ItemRouting.extract` of that filter's item with the walk starting in
+  its paint colour. Unlike 4.2.2, which tried only when it had energy, an attempt (and the cursor step) happens only
+  when the pipe has an item's budget; stepping every tick would skip filters between items. Menu
+  `buildcraftreforged:filtered_colour_tag`, `ContainerFilteredColourTag` (4.2.2 layout; four `PaintWidget`s; paint
+  as data slots; a click sends slot and colour with `PacketGuiReturn`, refused outside 0–3 / 0–16), and
+  `GuiFilteredColourTag` on 4.2.2 `pipe_emzuli.png`, which draws each paint as its Pipe Color action sprite.
+- **Items.** `module_sorter`, `module_pickup`, `module_void`, `module_colour_tag`, `module_colour_sorter`,
+  `module_filtered_colour_tag`, `module_isolator` (keys `item.moduleSorter` …), machines tab, textures copied from
+  the 4.2.2 diamond, obsidian, void, lapis (blue), daizuli (black), emzuli and sandstone item pipe textures as
+  stand-ins. No recipes (#74). On the pipe, a module is not drawn, so a colour or a filter cannot be seen in the world.
+- **Tests.** Unit `RoutingModuleLogicTest`: Sorter 2:1 weights over 9 000 draws ± 2 %, unfiltered fallback, filtered
+  rows never used; Colour Sorter rules; Pickup ranges, the six boxes against 4.2.2, one connection; the cursor.
+  `PipeRoutingTest`: Colour Tag → Colour Sorter on a stub grid, and a colour dropped when its branch is backed out
+  of. GameTests (`RoutingModuleTests`, padded area): `module_items_fit_and_keep_settings`,
+  `module_sorter_separates_items`, `module_sorter_menu`, `module_pickup_range`, `module_void_items_and_fluids`,
+  `module_colour_tag_and_sorter`, `module_filtered_colour_tag_presets`, `module_filtered_colour_tag_menu`,
+  `module_isolator`.
+- **Not checked without a client:** the two screens (drawing, phantom-slot clicks, paint buttons, tool tips, the
+  colour-blind texture), the module item textures in the inventory, and a dye or wrench used by a real player.
+
+### For #74 (chipsets and module recipes)
+
+- All ten module items exist now: `TransportRegistry.extractorModule`, `filteredExtractorModule`, `directorModule`,
+  `sorterModule`, `pickupModule`, `voidModule`, `colourTagModule`, `colourSorterModule`, `filteredColourTagModule`,
+  `isolatorModule` (`getModuleItem(type)` by `PipeModuleType`). A recipe result should be a blank module (no
+  `module_settings` component), which fits with default settings.
+- PLAN 8.2 makes modules in the Assembly Table; the recipe format is #72's (`buildcraftreforged:assembly`, FE). 4.2.2
+  had no module recipes: the pipes were crafted from the material and glass. The inputs and energy are #74's to
+  decide; a natural mapping is a chipset plus the 4.2.2 pipe material (diamond → Sorter, obsidian → Pickup, redstone
+  and dye → Void as 4.2.2 `PipeItemsVoid`, lapis → Colour Tag, lapis and diamond → Colour Sorter (Daizuli), emerald
+  and lapis → Filtered Colour Tag (Emzuli), sandstone → Isolator).
+- JEI: the module category can list the ten items; settings-free stacks only, as the gate category.
+
 ## Power (kinesis) routing (#52)
 
 New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.route`; the 4.2.2 `PipeTransportPower`,

@@ -80,6 +80,15 @@ public final class ItemRouting {
      */
     public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
             ResourceHandler<ItemResource> source, Predicate<ItemResource> filter) {
+        return extract(level, network, node, facing, source, filter, PipeWalk.NO_COLOUR);
+    }
+
+    /**
+     * {@link #extract(ServerLevel, PipeNetwork, int, Direction, ResourceHandler, Predicate)} with the items tagged
+     * {@code colour} for the walk (the Filtered Colour Tag, docs/TRANSPORT.md 8.10).
+     */
+    public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
+            ResourceHandler<ItemResource> source, Predicate<ItemResource> filter, int colour) {
         ResourceRouter.Settings settings = settings();
         long now = level.getGameTime();
         long items = ROUTER.available(network.nodes[node], now, settings) / ITEM_COST;
@@ -103,7 +112,7 @@ public final class ItemRouting {
                 if (offered <= 0)
                     continue;
                 TransferResult attempt = ROUTER.push(network, node, facing, sourcePos, resource, offered, now,
-                        level.getRandom(), settings, transaction);
+                        level.getRandom(), settings, pipe -> true, colour, transaction);
                 if (!attempt.movedAny()) {
                     if (attempt.reason() == TransferResult.Reason.NO_CAPACITY)
                         return attempt;

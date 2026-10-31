@@ -31,7 +31,9 @@ import buildcraftreforged.core.ItemBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
+import buildcraftreforged.transport.module.ContainerFilteredColourTag;
 import buildcraftreforged.transport.module.ContainerFilteredExtractor;
+import buildcraftreforged.transport.module.ContainerSorter;
 import buildcraftreforged.transport.module.ItemPipeModule;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -90,6 +92,15 @@ public final class TransportRegistry {
     public static final DeferredItem<ItemPipeModule> filteredExtractorModule =
             module(PipeModuleType.FILTERED_EXTRACTOR, "moduleFilteredExtractor");
     public static final DeferredItem<ItemPipeModule> directorModule = module(PipeModuleType.DIRECTOR, "moduleDirector");
+    public static final DeferredItem<ItemPipeModule> sorterModule = module(PipeModuleType.SORTER, "moduleSorter");
+    public static final DeferredItem<ItemPipeModule> pickupModule = module(PipeModuleType.PICKUP, "modulePickup");
+    public static final DeferredItem<ItemPipeModule> voidModule = module(PipeModuleType.VOID, "moduleVoid");
+    public static final DeferredItem<ItemPipeModule> colourTagModule = module(PipeModuleType.COLOUR_TAG, "moduleColourTag");
+    public static final DeferredItem<ItemPipeModule> colourSorterModule =
+            module(PipeModuleType.COLOUR_SORTER, "moduleColourSorter");
+    public static final DeferredItem<ItemPipeModule> filteredColourTagModule =
+            module(PipeModuleType.FILTERED_COLOUR_TAG, "moduleFilteredColourTag");
+    public static final DeferredItem<ItemPipeModule> isolatorModule = module(PipeModuleType.ISOLATOR, "moduleIsolator");
 
     /** A module item's settings, kept when the module is taken off a pipe (Q18). */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CustomData>> moduleSettings =
@@ -99,6 +110,12 @@ public final class TransportRegistry {
     /** 4.2.2 {@code GuiIds.PIPE_EMERALD_ITEM}. */
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerFilteredExtractor>> filteredExtractorMenu =
             REGISTERS.menus.register("filtered_extractor", () -> IMenuTypeExtension.create(ContainerFilteredExtractor::new));
+    /** 4.2.2 {@code GuiIds.PIPE_DIAMOND}. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerSorter>> sorterMenu =
+            REGISTERS.menus.register("sorter", () -> IMenuTypeExtension.create(ContainerSorter::new));
+    /** 4.2.2 {@code GuiIds.PIPE_LOGEMERALD_ITEM}. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerFilteredColourTag>> filteredColourTagMenu =
+            REGISTERS.menus.register("filtered_colour_tag", () -> IMenuTypeExtension.create(ContainerFilteredColourTag::new));
 
     /** 4.2.2 registered TileGenericPipe as one tile class for every pipe; here one type is valid for every pipe block. */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TilePipe>> pipeTile = REGISTERS.blockEntityTypes
