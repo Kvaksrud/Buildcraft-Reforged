@@ -67,6 +67,11 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NETHER_IGNITION = function("oil_fuel_nether_ignition");
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER =
             function("oil_fuel_no_ignition_outside_nether");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_HEAT_AND_STAGES = function("engine_heat_and_stages");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_RECEPTOR = function("engine_pushes_into_receptor");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_FE_AND_ENGINES =
+            function("engine_pushes_into_fe_and_engines");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_ORIENTATION = function("engine_orientation");
 
     private BuildcraftGameTests() {
     }
@@ -109,15 +114,21 @@ public final class BuildcraftGameTests {
             registry.register(OIL_FUEL_LIQUIDS, OilFuelTests::liquids);
             registry.register(OIL_FUEL_NETHER_IGNITION, OilFuelTests::netherIgnition);
             registry.register(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, OilFuelTests::noIgnitionOutsideNether);
+            registry.register(ENGINE_HEAT_AND_STAGES, EngineTests::heatAndStages);
+            registry.register(ENGINE_PUSHES_INTO_RECEPTOR, EngineTests::pushesIntoReceptor);
+            registry.register(ENGINE_PUSHES_INTO_FE_AND_ENGINES, EngineTests::pushesIntoForgeEnergyAndEngines);
+            registry.register(ENGINE_ORIENTATION, EngineTests::orientation);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
+        EngineTests.register(event);
     }
 
     @SubscribeEvent
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
         FluidTankTests.registerCapabilities(event);
         PipeTests.registerTestCapabilities(event);
+        EngineTests.registerCapabilities(event);
     }
 
     @SubscribeEvent
@@ -187,6 +198,13 @@ public final class BuildcraftGameTests {
                 padded(environment, Level.NETHER, 40)));
         event.registerTest(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER.identifier(), new FunctionGameTestInstance(
                 OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, padded(environment, Level.OVERWORLD, 40)));
+        event.registerTest(ENGINE_HEAT_AND_STAGES.identifier(), new FunctionGameTestInstance(ENGINE_HEAT_AND_STAGES,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        for (ResourceKey<Consumer<GameTestHelper>> engine : List.of(ENGINE_PUSHES_INTO_RECEPTOR, ENGINE_PUSHES_INTO_FE_AND_ENGINES,
+                ENGINE_ORIENTATION)) {
+            event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 200, 0, true)));
+        }
     }
 
     /**

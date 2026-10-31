@@ -1174,3 +1174,79 @@ of `BuildCraftEnergy.preInit`. Decisions recorded 31 Oct 2026.
 - 4.2.2 `RefineryRecipes.addRecipe(new FluidStack(fluidOil, 1), new FluidStack(fluidFuel, 1), 12, 1)` was registered
   in `BuildCraftEnergy.preInit`; #68 owns it now (oil in, fuel out, `energy` 12 MJ, so 120 FE, `delay` 1).
 - `FluidRenderer` draws the tank contents from the fluid models registered here.
+
+## Engine base (#36)
+
+Ported: `energy/TileEngine`, `TileEngineWithInventory`, `BlockEngine`, `ItemEngine`, plus `EnergyRegistry.engine(...)`.
+Not ported: `TileEngineLegacy` (converts pre-4.0 saves, which cannot reach 26.x) and `BptBlockEngine` (deprecated in
+4.2.2; blueprints are P6). Recorded 31 Oct 2026.
+
+- **Units.** The engine's own store stays 4.2.2's `float energy`, now in FE (MJ × 10), and so do `currentOutput`
+  (FE/t), `getMaxEnergy`, `maxEnergyReceived`, `maxEnergyExtracted`, `minEnergyReceived` (default 20) and
+  `getCurrentOutput`. A float keeps the fractions 4.2.2 had: the Stirling engine's PID output, a fuel's
+  `powerPerCycle` (already a float FE in #43) and `doWork`'s 95 % of what came in (`useEnergy(10, max) * 0.95F`, so
+  10 FE in is 9.5 FE stored; this settles #35's open rounding question). Only whole FE cross to a receiver: the pulse
+  is `(long) extracted` and the engine keeps the rest. The thresholds that counted MJ count FE × 10: the idle drain
+  is 10 FE in `updateEntity` and 10 FE in `engineUpdate` (20 FE a tick, 4.2.2's 2 MJ), the `PowerHandler` is
+  `configure(min, max, 10, maxEnergy)` with perdition `(10, 100)`. Heat, heat level, stages and piston speeds are
+  unitless and unchanged. NBT keeps 4.2.2's `energyF`, `heat` and `progress` floats.
+- **Orientation is `BlockEngine.FACING`** (all six directions, default up). `TileEngine.getOrientation()` reads it
+  and `setOrientation(Direction)` sets it with `Block.UPDATE_ALL` (4.2.2's `markBlockForUpdate` plus neighbour
+  notification) and calls `level.invalidateCapabilities`, because the output side refuses Forge Energy. The block
+  entity survives the change. Use these where 4.2.2 used the `orientation` field; it is no longer saved or in the
+  payload. Placement (`setPlacedBy`) faces up, then `switchOrientation(true)`; the wrench is `IRotatableBlock` →
+  `switchOrientation(false)`; structure rotation turns `FACING` (BuildCraft#1771). The first server tick after
+  loading or placing re-checks the orientation (4.2.2 `validate`), and a new neighbour is seen once the
+  `TileBuffer` refreshes, within 20 ticks, as in 4.2.2.
+- **Delivery.** Unchanged for a neighbour that is an `IPowerReceptor`: its receiver's min/max limit the pulse and
+  `receiveEnergy(Type.ENGINE, ...)` takes it. A neighbour that is only a Forge Energy `EnergyHandler` (another mod, or
+  a power pipe once #52 exposes one) counts as powered too: the pulse is `extractEnergy(0, maxEnergyExtracted())`,
+  inserted in one committed transaction, and only what it accepted leaves the engine. An engine never pushes into an
+  `IPowerEmitter` that emits towards it (engines facing each other, BUGFIXES BuildCraft#1827). Every FE handed over
+  goes into the engine's `FlowMeter` (`meter.energyOut`).
+- **Pipes.** `IPipeConnection`: item and fluid pipes do not connect on the output side; power pipes decide
+  themselves (`DEFAULT`).
+- **Block.** `BlockEngine(Properties, BlockEntitySupplier<? extends TileEngine>)`; `BlockEngine.engineProperties`
+  is 4.2.2's Material.iron and hardness 5: metal, `strength(5F)`, needs a pickaxe, no occlusion, not a redstone
+  conductor, no suffocation. Only the back face is sturdy (`getBlockSupportShape`, 4.2.2 `isBlockSolidOnSide`); the
+  collision and outline shapes stay a full cube, as 4.2.2's bounds. Sneaking passes the click on; holding a pipe
+  `BlockItem` places the pipe (4.2.2 `IItemPipe`); otherwise `TileEngine.onBlockActivated(player, side)` runs. Its
+  default opens the status panel (plan section 10), so the redstone engine needs nothing; engines with a GUI override
+  it. Redstone is read by `neighborChanged` and `initialize` (`hasNeighborSignal`). Red dust particles while
+  `isBurning()`. The render shape is left at the default; #39 decides it with the renderer.
+- **Overheat.** Still 4.2.2: `addEnergy` while the stage is `OVERHEAT` (heat level 1, a full engine) explodes at the
+  block's corner with `explosionRange()` and removes the block; the stage stays `OVERHEAT` once reached.
+  `SEAM(#40)` marks the spot for the timer and `engines.explode`.
+- **Sync.** The payload is the stage ordinal and `isPumping`; the client runs the piston animation (`progress`,
+  `progressPart`, `getPistonSpeed` from the stage) for #39's renderer to read. `guiData` is a 4-slot `ContainerData`
+  standing in for `getGUINetworkData`/`sendGUINetworkData`: energy in two 16-bit halves (whole FE, 4.2.2's tenths of
+  an MJ), output in tenths of an FE/t, heat in hundredths. A `ContainerEngine` adds it with `addDataSlots(tile.guiData)`
+  on both sides (the client menu uses the client tile's `guiData`).
+- **Status panel.** `TileEngine` is an `IStatusProvider`: State `OVERHEATING` in stage `OVERHEAT`, `WORKING` while
+  redstone-powered and `isActive()`, else `IDLE`; Power is `Power.produced(meter, energy, getMaxEnergy())`; Heat is
+  the stage with `Heat.NO_COUNTDOWN`.
+- **Not here.** Comparator output and the four heat triggers (`IOverrideDefaultTriggers.getTriggers`, `SEAM(#41)`),
+  the overheat timer (#40), the renderer and textures (`getTextureFile` points at `textures/block/base_*.png`, which
+  #39 adds).
+
+### For the engines (#37, #38, #44)
+
+- Register with one line in `EnergyRegistry`, below `ENGINE_TILES`:
+  `public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);`
+  It registers the block (`engine_wood`, translation key `tile.engineWood`), the `ItemEngine` in the machines tab and
+  the block entity type, and gives the type the Forge Energy capability and the item capability (the latter only
+  answers for a `TileEngineWithInventory`). The tile's constructor is
+  `super(EnergyRegistry.engineWood.tile().get(), pos, state)` (`TileEngineWithInventory` adds the slot count).
+- Each engine still adds its blockstate (one variant per `facing`), item model, loot table (drops itself), recipe and
+  `minecraft:mineable/pickaxe` entry.
+- Override `getMaxEnergy`, `maxEnergyReceived`, `maxEnergyExtracted`, `explosionRange`, `isBurning`,
+  `getScaledBurnTime`, `getCurrentOutput`, `getTextureFile`, and `minEnergyReceived` where 4.2.2 did (wood: 0), with
+  the values × 10 from "For the engines (#36)" under Power. `burn()` and `engineUpdate()` are the hooks 4.2.2 used;
+  fuel engines return `OUT_OF_FUEL` from `getStatusState` when they have none.
+- **Tests.** GameTests `engine_heat_and_stages` (heat, stages at each quarter, sticky overheat, server and client
+  piston speeds, payload, save tags, GUI data, idle drain), `engine_pushes_into_receptor` (10 FE pulses into an
+  `IPowerReceptor`, FE refused on the output side and 95 % kept from the back, status lines),
+  `engine_pushes_into_fe_and_engines` (a 25 FE Forge Energy block filled by 10 + 10 + 5, a chain at 9.5 FE per
+  pulse, engines facing each other idle) and `engine_orientation` (placement, wrench, solid back, pipe overrides,
+  explosion when full). They use the test-only `gametest_engine` (10 FE pulses, 1 000 FE, 500 FE intake) and two
+  receivers in `EngineTests`. Rendering, particles and the right-click in a client are not tested.
