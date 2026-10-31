@@ -34,6 +34,7 @@ import buildcraftreforged.core.status.FlowMeter;
 import buildcraftreforged.core.status.HeatStage;
 import buildcraftreforged.core.status.IStatusProvider;
 import buildcraftreforged.core.status.MachineStatus;
+import buildcraftreforged.core.status.StatusReason;
 import buildcraftreforged.core.status.StatusPanel;
 import buildcraftreforged.core.status.StatusReport;
 import buildcraftreforged.energy.render.EngineWhineSound;
@@ -74,7 +75,6 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     /** FE per tick (4.2.2: MJ). */
     public float currentOutput = 0;
     public boolean isRedstonePowered = false;
-    private boolean checkOrienation = true;
     private TileBuffer @Nullable [] tileCache;
     public float progress;
     /** FE (4.2.2: MJ). A float as in 4.2.2, so fractional outputs and doWork's 95 % keep their fraction. */
@@ -234,12 +234,6 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
                 EngineWhineSound.play(this);
 
             return;
-        }
-
-        if (checkOrienation) {
-            checkOrienation = false;
-            if (!isOrientationValid())
-                switchOrientation(true);
         }
 
         if (energyStage == EnergyStage.OVERHEAT) {
@@ -441,6 +435,12 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         return isPoweredTile(tile, orientation);
     }
 
+    /** The wrench: the next of the six faces in data-value order, or the previous one when {@code reverse}. */
+    public void cycleOrientation(boolean reverse) {
+        int step = reverse ? 5 : 1;
+        setOrientation(Direction.from3DDataValue((getOrientation().get3DDataValue() + step) % 6));
+    }
+
     public boolean switchOrientation(boolean preferPipe) {
         if (preferPipe && switchOrientation_do(true))
             return true;
@@ -490,14 +490,12 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     public void setRemoved() {
         super.setRemoved();
         tileCache = null;
-        checkOrienation = true;
     }
 
     @Override
     public void clearRemoved() {
         super.clearRemoved();
         tileCache = null;
-        checkOrienation = true;
     }
 
     @Override
@@ -731,6 +729,26 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     @Override
     public StatusReport.Power getStatusPower() {
         return StatusReport.Power.produced(meter, (long) energy, (long) getMaxEnergy());
+    }
+
+    /**
+     * Why a running engine delivers nothing: no power receiver on its output face, or a receiver whose minimum
+     * intake is more than this engine can send in one pulse (4.2.2 rule kept: a redstone engine cannot feed a quarry).
+     */
+    @Override
+    public StatusReason getStatusReason() {
+        if (!isRedstonePowered || !isActive() || energyStage == EnergyStage.OVERHEAT)
+            return StatusReason.NONE;
+        Direction orientation = getOrientation();
+        BlockEntity tile = getTileBuffer(orientation).getTile();
+        if (!isPoweredTile(tile, orientation))
+            return StatusReason.NO_POWER_TARGET;
+        if (tile instanceof IPowerReceptor receptor) {
+            PowerReceiver receiver = receptor.getPowerReceiver(orientation.getOpposite());
+            if (receiver != null && receiver.getMinEnergyReceived() > maxEnergyExtracted())
+                return StatusReason.PULSE_TOO_SMALL;
+        }
+        return StatusReason.NONE;
     }
 
     /** The heat stage, and the seconds left on the overheat timer while it runs ("Red, N s"). */

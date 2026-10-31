@@ -305,7 +305,7 @@ final class EngineTests {
     }
 
     /**
-     * Placement turns the engine to a powered neighbour; the wrench cycles through powered neighbours; only the back is
+     * Placement turns the engine to a powered neighbour; switchOrientation cycles through powered neighbours; only the back is
      * a solid face; item and fluid pipes do not connect to the output side; a full engine explodes when its overheat
      * timer runs out (#40, shortened to one tick here).
      */
@@ -325,10 +325,13 @@ final class EngineTests {
         // The engine sees a new neighbour once its TileBuffer refreshes, at most 20 ticks later (4.2.2).
         helper.setBlock(north, receptorBlock);
         helper.runAfterDelay(21, () -> {
+            // The wrench steps through all six faces (EngineWrenchTests); 4.2.2's jump to the next powered face is
+            // switchOrientation, which placement still uses.
+            helper.assertTrue(engine.switchOrientation(false), "no other powered face");
+            helper.assertValueEqual(engine.getOrientation(), Direction.NORTH, "orientation after switching (east → north)");
             helper.assertTrue(RotationHelper.rotateBlock(level, abs, Direction.UP), "the wrench did not rotate the engine");
-            helper.assertValueEqual(engine.getOrientation(), Direction.NORTH, "orientation after rotation (east → north)");
-            helper.assertTrue(RotationHelper.rotateBlock(level, abs, Direction.UP), "the wrench did not rotate the engine");
-            helper.assertValueEqual(engine.getOrientation(), Direction.EAST, "orientation after rotation (north → east)");
+            helper.assertValueEqual(engine.getOrientation(), Direction.SOUTH, "orientation after the wrench (north → south)");
+            engine.setOrientation(Direction.EAST);
 
             BlockState facingEast = helper.getBlockState(ENGINE);
             helper.assertTrue(facingEast.isFaceSturdy(level, abs, Direction.WEST), "the back is not solid");
