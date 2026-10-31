@@ -46,6 +46,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
@@ -77,6 +78,8 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
         public int exitSide = FlowRecord.CENTRE;
         /** Ticks since the shown flow started, with the partial tick. */
         public float flowTime;
+        /** World time in ticks with the partial tick: item icons are timed from it, not from the record. */
+        public double worldTime;
         /** The record's rate over the tier's cap, 0 to 1 (fluids and power). */
         public float ratio;
         /** Items: ticks between two icons. */
@@ -168,6 +171,7 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
         state.entrySide = record.entrySide();
         state.exitSide = record.exitSide();
         state.flowTime = pipe.getLevel().getGameTime() - tracker.clientSince() + partialTicks;
+        state.worldTime = pipe.getLevel().getGameTime() + (double) partialTicks;
         PipeTierStats stats = pipe.getTierStats();
         switch (record.kind()) {
             case ITEM -> {
@@ -194,6 +198,16 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
             }
             default -> state.flowing = false;
         }
+    }
+
+    /**
+     * The icon spacing actually drawn: {@link #itemInterval} rounded to a power of two ticks, so the small rate changes
+     * every record brings do not move every icon on the screen.
+     */
+    public static float displayInterval(float interval) {
+        if (!Float.isFinite(interval))
+            return interval;
+        return (float) Math.pow(2, Math.round(Math.log(Math.max(interval, MIN_ITEM_INTERVAL)) / Math.log(2)));
     }
 
     /** Ticks between two item icons at {@code rate} items per second: {@code max(1 / rate s, 2 ticks)}. */
@@ -235,17 +249,51 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
     }
 
     /**
-     * Item icons, the newest first: icon {@code j} entered at {@code j × interval} ticks after the flow started and
-     * takes {@link #ITEM_CROSSING_TICKS} to cross, so the spacing follows the rate (4.2.2 doRenderItem, scale 0.7, with
-     * the ItemBox marker in the walk colour).
+     * Where the item icons are in a pipe at {@code worldTime}, as progress 0 to 1 from the entry face to the exit face.
+     * Icons are timed from world time and from the pipe's place along the line, not from when its record arrived:
+     * along a straight run the coordinate is the block position along the travel direction, so an icon leaves one pipe
+     * exactly as it enters the next and every pipe moves at {@link #ITEM_CROSSING_TICKS} per block. Each half of a
+     * pipe uses its own travel direction, so a bend can only shift its icons at the centre.
      */
+    public static float[] itemProgresses(double worldTime, BlockPos pos, int entrySide, int exitSide, float interval) {
+        if (!(interval > 0) || !Float.isFinite(interval))
+            return new float[0];
+        Direction out = exitSide < 6 ? Direction.from3DDataValue(exitSide) : null;
+        Direction in = entrySide < 6 ? Direction.from3DDataValue(entrySide).getOpposite() : out;
+        if (out == null)
+            out = in;
+        if (in == null)
+            return new float[0];
+        double travelled = worldTime / ITEM_CROSSING_TICKS;
+        double spacing = interval / ITEM_CROSSING_TICKS;
+        float[] found = new float[MAX_ITEM_ICONS];
+        int count = 0;
+        // Entry half: path coordinates [centre - 0.5, centre) along the entry direction; exit half: [centre, centre + 0.5).
+        double[] halfStart = {along(pos, in) - 0.5, along(pos, out)};
+        for (int half = 0; half < 2 && count < MAX_ITEM_ICONS; half++) {
+            double first = mod(travelled - halfStart[half], spacing);
+            for (double offset = first; offset < 0.5 && count < MAX_ITEM_ICONS; offset += spacing) {
+                found[count++] = (float) (half * 0.5 + offset);
+            }
+        }
+        return java.util.Arrays.copyOf(found, count);
+    }
+
+    /** The block's coordinate along {@code direction}: x, y or z, negated for a negative direction. */
+    private static double along(BlockPos pos, Direction direction) {
+        return pos.getX() * direction.getStepX() + pos.getY() * direction.getStepY() + pos.getZ() * direction.getStepZ();
+    }
+
+    private static double mod(double value, double modulus) {
+        double r = value % modulus;
+        return r < 0 ? r + modulus : r;
+    }
+
+    /** Item icons at the places {@link #itemProgresses} gives (4.2.2 doRenderItem, scale 0.7, ItemBox in the walk colour). */
     private void renderSolids(State state, PoseStack poseStack, SubmitNodeCollector collector) {
-        int newest = (int) Math.floor(state.flowTime / state.itemInterval);
-        for (int j = newest, drawn = 0; j >= 0 && drawn < MAX_ITEM_ICONS; j--, drawn++) {
-            float age = state.flowTime - j * state.itemInterval;
-            if (age >= ITEM_CROSSING_TICKS)
-                break;
-            Vec3 at = itemPosition(state, age / ITEM_CROSSING_TICKS);
+        for (float progress : itemProgresses(state.worldTime, state.blockPos, state.entrySide, state.exitSide,
+                displayInterval(state.itemInterval))) {
+            Vec3 at = itemPosition(state, progress);
             poseStack.pushPose();
             poseStack.translate(at.x, at.y, at.z);
             if (state.itemColour >= 0) {

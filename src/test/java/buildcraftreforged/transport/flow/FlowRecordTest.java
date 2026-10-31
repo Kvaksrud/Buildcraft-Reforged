@@ -213,4 +213,56 @@ class FlowRecordTest {
         assertEquals(5, PipeRendererTESR.itemInterval(4));
         assertEquals(PipeRendererTESR.MIN_ITEM_INTERVAL, PipeRendererTESR.itemInterval(512), "a full stream");
     }
+
+    @Test
+    void displayedSpacingIsAPowerOfTwo() {
+        assertEquals(16, PipeRendererTESR.displayInterval(20));
+        assertEquals(4, PipeRendererTESR.displayInterval(5));
+        assertEquals(16, PipeRendererTESR.displayInterval(19), "a small rate change keeps the spacing");
+        assertEquals(PipeRendererTESR.MIN_ITEM_INTERVAL, PipeRendererTESR.displayInterval(1));
+    }
+
+    /** The path coordinate of an icon in a straight east-bound line of pipes at x = 1000 and up. */
+    private static List<Double> eastBoundIcons(double time, float interval) {
+        List<Double> coordinates = new ArrayList<>();
+        for (int x = 1000; x < 1004; x++) {
+            for (float progress : PipeRendererTESR.itemProgresses(time, new BlockPos(x, 64, -300), Direction.WEST.get3DDataValue(),
+                    Direction.EAST.get3DDataValue(), interval))
+                coordinates.add(x - 0.5 + progress);
+        }
+        return coordinates;
+    }
+
+    @Test
+    void itemIconsFlowAcrossNeighbouringPipes() {
+        float interval = 4;
+        double spacing = interval / PipeRendererTESR.ITEM_CROSSING_TICKS;
+        double time = 123_456_789.25;
+        List<Double> now = eastBoundIcons(time, interval);
+        assertEquals(Math.round(4 / spacing), now.size(), "evenly spaced over four pipes");
+        for (int i = 1; i < now.size(); i++) {
+            assertEquals(spacing, now.get(i) - now.get(i - 1), 1e-6, "even spacing across pipe borders");
+        }
+        // A quarter of a crossing later every icon is a quarter of a block further on, in whichever pipe it now is.
+        List<Double> later = eastBoundIcons(time + PipeRendererTESR.ITEM_CROSSING_TICKS / 4.0, interval);
+        for (double coordinate : now) {
+            double moved = coordinate + 0.25;
+            if (moved < 1003.5)
+                assertTrue(later.stream().anyMatch(c -> Math.abs(c - moved) < 1e-6), "icon at " + coordinate + " did not move on");
+        }
+    }
+
+    @Test
+    void itemIconsMoveTowardsTheExit() {
+        BlockPos pos = new BlockPos(-7, 70, 12);
+        int down = Direction.UP.get3DDataValue();
+        int out = Direction.DOWN.get3DDataValue();
+        // One icon every 4 blocks; at tick 18 it is 0.3 of the way down this pipe (path coordinate -y = -70.2).
+        float[] before = PipeRendererTESR.itemProgresses(18, pos, down, out, 40);
+        float[] after = PipeRendererTESR.itemProgresses(19, pos, down, out, 40);
+        assertEquals(1, before.length);
+        assertEquals(1, after.length);
+        assertEquals(0.3F, before[0], 1e-5F);
+        assertEquals(0.1F, after[0] - before[0], 1e-5F);
+    }
 }

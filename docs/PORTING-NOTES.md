@@ -2552,6 +2552,31 @@ Decided 2026-10-31.
   chat messages, the recipe in the crafting grid, and chunk loading with `quarry.loadsChunks` on (no test toggles the
   option).
 
+## Engine wrench and engine Reason line (play-test feedback, 31 Oct 2026)
+
+- **Wrench.** A wrench click turns an engine to the next of its six faces in data-value order (down, up, north,
+  south, west, east), a sneaking click one face back, whether or not anything takes power there. 4.2.2 jumped to the
+  next face with a power receiver (`switchOrientation`), which placement still uses. `IRotatableBlock` gained
+  `rotatesBothWays()` and `rotateBlock(..., reverse)`; `ItemWrench` sends both clicks to such blocks. The wrench still
+  restarts an engine shut down by overheating before it turns anything.
+- **No re-aim on load.** 4.2.2 re-aimed an engine whose face had no receiver when its chunk loaded (`checkOrienation`);
+  with free turning that would undo the player's choice, so it is gone.
+- **Reason line.** A running engine that delivers nothing says why: `NO_POWER_TARGET` ("Not facing a power receiver")
+  or `PULSE_TOO_SMALL` ("Engine too weak for this machine") when the receiver's minimum intake is above
+  `maxEnergyExtracted()`. 4.2.2 balance is unchanged: a redstone engine (10 FE pulses) still cannot feed a quarry
+  (500 FE minimum) or a mining well (1 000 FE).
+- **Quarry faces.** The quarry takes power on all six faces, the front included (GameTest `quarry_power_on_every_face`).
+
+## Smoother item icons in pipes (play-test feedback, 31 Oct 2026)
+
+Item icons were timed from when each pipe's flow record arrived on the client, so neighbouring pipes ran out of step
+(a run of pipes pulsed together instead of carrying items along) and every icon jumped when the measured rate changed.
+`PipeRendererTESR.itemProgresses` now times icons from world time and the pipe's coordinate along the travel direction:
+along a straight run an icon leaves one pipe exactly as it enters the next, at `ITEM_CROSSING_TICKS` per block; each half
+of a pipe uses its own direction, so a bend can shift icons only at its centre. The spacing drawn is the rate's interval
+rounded to a power of two ticks (`displayInterval`), so small rate changes do not move the icons. Icons are still
+drawn from the flow record, not per item; performance is to be tuned later.
+
 ## Facades and plugs (#61)
 
 Ported from 4.2.2 `ItemFacade`, `ItemPlug`, `api/transport/FacadeManager`, `transport/render/FacadeRenderHelper`,

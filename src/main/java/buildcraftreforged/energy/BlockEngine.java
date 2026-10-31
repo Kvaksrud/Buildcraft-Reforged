@@ -101,12 +101,28 @@ public class BlockEngine extends BlockBuildCraft implements IRotatableBlock {
 
     @Override
     public boolean rotateBlock(Level world, BlockPos pos, Direction axis) {
+        return rotateBlock(world, pos, axis, false);
+    }
+
+    @Override
+    public boolean rotatesBothWays() {
+        return true;
+    }
+
+    /**
+     * The wrench turns the engine one face on, through all six, and a sneaking wrench one face back (decided 31 Oct
+     * 2026; 4.2.2 jumped to the next face with a power receiver). Faces with nothing to power are allowed: the status
+     * panel says so.
+     */
+    @Override
+    public boolean rotateBlock(Level world, BlockPos pos, Direction axis, boolean reverse) {
         BlockEntity tile = world.getBlockEntity(pos);
-        if (tile instanceof TileEngine) {
+        if (tile instanceof TileEngine engine) {
             // An engine shut down by overheating is restarted by the wrench, not turned (plan section 9).
-            if (((TileEngine) tile).restartAfterOverheat())
+            if (engine.restartAfterOverheat())
                 return true;
-            return ((TileEngine) tile).switchOrientation(false);
+            engine.cycleOrientation(reverse);
+            return true;
         }
         return false;
     }
