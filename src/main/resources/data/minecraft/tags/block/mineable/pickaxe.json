@@ -6,6 +6,7 @@
     "buildcraftreforged:engine_wood",
     "buildcraftreforged:engine_stone",
     "buildcraftreforged:pump_block",
-    "buildcraftreforged:flood_gate_block"
+    "buildcraftreforged:flood_gate_block",
+    "buildcraftreforged:machine_block"
   ]
 }

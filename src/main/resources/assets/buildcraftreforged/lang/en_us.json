@@ -207,6 +207,7 @@
   "gui.status.state.overheating": "Overheating",
   "gui.status.state.out_of_fuel": "Out of fuel",
   "gui.status.state.no_work_area": "No work area",
+  "gui.status.state.done": "Done",
   "gui.status.reason.none": "",
   "gui.status.reason.output_full": "Output blocked",
   "gui.status.reason.no_destination": "No destination",

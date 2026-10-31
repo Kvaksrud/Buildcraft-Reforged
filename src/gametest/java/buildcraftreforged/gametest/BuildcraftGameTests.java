@@ -186,6 +186,7 @@ public final class BuildcraftGameTests {
             ModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlockedOutputTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -348,6 +349,11 @@ public final class BuildcraftGameTests {
         for (String name : MiningWellTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, MiningWellTests.MAX_TICKS)));
+        }
+        // #67 quarry: frames up to 11 x 5 x 11 on a bedrock floor, in the padded area.
+        for (String name : QuarryTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, QuarryTests.MAX_TICKS)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {

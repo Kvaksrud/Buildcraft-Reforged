@@ -177,13 +177,52 @@ section 7 decision recorded in `docs/PORTING-NOTES.md`.
 | Upstream issue | [BuildCraft#2340](https://github.com/BuildCraft/BuildCraft/issues/2340) |
 | Class | `factory/TileQuarry` (`positionReached`), shared with `factory/TileMiningWell`; upstream fixed it in `BlockMiner` with `Utils.preDestroyBlock` |
 | Symptom | Upstream: when the quarry digs out a chest (a dungeon chest, for example), the chest's contents vanish. In 4.2.2 `TileQuarry` collects `getBlockDropped` and then calls `setBlockToAir`; whether the chest's own `breakBlock` spills the contents and the quarry's "collect lost items" pass picks them up is not clear from reading. |
-| Decision | Pending: reproduce in 1.6.4 during #67 (quarry) and #66 (mining well). With the fake player of section 6, breaking goes through `BlockEvent.BreakEvent` and the block's normal removal, which may settle it on its own; the inventory contents must end up in the quarry output either way. |
-| Applied in | — |
+| Decision | Not applicable to the quarry (decided 2026-10-31, not reproduced in 1.6.4): `positionReached` takes the drops, then `setBlock`s the chest to air, which in 1.6.4 ran the chest's `breakBlock` and in 26.x runs its `preRemoveSideEffects`; both spill the contents at the dug position, and the "collect any lost items" pass that follows (head ± 2 to 3 blocks) picks them up into the output. The contents reach the output with no change. GameTest `quarry_digs_9x9` digs a chest holding five diamonds and finds the chest and the diamonds in the output chest. |
+| Applied in | #67 (test only) |
 
 The mining well (#66, read on 31 Oct 2026, not reproduced in 1.6.4) keeps 4.2.2's behaviour: 1.6.4's `setBlock` ran the
 chest's `breakBlock`, which spilled the contents at the dug position, and 26.x's `setBlock` runs the chest's
 `preRemoveSideEffects`, which does the same. The contents land in the hole and do not go to the well's output. The
-decision for the quarry stays with #67.
+decision for the quarry stays with #67; it is settled above.
+
+#### BuildCraft#1584: ClassCastException when the quarry is placed
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`42d0e641b861267f6fc0fec11dd16c630ddd9b15`](https://github.com/BuildCraft/BuildCraft/commit/42d0e641b861267f6fc0fec11dd16c630ddd9b15) ("Fix ClassCastException in tile entity, close #1584", 19 Apr 2014, 5.0 line) |
+| Upstream issue | [BuildCraft#1584](https://github.com/BuildCraft/BuildCraft/issues/1584) |
+| Class | `factory/BlockQuarry` (`onBlockPlacedBy`, `onBlockActivated`) |
+| Symptom | Both methods cast the block entity to `TileQuarry` unchecked, which crashes when another block entity (or none) is there. |
+| Decision | Accepted: `setPlacedBy`, `useItemOn` and `useWithoutItem` test with `instanceof`. |
+| Applied in | #67 |
+
+#### BuildCraft#2005: breaking one frame removes the frame next to it (rejected)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`fd6a4564345a76ebdcaadf53ba4752c1c2492383`](https://github.com/BuildCraft/BuildCraft/commit/fd6a4564345a76ebdcaadf53ba4752c1c2492383) ("add buildcraft quarry frame cleanup, close #2005", 24 Oct 2014, 6.1 line) and [`3dfb66ea86ea73c1c7fe5f091b995df98356ee56`](https://github.com/BuildCraft/BuildCraft/commit/3dfb66ea86ea73c1c7fe5f091b995df98356ee56) ("fix quarries dropping a frame block", 9 Dec 2014, 6.2 line) |
+| Upstream issue | [BuildCraft#2005](https://github.com/BuildCraft/BuildCraft/issues/2005) |
+| Class | `factory/BlockFrame` (`breakBlock`), `factory/BlockQuarry` (`breakBlock`) |
+| Symptom | Upstream: frames left over after a quarry was removed had to be broken one by one. The commits make a broken frame break its neighbouring frames (a chain), and the second stops the quarry from calling the frame's `breakBlock` on its own position. |
+| Decision | Rejected (policy point 2, a new behaviour): in 4.2.2 the quarry already marks its frame for decay when broken, and the plan (section 19.3) replaces that with removing the frame at once (`BlockQuarry.removeFrame`, GameTest `quarry_marker_area`). Frames a player breaks by hand do not take their neighbours with them. |
+| Applied in | — |
+
+#### Quarry fixes of the 6.x rewrite (not applicable)
+
+Triage for #67 (`factory/TileQuarry`, `BlockQuarry`, `BlockFrame`, `EntityMechanicalArm`), decided 2026-10-31, from
+`git log 4.2.2..origin/7.1.x` over those files. Besides the entries above:
+`9b77c7d5f3b4004802203fae45c60bdd05181a8e` (BuildCraft#1632, frames produced when the quarry is destroyed),
+`446bf4454b4a0b50f665cc5ff340dea1cbec84df` (BuildCraft#1941, frames pumped out of the quarry) and
+`00e2cea2ff9025f32b499c29c7cb32ac9e51f58e` (BuildCraft#1640, quarry glitches) fix the 6.0 quarry that offers frames as
+an inventory slot to its new `BptBuilderBlueprint`; 4.2.2's frames need no items (`BptBlockFrame.addRequirements` is
+empty) and the quarry has no inventory. `f38dc134c2cdf67d569f5b8fe2cfa0d5b1ae3d8d` (BuildCraft#1577) rewrites the 6.0
+digging algorithm. `d403a0b0639d84c03c4715ff97cb6c5a20e2c9aa` (BuildCraft#2496) guards chat messages to a fake player
+in `placedBy`; here `placedBy` is only ever the placing player, and NeoForge's `FakePlayer` ignores messages anyway.
+`a3064c12cd559c2a677ae72b19cf254d51f35473` (BuildCraft#2162, break events) is covered by the fake player (section 6,
+#27): the quarry stops at a refused block, as the mining well does. `016109efcf00f68e25d36f3f0eb0fc42164fda1f` (6.2
+configurable chunk loading) is superseded by `quarry.loadsChunks` (PLAN.md section 19.3). The mechanical arm and the
+robot are no longer entities, so nothing of them is saved with a chunk or left behind. The rest is the 1.7 port, the RF
+battery and speed changes, the 6.x Tiles API, robots, style and module moves.
 
 #### Mining well does not record its owner (no upstream issue)
 

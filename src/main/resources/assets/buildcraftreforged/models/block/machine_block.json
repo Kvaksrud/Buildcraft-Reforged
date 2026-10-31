@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "buildcraftreforged:block/quarry_front",
+    "down": "buildcraftreforged:block/quarry_side",
+    "up": "buildcraftreforged:block/quarry_top",
+    "north": "buildcraftreforged:block/quarry_front",
+    "south": "buildcraftreforged:block/quarry_side",
+    "east": "buildcraftreforged:block/quarry_side",
+    "west": "buildcraftreforged:block/quarry_side"
+  }
+}

@@ -143,7 +143,7 @@ public class BuildCraftConfiguration {
                         + "Default is \"" + DefaultProps.PUMP_DIMENSION_LIST + "\" - the second redundant entry is there to show the format.")
                 .define("pumping.controlList", DefaultProps.PUMP_DIMENSION_LIST);
 
-        quarryLoadsChunks = genCat.get("quarry.loadsChunks", false, "set to true to let the quarry force-load its own chunk; otherwise it pauses while its chunks are unloaded");
+        quarryLoadsChunks = genCat.get("quarry.loadsChunks", false, "set to true to let the quarry force-load its own chunk and the chunks of its frame; otherwise it pauses while its chunks are unloaded");
 
         // BuildCraftBuilders.preInit
         fillerDestroy = mainConfiguration

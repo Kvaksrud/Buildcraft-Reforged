@@ -6,11 +6,13 @@
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
  *
  * Modified by Buildcraft Reforged, 2026: Material.glass moves to registration; the block bounds become the shape and
- * the block model; idDropped 0 becomes noLootTable; isOpaqueCube and renderAsNormalBlock become noOcclusion.
+ * the block model; idDropped 0 becomes noLootTable; isOpaqueCube and renderAsNormalBlock become noOcclusion; IBlockAccess
+ * becomes BlockGetter.
  */
 package buildcraftreforged.factory;
 
 import buildcraftreforged.core.CoreConstants;
+import buildcraftreforged.core.IFramePipeConnection;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
@@ -20,8 +22,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** The Mining Pipe: the column the mining well leaves below itself. It drops nothing. */
-public class BlockPlainPipe extends Block {
-    // SEAM(#67): 4.2.2 implemented IFramePipeConnection (isPipeConnected always false); the quarry frames port it.
+public class BlockPlainPipe extends Block implements IFramePipeConnection {
 
     private static final VoxelShape SHAPE = Shapes.box(CoreConstants.PIPE_MIN_POS, 0.0, CoreConstants.PIPE_MIN_POS,
             CoreConstants.PIPE_MAX_POS, 1.0, CoreConstants.PIPE_MAX_POS);
@@ -33,6 +34,12 @@ public class BlockPlainPipe extends Block {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
         return SHAPE;
+    }
+
+    @Override
+    public boolean isPipeConnected(BlockGetter blockAccess, int x1, int y1, int z1, int x2, int y2, int z2) {
+
+        return false;
     }
 
     public float getHeightInPipe() {
