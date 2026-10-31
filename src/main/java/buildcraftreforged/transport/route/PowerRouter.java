@@ -1,5 +1,7 @@
 package buildcraftreforged.transport.route;
 
+import buildcraftreforged.transport.flow.FlowAccumulator;
+import buildcraftreforged.transport.flow.FlowRecord;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -7,6 +9,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -44,6 +47,11 @@ public final class PowerRouter {
         long refill(PipeNode node);
 
         PowerPipeState state(PipeNode node);
+
+        /** The flow record's accumulator (docs/TRANSPORT.md 9.2), null where none is kept. */
+        default @Nullable FlowAccumulator flow(PipeNode node) {
+            return null;
+        }
     }
 
     /** The live energy handler of an endpoint, or null when the block no longer has one. */
@@ -215,6 +223,7 @@ public final class PowerRouter {
                 receiverCount++;
         int[] receivers = new int[receiverCount];
         long[] delivered = new long[receiverCount];
+        long[] tookBy = new long[demand.length];
         int r = 0;
         for (int e = 0; e < demand.length; e++) {
             if (receiverNode[e] < 0)
@@ -225,6 +234,7 @@ public final class PowerRouter {
                 long took = handler == null ? 0
                         : handler.insert((int) Math.min(share[e], Integer.MAX_VALUE), transaction);
                 delivered[r] = took;
+                tookBy[e] = took;
                 passed[receiverNode[e]] += took;
             }
             r++;
@@ -243,13 +253,57 @@ public final class PowerRouter {
             if (want[node] > 0)
                 pipes.state(pipe).recordRequest(want[node] > passed[node], now, transaction);
         }
-        // SEAM(#59): flow records from the tree (passed, parentSide), as part of this transaction.
+        recordFlow(network, order, count, parent, parentSide, passed, receiverNode, tookBy, sourcePos, now,
+                transaction);
 
         long moved = passed[start];
         TransferResult.Reason reason = moved <= 0 ? TransferResult.Reason.NO_CAPACITY
                 : moved == amount ? TransferResult.Reason.MOVED : TransferResult.Reason.PARTIAL;
         return new Result(moved, reason, new Tree(Arrays.copyOf(order, count), parent, parentSide, passed, receivers,
                 delivered));
+    }
+
+    /**
+     * Adds what passed each pipe of the tree to its flow record (docs/TRANSPORT.md 9.2), in {@code transaction}. A pipe
+     * is entered from its parent (the root from the pushing block, or its centre when that is not beside it) and left
+     * by the outlet that took the most, first in side order on a tie: one exit per pipe, as the record holds one.
+     */
+    private void recordFlow(PipeNetwork network, int[] order, int count, int[] parent, Direction[] parentSide,
+            long[] passed, int[] receiverNode, long[] tookBy, long sourcePos, long now, TransactionContext transaction) {
+        for (int i = 0; i < count; i++) {
+            int node = order[i];
+            if (passed[node] <= 0)
+                continue;
+            PipeNode pipe = network.nodes[node];
+            FlowAccumulator flow = pipes.flow(pipe);
+            if (flow == null)
+                continue;
+            Direction entry = parent[node] >= 0 ? parentSide[node] : sideTo(pipe.pos, sourcePos);
+            Direction exit = null;
+            long most = 0;
+            for (Direction side : SIDES) {
+                int next = pipe.next(side);
+                long amount = 0;
+                if (PipeNode.isNode(next) && parent[next] == node)
+                    amount = passed[next];
+                else if (PipeNode.isEndpoint(next) && receiverNode[PipeNode.endpointIndex(next)] == node)
+                    amount = tookBy[PipeNode.endpointIndex(next)];
+                if (amount > most) {
+                    most = amount;
+                    exit = side;
+                }
+            }
+            flow.add(passed[node], null, FlowRecord.NO_COLOUR, entry, exit, now, transaction);
+        }
+    }
+
+    /** The side of the block at {@code from} that faces {@code to}, or null when they are not neighbours. */
+    private static @Nullable Direction sideTo(long from, long to) {
+        for (Direction side : SIDES) {
+            if (BlockPos.offset(from, side) == to)
+                return side;
+        }
+        return null;
     }
 
     /**
