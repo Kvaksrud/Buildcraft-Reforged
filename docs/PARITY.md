@@ -138,7 +138,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
 | Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [ ] | [ ] | [ ] |  |
 | Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [ ] | [ ] | [ ] |  |
-| Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [ ] | [ ] | [ ] |  |
+| Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [x] | [ ] | [ ] | JSON recipe type `buildcraftreforged:refinery`; status panel added. GameTests `refinery_oil_to_fuel`, `refinery_filters_and_blocked`, `refinery_recipes`; renderer and item model not checked in game. `BptBlockRefinery` waits for the builder (#78). |
 | Hopper (`blockHopper`) | `BlockHopper, TileHopper` | `block_hopper` | #70 | [ ] | [ ] | [ ] |  |
 
 ### GUIs (factory, `factory.GuiHandler`)
@@ -146,7 +146,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Automatic Crafting Table (`GuiIds.AUTO_CRAFTING_TABLE` 30) | `GuiAutoCrafting / ContainerAutoWorkbench` | `auto_workbench_block` menu | #69 | [ ] | [ ] | [ ] |  |
-| Refinery (`GuiIds.REFINERY` 31) | `GuiRefinery / ContainerRefinery` | `refinery_block` menu | #68 | [ ] | [ ] | [ ] |  |
+| Refinery (`GuiIds.REFINERY` 31) | `GuiRefinery / ContainerRefinery` | `refinery_block` menu | #68 | [x] | [ ] | [ ] | Filter sync and return covered by GameTest `refinery_filters_and_blocked`; drawing and clicks not checked in game. |
 | Hopper (`GuiIds.HOPPER` 32) | `GuiHopper / ContainerHopper` | `block_hopper` menu | #70 | [ ] | [ ] | [ ] |  |
 
 ## silicon (`BuildCraftSilicon`)

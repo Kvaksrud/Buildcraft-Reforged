@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "minecraft:redstone_torch",
+    "T": "buildcraftreforged:tank_block",
+    "G": "buildcraftreforged:diamond_gear_item"
+  },
+  "pattern": [
+    "RTR",
+    "TGT"
+  ],
+  "result": {
+    "id": "buildcraftreforged:refinery_block"
+  }
+}

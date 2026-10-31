@@ -1,0 +1,16 @@
+{
+  "type": "buildcraftreforged:refinery",
+  "ingredient1": {
+    "fluid": "minecraft:water",
+    "amount": 10
+  },
+  "ingredient2": {
+    "fluid": "minecraft:lava",
+    "amount": 5
+  },
+  "result": {
+    "fluid": "buildcraftreforged:oil",
+    "amount": 2
+  },
+  "energy": 100
+}
