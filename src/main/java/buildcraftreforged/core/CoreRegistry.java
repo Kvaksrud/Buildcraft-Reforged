@@ -28,6 +28,7 @@ import buildcraftreforged.core.triggers.TriggerFluidContainer;
 import buildcraftreforged.core.triggers.TriggerInventory;
 import buildcraftreforged.core.triggers.TriggerInventoryLevel;
 import buildcraftreforged.core.triggers.TriggerMachine;
+import buildcraftreforged.transport.triggers.TriggerRedstoneInput;
 import java.util.function.Supplier;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.bus.api.IEventBus;
@@ -70,8 +71,11 @@ public final class CoreRegistry {
             trigger("triggerSpaceFluid", () -> new TriggerFluidContainer(TriggerFluidContainer.State.Space));
     public static final DeferredHolder<ITrigger, BCTrigger> triggerFullFluid =
             trigger("triggerFullFluid", () -> new TriggerFluidContainer(TriggerFluidContainer.State.Full));
-    // SEAM(#60): triggerRedstoneActive / triggerRedstoneInactive (transport TriggerRedstoneInput) are
-    // registered here in 4.2.2.
+    /** 4.2.2 registered the transport class TriggerRedstoneInput here; pipes with a gate offer it. */
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerRedstoneActive =
+            trigger("triggerRedstoneActive", () -> new TriggerRedstoneInput(true));
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerRedstoneInactive =
+            trigger("triggerRedstoneInactive", () -> new TriggerRedstoneInput(false));
 
     public static final DeferredHolder<ITrigger, BCTrigger> triggerInventoryBelow25 =
             trigger("triggerInventoryBelow25", () -> new TriggerInventoryLevel(TriggerInventoryLevel.TriggerType.BELOW_25));
