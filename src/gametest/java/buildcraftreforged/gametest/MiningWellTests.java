@@ -140,12 +140,14 @@ final class MiningWellTests {
 
     /**
      * Without power nothing happens. With power the well digs stone, dirt and gravel down to bedrock, one block per
-     * 640 FE, leaving Mining Pipes; the drops are thrown out above it (nothing beside it takes them). At bedrock it is
+     * 640 FE, leaving Mining Pipes; the drops go into the chest beside it. At bedrock it is
      * done (not active). A second well stops at lava and leaves it alone. Removing the first well removes its pipes.
      */
     static void digs(GameTestHelper helper) {
         BlockPos well = new BlockPos(2, 7, 2);
         column(helper, well, Blocks.STONE, Blocks.DIRT, Blocks.GRAVEL, Blocks.DIRT);
+        // The drops wait in the well until something takes them (#130), so each well has a chest.
+        helper.setBlock(well.east(), Blocks.CHEST);
         TileMiningWell tile = placeWell(helper, well, placer(helper));
         helper.assertTrue(tile.getOwnerProfile() != null, "the well recorded no owner");
 
@@ -155,6 +157,7 @@ final class MiningWellTests {
         for (Direction side : Direction.Plane.HORIZONTAL) {
             helper.setBlock(lavaWell.below(2).relative(side), Blocks.STONE);
         }
+        helper.setBlock(lavaWell.east(), Blocks.CHEST);
         TileMiningWell lavaTile = placeWell(helper, lavaWell, placer(helper));
 
         helper.runAtTickTime(10, () -> {
@@ -174,10 +177,10 @@ final class MiningWellTests {
             assertPipes(helper, well, 4);
             helper.assertBlockPresent(Blocks.BEDROCK, well.below(5));
             helper.assertFalse(tile.isActive(), "the well still digs at bedrock");
-            // 4.2.2 throws the drops up at 1 block per tick; they may still be above the test area.
-            helper.assertTrue(thrown(helper, well, Items.COBBLESTONE) == 1, "cobblestone thrown out: " + thrown(helper, well, Items.COBBLESTONE));
-            // Two dirt from this well, one from the lava well.
-            helper.assertTrue(thrown(helper, well, Items.DIRT) == 3, "dirt thrown out: " + thrown(helper, well, Items.DIRT));
+            helper.assertValueEqual(count(helper, well.east(), Items.COBBLESTONE), 1, "cobblestone in the chest");
+            helper.assertValueEqual(count(helper, well.east(), Items.DIRT), 2, "dirt in the chest");
+            helper.assertValueEqual(count(helper, lavaWell.east(), Items.DIRT), 1, "dirt in the lava well's chest");
+            helper.assertTrue(thrown(helper, well, Items.DIRT) == 0, "dirt thrown out");
 
             assertPipes(helper, lavaWell, 1);
             helper.assertBlockPresent(Blocks.LAVA, lavaWell.below(2));
@@ -237,6 +240,7 @@ final class MiningWellTests {
         BlockPos well = new BlockPos(2, 6, 2);
         column(helper, well, Blocks.DIRT, Blocks.DIRT, Blocks.DIRT);
         ServerPlayer placer = placer(helper);
+        helper.setBlock(well.east(), Blocks.CHEST);
         TileMiningWell tile = placeWell(helper, well, placer);
         BlockPos claimed = helper.absolutePos(well.below(3));
         PROTECTED.add(claimed);

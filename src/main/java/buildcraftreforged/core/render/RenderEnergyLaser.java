@@ -14,10 +14,7 @@ package buildcraftreforged.core.render;
 
 import buildcraftreforged.core.EntityEnergyLaser;
 import buildcraftreforged.core.EntityLaser;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 
-@OnlyIn(Dist.CLIENT)
 public class RenderEnergyLaser extends RenderLaser {
 
     public static final RenderEnergyLaser INSTANCE = new RenderEnergyLaser();
