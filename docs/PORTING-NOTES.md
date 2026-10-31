@@ -2997,6 +2997,52 @@ pickaxe and `needs_diamond_tool` block tags, `BuildcraftGameTests`. Decided 2026
   look, lag), the spring's bedrock texture and its item in the creative tab, and that no "far chunk" warning appears
   while chunks generate.
 
+## Advanced Crafting Table (#73)
+
+Ported: `silicon/TileAdvancedCraftingTable`, `silicon/gui/ContainerAdvancedCraftingTable`,
+`silicon/gui/GuiAdvancedCraftingTable`. Changed (additive): `SiliconRegistry`, `SiliconScreens`, the JEI plugin (the
+table is a catalyst of the crafting category), the pickaxe tag. Recorded 1 Nov 2026.
+
+- **Block.** `assembly_workbench_block` (4.2.2 `BlockLaserTable` meta 1, `tile.assemblyWorkbenchBlock`), block entity
+  type `advanced_crafting_table`, menu `assembly_workbench_block`. Built as the assembly table: `new
+  BlockLaserTable(properties, TileAdvancedCraftingTable::new)`, same material, hardness, sound, shape and model, with
+  4.2.2's `advworkbenchtable_top/bottom/side` textures. Crafting recipe `OWO/OCO/ORO` (obsidian, crafting table, chest,
+  Redstone Chipset) as 4.2.2.
+- **Energy is FE** (`long`): 5000 FE a craft (4.2.2's 500 MJ). As in 4.2.2 the table is an `ILaserTarget` that asks
+  for energy while it shows a result and has stored less than ten crafts' worth; while it cannot craft (missing
+  ingredients, full output) the store goes to 0 every tick. The ledger shows FE and FE/t.
+- **Inventory.** 24 storage slots (15 input, 9 output) as a `WorldlyContainer`: inserts only into 0–14, extraction only
+  from 15–23, from every side, as 4.2.2's `ISidedInventory`. The template (9 phantom slots, stack size 1) and the result
+  slot are not part of it and are not dropped when the block breaks. Saved as `StorageSlots`, `items` (the template) and
+  `StoredEnergy` (FE). The On/Off gate actions are not saved, as in 4.2.2.
+- **Crafting.** `InventoryCrafting` becomes a `CraftingInput` built each time from the template (to find the recipe) or
+  from the bound stacks (to match and craft), so the binding logic (`bindings`, `tempStacks`, `hitCount`) is
+  unchanged. `IRecipe` is `RecipeHolder<CraftingRecipe>`, found through `CraftingHelper.findMatchingRecipe` (the server
+  recipe manager). `SlotCrafting.onPickupFromSlot` with the `InternalPlayer` becomes: `onCraftedBySystem` on the result
+  (what vanilla's crafter calls where no player crafts), one of each bound stack used, and the recipe's remaining items
+  (empty buckets and the like) added to the outputs, where 4.2.2's internal player inventory put them. Outputs go to the
+  output slots, then a random neighbouring inventory, then are dropped above the table, as 4.2.2. 4.2.2 does not push
+  into pipes; a wooden pipe pulls from the output slots.
+- **Ore Dictionary → item tags.** The template's 4.2.2 Ore Dictionary id is its ore tag: a `c` tag with a slash
+  (`StackHelper.isOreTag`), the first by tag id when an item has more than one. An input matches a template slot when it
+  is the same item (components ignored, as 4.2.2 ignored NBT here) or carries that tag. Pulling from neighbours uses
+  `CraftingFilter` (any shared ore tag). Vanilla tags such as `minecraft:planks` are not ore tags, so an oak plank
+  template does not take birch planks (the Ore Dictionary row of the decisions at the top). Neighbours searched: below and
+  the four sides, `Container` tiles only, as 4.2.2's `IInventory`.
+- **Network.** The template changes through the menu's phantom slots on the server; 4.2.2's
+  `ADVANCED_WORKBENCH_SETSLOT` packet (never sent by the 4.2.2 GUI) is gone, and `updateCraftingMatrix` remains as a
+  server method. The result slot syncs as a menu slot; stored energy and rate travel as data slots (4.2.2 ids 1, 3, 4,
+  5; FE as whole numbers, the rate × 100).
+- **Tests.** GameTests (`AdvancedCraftingTableTests`, padded area): `advanced_crafting_laser` (two planks on the
+  template make four sticks from a charged laser; result display, 5000 FE, slot rules, menu slots, GUI numbers),
+  `advanced_crafting_tag_matching` (test tag `c:gametest/advanced_crafting` and test recipe
+  `gametest_advanced_crafting_tag`: amethyst shards on the template, prismarine crystals pulled from a chest and
+  crafted; cobblestone stays), `advanced_crafting_container_items` (a cake gives three empty buckets back) and
+  `advanced_crafting_save_actions_recipe` (save and load, breaking drops the inputs only, Off and On actions, the
+  `OWO/OCO/ORO` recipe).
+- **Not checked without a client:** the screen (layout, phantom slot clicks, progress arrow, ledger), the block model
+  and textures, the creative tab entry and the JEI catalyst.
+
 ## Architect table and blueprint items (#77)
 
 Ported `builders/BlockArchitect`, `TileArchitect`, `ItemBptBase`, `ItemBptTemplate`, `ItemBptBluePrint`,

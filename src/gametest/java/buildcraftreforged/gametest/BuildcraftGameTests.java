@@ -212,6 +212,7 @@ public final class BuildcraftGameTests {
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            AdvancedCraftingTableTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
@@ -412,6 +413,11 @@ public final class BuildcraftGameTests {
         for (String name : SiliconRecipeTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, SiliconRecipeTests.MAX_TICKS)));
+        }
+        // #73 advanced crafting table: a laser under the table and a chest beside it, in the padded area.
+        for (String name : AdvancedCraftingTableTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, AdvancedCraftingTableTests.MAX_TICKS)));
         }
         // #59 flow records: running lines watched for 300 ticks, in the padded area like item routing.
         for (String name : FlowRecordTests.TESTS.keySet()) {
