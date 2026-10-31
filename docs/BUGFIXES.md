@@ -67,6 +67,31 @@ behaviour are below. No fix was applied.
 | Decision | Not applicable: the gate loop they change is from the 6.x refactor; in 4.2.2 the side is already correct. #60 keeps 4.2.2's `o.getOpposite()` when it ports `Gate`. |
 | Applied in | — |
 
+#### Blueprint equals is always false (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — (5.0 replaced `BptBase` with a new blueprint system) |
+| Upstream issue | none |
+| Class | `core/blueprints/BptBase` (`equals`) |
+| Symptom | The first check reads `if (o == null \|\| !(o.getClass() != getClass())) return false`, so two blueprints of the same class are never equal. `TileArchitect.createBpt` asks `equals` to reuse the last library entry when the same box is captured again; it never does, and each capture adds a file. |
+| Decision | Accepted (31 Oct 2026, #75): the inverted test cannot be what was meant, and the fix changes no balance, recipe or feature; it restores the reuse the architect code was written for. |
+| Applied in | #75 |
+
+#### Cloned blueprint slots share requirement stacks (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | none |
+| Class | `core/blueprints/BptSlot` (`clone`) |
+| Symptom | `clone` copies the requirements list but not its stacks, so a builder that uses up a requirement of its working copy changes the stack in the blueprint it was cloned from. |
+| Decision | Accepted (31 Oct 2026, #75): the clone copies each stack. No behaviour of the library blueprint was meant to change while building. |
+| Applied in | #75 |
+
+Upstream `git log 4.2.2..origin/7.1.x` over `core/blueprints` was not reviewed in #75: 5.0 replaced these classes
+(`BptBase` became `BlueprintBase`, the format changed), so the per-class triage of P7 (#81) covers them.
+
 ### energy
 
 Triage for #42 (`energy/BlockBuildcraftFluid`, `ItemBucketBuildcraft`, `BucketHandler`, `render/EntityDropParticleFX`):
@@ -389,5 +414,16 @@ have (not applicable). The two below were applied.
 | Upstream issue | [BuildCraft#2331](https://github.com/BuildCraft/BuildCraft/issues/2331) |
 | Class | Upstream: `core/builders/patterns/FillerPattern` (`getBlueprint`) and `factory/TileQuarry` (`initializeBlueprintBuilder`). 4.2.2 counterparts: `builders/filler/pattern/FillerPattern`, `builders/TileFiller`. |
 | Symptom | Upstream: fillers set to some patterns, with no area, crash the world as a ticking block entity after a reload. The fix wraps blueprint generation in a try/catch and skips a null blueprint. Both changed methods belong to the 6.x blueprint-based filler and quarry, which 4.2.2 does not have. |
-| Decision | Pending: the upstream code path is absent in 4.2.2, so this is likely Not applicable. Confirm during #79 by placing fillers in every pattern without markers, saving and reloading in 1.6.4. |
+| Decision | Not applicable (31 Oct 2026, #79): the upstream fix guards blueprint generation, and 4.2.2's filler has no blueprint. Its pattern iterator is made only once the box is initialized (`doWork` returns early without an area) and an unknown saved pattern falls back to Fill, so a filler with no area cannot throw on reload. Checked in the port, not in a 1.6.4 instance: GameTest `filler_actions_gui_and_save` saves and reloads a filler without markers in every pattern while powered. |
 | Applied in | — |
+
+#### Filler retries a spot for ever when the item places nothing (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | none |
+| Upstream issue | none |
+| Class | `builders/filler/pattern/FillerPattern` (`fill`, `flatten`, `empty`) |
+| Symptom | `fill` and `flatten` pick the first soft spot and use the item on it. When that places nothing (an item that is not a block, or a soft block such as snow, which is broken and placed again), the spot stays soft and every later step picks it again: the filler spends power for ever and never finishes. 4.2.2 broke and placed without asking anyone, so a refusal could not happen there; with the owner's fake player (#27) a claim refusing one break or placement would stall the whole pattern the same way. |
+| Decision | Accepted (31 Oct 2026, #79): a spot the owner may not break, or where using the item left it soft, is skipped until the pattern starts over (new pattern, Loop, reload). A spot blocked by an entity standing in it is still retried, as 4.2.2 waited for the entity to move. Unbreakable blocks keep 4.2.2's rule (`canChangeBlock` false ends the step). GameTests `filler_protected_break`, `filler_protected_place`. |
+| Applied in | #79 |

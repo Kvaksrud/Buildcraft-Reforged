@@ -5,8 +5,10 @@ import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
 import buildcraftreforged.transport.flow.FlowRecordsPayload;
 import buildcraftreforged.transport.gui.GuiGateInterface;
+import buildcraftreforged.transport.render.FacadeItemRenderer;
 import buildcraftreforged.transport.render.PipeRendererTESR;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -14,6 +16,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterBlockStateModels;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterSpecialModelRendererEvent;
 import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -49,6 +52,12 @@ public final class TransportClient {
                     && payload.records().get(i).kind() == pipe.kind)
                 pipe.getFlowTracker().receive(payload.records().get(i), level.getGameTime());
         }
+    }
+
+    /** The facade item (#61): {"type": "buildcraftreforged:facade"} draws the block state the facade carries. */
+    @SubscribeEvent
+    static void registerSpecialModelRenderers(RegisterSpecialModelRendererEvent event) {
+        event.register(Identifier.fromNamespaceAndPath(BuildcraftReforged.MOD_ID, "facade"), FacadeItemRenderer.Unbaked.MAP_CODEC);
     }
 
     @SubscribeEvent

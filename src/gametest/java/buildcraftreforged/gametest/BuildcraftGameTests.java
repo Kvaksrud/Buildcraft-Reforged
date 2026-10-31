@@ -208,8 +208,12 @@ public final class BuildcraftGameTests {
             MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             EngineWrenchTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SeamTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            FacadeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
@@ -398,6 +402,16 @@ public final class BuildcraftGameTests {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, SeamTests.MAX_TICKS)));
         }
+        // #61 facades and plugs: a few pipes, a chest and dropped items, in the padded area.
+        for (String name : FacadeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, FacadeTests.MAX_TICKS)));
+        }
+        // #74 chipsets and silicon recipes: nine lasers under a table, in the padded area.
+        for (String name : SiliconRecipeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, SiliconRecipeTests.MAX_TICKS)));
+        }
         // #59 flow records: running lines watched for 300 ticks, in the padded area like item routing.
         for (String name : FlowRecordTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
@@ -407,6 +421,16 @@ public final class BuildcraftGameTests {
         for (String name : QuarryTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, QuarryTests.MAX_TICKS)));
+        }
+        // #75 blueprint format: a 3 x 2 x 2 structure captured, saved, read back and placed turned beside it.
+        for (String name : BlueprintTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, BlueprintTests.MAX_TICKS)));
+        }
+        // #79 filler: a 3 x 3 x 3 marked area beside the filler, in the padded area.
+        for (String name : FillerTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, FillerTests.MAX_TICKS)));
         }
         // #45 oil fields: wells, lakes and spouts up to 20 blocks out, in a wider padded area.
         for (String name : OilFieldTests.TESTS.keySet()) {

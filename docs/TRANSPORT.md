@@ -94,6 +94,7 @@ The block entity holds (saved fields marked S):
 |---|---|
 | `byte connectionMask` | Bit `d` set when connected on side `d` (side order). Recomputed on neighbour change (3.2). Synced to the client in the update tag. |
 | `byte pluggedMask` (S) | Plugs (#61). A plugged side never connects. |
+| `byte disconnectedMask` (S) | Sides a wrench disconnected (#61, 3.2). Blocked like a plugged side, with no item. |
 | `PipeModule module` (S) | Null for a plain pipe. Module state (filters, facing, colour, round-robin cursor) is saved with it. |
 | `long budget`, `long budgetTick` | Section 5. Not saved: a loaded pipe starts at budget 0. |
 | `Fluid lockFluid`, `long lockTick` | Fluid pipes only, section 7.3. Not saved. |
@@ -107,11 +108,11 @@ Pluggables (gates, wire, facades, plugs) are #60/#61 and attach to the block ent
 Pipe `P` connects on side `s` to the block `N` at `P.pos + s` when all of these hold. This mirrors 4.2.2
 `TileGenericPipe.canPipeConnect` → `Pipe.canPipeConnect` → `PipeTransport*.canPipeConnect`:
 
-1. `P` has no plug on `s`.
+1. `P` has no plug on `s` and `s` is not wrench-disconnected.
 2. If `N` implements the 4.2.2 `IPipeConnection` override (kept as an interface; engines implement it in #36) and
    `P`'s module is not the Isolator, its answer for `(P.kind, s.opposite)` wins: `CONNECT` or `DISCONNECT`.
    4.2.2: `IPipeConnectionForced.ignoreConnectionOverrides`, which only the sandstone pipes return true for.
-3. If `N` is a pipe: `N` has no plug on `s.opposite`; `N.kind == P.kind` (item, fluid, power and structure never
+3. If `N` is a pipe: `N` has no plug on `s.opposite` and has not wrench-disconnected it; `N.kind == P.kind` (item, fluid, power and structure never
    connect to each other, as each 4.2.2 `PipeTransport*.canPipeConnect`); and the pair is not banned (3.3).
 4. If `N` is not a pipe: `P` is not a Structure Pipe and its module is not the Isolator, and `N` exposes the kind's
    capability on face `s.opposite`:
@@ -124,7 +125,20 @@ Pipe `P` connects on side `s` to the block `N` at `P.pos + s` when all of these 
    - The Basic Extractor counts as an endpoint for `ITEM` pipes on its narrow face only (section 10).
 
 The result is cached in `connectionMask` and recomputed when the pipe is placed, on `neighborChanged`, when a plug or
-module is added or removed, and when a capability cache of a neighbour fires its invalidation listener.
+module is added or removed, when a side is wrench-disconnected or reconnected, and when a capability cache of a
+neighbour fires its invalidation listener.
+
+**Wrench disconnect** (decided 2026-10-31 from play-testing; a deliberate addition, 4.2.2 pipes had none). A wrench
+used on a pipe blocks or unblocks one side with no item, on the same footing as a plug: the side never connects on
+either pipe, the network is invalidated, the state is saved (`disconnected`) and synced, and the side draws no arm
+(nothing marks it; the pipe's gate may show there). The click is decided in this order:
+
+1. Sneaking on a pipe with a module takes the module off (8.1, Q18).
+2. A click on a connected arm disconnects that arm's side; the hit position picks the arm, whichever face of it was
+   clicked.
+3. A click on the centre (or on a gate or facade) on a wrench-disconnected side reconnects it.
+4. Otherwise a module whose `onWrench` handles the click (Director, Extractor facing, Power Limiter) turns.
+5. Otherwise a click on the centre face of a connected side disconnects it. A plug is left alone.
 
 ### 3.3 Connection bans
 
@@ -1003,6 +1017,7 @@ GameTests use structures under `src/test/resources` or are built in code, and ru
 ### #61 Facades and plugs
 
 - GameTest: a plug on a side removes that connection and invalidates the network; removing it restores both.
+- GameTest: a wrench on an arm disconnects that side and splits the network; a second wrench use reconnects it.
 
 ### #62 Filtered Buffer
 

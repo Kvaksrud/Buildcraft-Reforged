@@ -1,0 +1,15 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 200000,
+  "inputs": [
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:redstone_iron_chipset"
+  }
+}

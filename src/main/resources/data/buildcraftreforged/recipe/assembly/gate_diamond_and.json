@@ -1,0 +1,24 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 1600000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_diamond_chipset"
+    },
+    {
+      "item": "buildcraftreforged:red_pipe_wire"
+    },
+    {
+      "item": "buildcraftreforged:blue_pipe_wire"
+    },
+    {
+      "item": "buildcraftreforged:green_pipe_wire"
+    },
+    {
+      "item": "buildcraftreforged:yellow_pipe_wire"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:gate_diamond_and"
+  }
+}
