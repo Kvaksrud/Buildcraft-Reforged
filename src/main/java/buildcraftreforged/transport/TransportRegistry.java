@@ -50,6 +50,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -148,6 +152,30 @@ public final class TransportRegistry {
 
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerGateInterface>> gateMenu =
             REGISTERS.menus.register("gate", () -> IMenuTypeExtension.create(ContainerGateInterface::new));
+
+    // Facades and plugs (#61), 4.2.2 BuildCraftTransport facadeItem and plugItem.
+
+    /** 4.2.2 {@code pipeFacade}: one item; the block it shows is its {@link #facadeState} component. */
+    public static final DeferredItem<ItemFacade> facadeItem = REGISTERS.items.registerItem(RegistryNames.of("pipeFacade"),
+            ItemFacade::new, properties -> properties.overrideDescription("item.Facade"));
+    /** 4.2.2 {@code pipePlug}. */
+    public static final DeferredItem<ItemPlug> plugItem = REGISTERS.items.registerItem(RegistryNames.of("pipePlug"),
+            ItemPlug::new, properties -> properties.overrideDescription("item.PipePlug"));
+
+    static {
+        CreativeTabBuildCraft.FACADES.addStacks(ItemFacade::getAllFacades);
+        CreativeTabBuildCraft.MACHINES.add(plugItem);
+    }
+
+    /** The block state a facade shows (4.2.2: the "id" and "meta" NBT tags). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockState>> facadeState =
+            REGISTERS.dataComponents.registerComponentType("facade",
+                    builder -> builder.persistent(BlockState.CODEC)
+                            .networkSynchronized(ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY)));
+
+    /** 4.2.2 {@code FacadeRecipe}, the facade turning helper for logs. */
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<ItemFacade.FacadeRecipe>> facadeRecipeSerializer =
+            REGISTERS.recipeSerializers.register("facade_rotation", () -> ItemFacade.FacadeRecipe.SERIALIZER);
 
     public static final DeferredHolder<ITrigger, BCTrigger> triggerPipeEmpty =
             trigger("triggerPipeEmpty", () -> new TriggerPipeContents(TriggerPipeContents.Kind.Empty));
