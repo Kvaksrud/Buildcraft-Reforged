@@ -89,8 +89,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37, #39 | [ ] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36; renderer, base/trunk/chamber textures and the `buildcraftreforged:engine` item model type in #39. |
-| Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
+| Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37, #39 | [x] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36; renderer, base/trunk/chamber textures and the `buildcraftreforged:engine` item model type in #39. 10 FE per 16 ticks, 10 FE pulses, 1 000 FE; power pipes connect (4.2.2 refused every pipe). GameTests `engine_wood_redstone_output`, `engine_delivery_through_kinesis_pipe`; model and piston not checked in game. |
+| Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38, #39 | [x] | [ ] | [ ] | Renderer and textures from #39. Furnace burn times (`cooking_fuel`), PID output 10 / 3 to 10 FE/t, status OUT_OF_FUEL. GameTests `engine_stone_burns_fuel`, `engine_stone_output_control`, `engine_delivery_through_kinesis_pipe`; model and piston not checked in game. Inventory triggers wait for #41. |
 | Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
 | Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [x] | [ ] | [ ] | `FluidType` `oil` plus source fluid `oil` and flowing fluid `flowing_oil`. Density 800, viscosity 1500, ticks every 7. |
 | Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [x] | [ ] | [ ] | As above: `fuel` and `flowing_fuel`, ticks every 5. |
@@ -122,7 +122,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Combustion engine (`GuiIds.ENGINE_IRON` 20) | `GuiCombustionEngine / ContainerEngine` | `engine_iron` menu | #44 | [ ] | [ ] | [ ] |  |
-| Stirling engine (`GuiIds.ENGINE_STONE` 21) | `GuiStoneEngine / ContainerEngine` | `engine_stone` menu | #38 | [ ] | [ ] | [ ] |  |
+| Stirling engine (`GuiIds.ENGINE_STONE` 21) | `GuiStoneEngine / ContainerEngine` | `engine_stone` menu | #38 | [x] | [ ] | [ ] | Engine ledger in FE, plus the status ledger. Slots, shift-click and burn-time sync covered by GameTests `engine_stone_menu` and `engine_stone_burns_fuel`; drawing, flame and ledgers not checked in game. |
 
 ## factory (`BuildCraftFactory`)
 
