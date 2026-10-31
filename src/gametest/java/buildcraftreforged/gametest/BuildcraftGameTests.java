@@ -208,6 +208,7 @@ public final class BuildcraftGameTests {
             MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             EngineWrenchTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SeamTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            FacadeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
@@ -397,6 +398,11 @@ public final class BuildcraftGameTests {
         for (String name : SeamTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, SeamTests.MAX_TICKS)));
+        }
+        // #61 facades and plugs: a few pipes, a chest and dropped items, in the padded area.
+        for (String name : FacadeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, FacadeTests.MAX_TICKS)));
         }
         // #74 chipsets and silicon recipes: nine lasers under a table, in the padded area.
         for (String name : SiliconRecipeTests.TESTS.keySet()) {
