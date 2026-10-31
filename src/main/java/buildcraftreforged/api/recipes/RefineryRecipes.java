@@ -39,6 +39,16 @@ public final class RefineryRecipes {
         recipes.add(recipe);
     }
 
+    /**
+     * Builds a recipe without adding it to the code-registered set. Not in 4.2.2: the refinery's JSON recipes (#68)
+     * keep their own set per side and fall back to this one.
+     *
+     * @param energy FE per cycle (4.2.2: MJ).
+     */
+    public static Recipe createRecipe(FluidStack ingredient1, FluidStack ingredient2, FluidStack result, int energy, int delay) {
+        return new Recipe(ingredient1, ingredient2, result, energy, delay);
+    }
+
     public static SortedSet<Recipe> getRecipes() {
         return Collections.unmodifiableSortedSet(recipes);
     }

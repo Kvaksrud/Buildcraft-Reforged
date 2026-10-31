@@ -1585,3 +1585,94 @@ New code from `docs/TRANSPORT.md` 4, 5 and 6, package `buildcraftreforged.transp
 - **#59.** Every successful transfer passes `ResourceRouter.push` where `SEAM(#59)` sits; `TransferResult.route()`
   has the path (node indices), and `route.endpoint()` / `route.sink()` the exit. Record flow there, journaled in the
   same transaction, so simulations record nothing.
+
+## Refinery (#68)
+
+Ported `factory/BlockRefinery`, `TileRefinery`, `gui/GuiRefinery`, `gui/ContainerRefinery`, `render/RenderRefinery`.
+New: `factory/RefineryRecipe` (the recipe type), `factory/RefineryRecipeManager` (lookup and client sync),
+`factory/gui/FactoryScreens` (client registration). `BptBlockRefinery` waits for the builder (#78). Recorded
+2026-10-31.
+
+### Recipe format
+
+4.2.2 registered its one refinery recipe in Java (`RefineryRecipes.addRecipe` in `BuildCraftEnergy.preInit`). Recipes
+are JSON files of type `buildcraftreforged:refinery` now, under `data/<namespace>/recipe/`. The shipped one is
+`data/buildcraftreforged/recipe/refinery/fuel.json`, 4.2.2's oil to fuel:
+
+```json
+{
+  "type": "buildcraftreforged:refinery",
+  "ingredient1": { "fluid": "buildcraftreforged:oil", "amount": 1 },
+  "result": { "fluid": "buildcraftreforged:fuel", "amount": 1 },
+  "energy": 120,
+  "delay": 1
+}
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `ingredient1` | yes | `{"fluid": id, "amount": mB}`: the first input (amount at least 1, not `minecraft:empty`) |
+| `ingredient2` | no | a second input in the same form; the recipe then needs both, one per input tank |
+| `result` | yes | the output fluid and amount per cycle |
+| `energy` | yes | FE per cycle (4.2.2 MJ × 10), at least 0 |
+| `delay` | no, 1 | ticks between cycles, at least 1 |
+
+- **Rate.** 4.2.2's oil recipe is 1 mB of oil to 1 mB of fuel for 12 MJ every tick: 120 FE per mB here, so a
+  refinery makes 20 mB of fuel per second while it gets at least 120 FE/t (plus the 10 FE/t it loses). Power settings
+  are 4.2.2's `configure(50, 150, 25, 1000)` and `configurePowerPerdition(1, 1)` × 10: receives up to 1500 FE per
+  insert, stores 10000 FE, loses 10 FE per tick.
+- **Fluids are an id and an amount**, not a `FluidStack` codec (no components): the stacks are built on first use,
+  after fluid data components are bound (see "Fuel and coolant registry (#43)" for why a stack cannot be decoded early).
+- **Lookup.** `RefineryRecipeManager.findRefineryRecipe(level, liquid1, liquid2)` replaces 4.2.2's
+  `RefineryRecipes.findRefineryRecipe`: first the JSON recipes of the level's side, kept in a `TreeSet` in 4.2.2's
+  `Recipe.compareTo` order (two-ingredient recipes before the one-ingredient recipe on the same first fluid; a recipe
+  with the same ingredients as one with a smaller recipe id is dropped, as 4.2.2's set dropped later additions), then
+  the code-registered `RefineryRecipes` set, which stays for other mods. Each JSON recipe builds a 4.2.2
+  `RefineryRecipes.Recipe` (new `RefineryRecipes.createRecipe`, which does not add it to the code set), so matching
+  (`Recipe.matches`, loose as in 4.2.2) is unchanged.
+- **Client copy.** The GUI shows the result of the chosen filters, so the type is sent to clients on data pack sync
+  (`OnDatapackSyncEvent.sendRecipes`) and kept from `RecipesReceivedEvent`, forgotten on logout. Same pattern as the
+  assembly table (#72).
+- **Data packs** add recipes with new files and override or remove the shipped one at the same path. Hand-written JSON
+  like the rest of `data/` (no datagen providers yet).
+
+### Block, tile and GUI
+
+- **Block.** `refinery_block`, block entity `refinery`, menu `refinery`. `Material.iron` + `setHardness(5F)` → metal
+  sound and map colour, `strength(5F)`, `requiresCorrectToolForDrops`, `minecraft:mineable/pickaxe`, `noOcclusion`.
+  Metadata → `FACING` (horizontal), set on placement to face the placer as 4.2.2's `onBlockPlacedBy`; the wrench turns
+  it N → W → S → E as 4.2.2's `rotateBlock`. Recipe `RTR/TGT` (redstone torch, tank, diamond gear) as 4.2.2. Not a
+  `BlockBuildCraft` (4.2.2 extended `BlockContainer`), so it does not light up while active.
+- **Right-click.** A sneaking wrench resets the three tank filters; any held item except an empty bucket is tried as a
+  fluid container that fills the refinery (never drains it); otherwise, or when that fails, the GUI opens.
+- **Fluid capability** (`Capabilities.Fluid.BLOCK`, any side): three indices (tank1, tank2, result). Insert reaches
+  tank1 and tank2 only, so an insert fills tank1 and then tank2 as 4.2.2's `fill`; extract reaches the result only,
+  as 4.2.2's `drain`. The tanks are 4000 mB `SingleUseTank`s: the first fluid a tank takes becomes its filter.
+- **Energy capability** through `PowerEnergyHandler` on every side.
+- **Ticking.** `updateEntity` now calls `TileBuildCraft.updateEntity` (4.2.2 skipped it), so perdition runs each tick
+  instead of only when energy arrives or is used; the energy lost is the same.
+- **Filters.** 4.2.2's progress bars 0 and 1 (filter fluid ids) are two `DataSlot`s on the menu: 0 is no filter, a
+  fluid is its registry id + 1. 4.2.2 never sent a cleared filter, so the client kept showing it; it does now. The
+  GUI's `REFINERY_FILTER_SET` packet is a `PacketGuiReturn` carrying both filters, checked by `PacketData` bounds.
+  Clicks as 4.2.2: left with a filled container sets the filter to its fluid, shift-left clears it, right sets it to
+  the tank's current fluid. `GuiAdvancedInterface.FluidSlot` now draws the fluid's still sprite tinted with its colour
+  (the SEAM(#24) it carried).
+- **Status panel** (plan section 10, new): Working; No power while a recipe can run but the store holds less than its
+  energy; Blocked with reason "Output blocked" while the result tank has no room for a cycle (`IMachine.isBlocked`,
+  which 4.2.2 did not have; the refinery just stopped). Flow counts mB consumed and made and FE used per cycle. The
+  GUI adds the status ledger. No red-light overlay: the model is drawn by the tile renderer.
+- **Renderer.** `RenderRefinery` keeps 4.2.2's boxes (a 8 × 16 × 8 tank drawn three times, four 8 × 4 × 4 magnets
+  picked by animation speed) as baked `ModelPart`s with the same texture offsets on `textures/block/refinery.png`
+  (64 × 32), the same translations, scale and FACING angle, and the three fluids through `FluidRenderer.renderFluid`.
+  The block shape is invisible; `refinery_back` is the particle texture. 4.2.2's inventory render is the item model
+  `block/refinery_block_inventory`: the three tanks and two resting magnets as JSON elements with UVs from the same
+  box layout.
+- **Tests.** GameTests `refinery_oil_to_fuel` (no fuel without power; exactly 20 mB in 20 powered ticks; 10 mB for
+  1300 FE in 10 ticks on stored energy; inputs and outputs through the capability), `refinery_filters_and_blocked`
+  (a filter sends oil to tank2, the GUI return with a refused id, the data slots on a client copy, the sneaking wrench,
+  a full result tank blocks and draining it resumes, save and load) and `refinery_recipes` (the shipped recipe's
+  values, and a two-ingredient water + lava recipe from the GameTest data pack consuming both inputs; placement
+  facing).
+- **Not checked without a client:** the renderer (geometry, texture orientation, animation, fluid levels, lighting),
+  the item model's UVs, the GUI's drawing, fluid-slot sprites and mouse clicks, the right-click → `openMenu` path
+  (mock players cannot receive the open-screen packet), and the client recipe copy.

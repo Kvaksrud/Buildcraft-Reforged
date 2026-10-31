@@ -80,6 +80,9 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_RECORDED_AND_SAVED = function("owner_recorded_and_saved");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
+    private static final ResourceKey<Consumer<GameTestHelper>> REFINERY_OIL_TO_FUEL = function("refinery_oil_to_fuel");
+    private static final ResourceKey<Consumer<GameTestHelper>> REFINERY_FILTERS_AND_BLOCKED = function("refinery_filters_and_blocked");
+    private static final ResourceKey<Consumer<GameTestHelper>> REFINERY_RECIPES = function("refinery_recipes");
 
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_CHEST_TO_CHEST = function("item_routing_chest_to_chest");
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_HOPPER_PUSH = function("item_routing_hopper_push");
@@ -150,6 +153,9 @@ public final class BuildcraftGameTests {
             registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
             registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
             registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
+            registry.register(REFINERY_OIL_TO_FUEL, RefineryTests::oilToFuel);
+            registry.register(REFINERY_FILTERS_AND_BLOCKED, RefineryTests::filtersAndBlocked);
+            registry.register(REFINERY_RECIPES, RefineryTests::recipes);
             registry.register(ITEM_ROUTING_CHEST_TO_CHEST, ItemRoutingTests::chestToChest);
             registry.register(ITEM_ROUTING_HOPPER_PUSH, ItemRoutingTests::hopperPush);
             registry.register(ITEM_ROUTING_BRANCHING, ItemRoutingTests::branching);
@@ -264,6 +270,11 @@ public final class BuildcraftGameTests {
         for (ResourceKey<Consumer<GameTestHelper>> owner : List.of(OWNER_RECORDED_AND_SAVED, OWNER_BREAK, OWNER_PLACE)) {
             event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,
                     new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> refinery : List.of(REFINERY_OIL_TO_FUEL, REFINERY_FILTERS_AND_BLOCKED,
+                REFINERY_RECIPES)) {
+            event.registerTest(refinery.identifier(), new FunctionGameTestInstance(refinery,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
         }
         // Item routing builds lines longer than the 5-block spacing between tests, so it uses the padded area too.
         for (ResourceKey<Consumer<GameTestHelper>> routing : List.of(ITEM_ROUTING_CHEST_TO_CHEST, ITEM_ROUTING_HOPPER_PUSH,

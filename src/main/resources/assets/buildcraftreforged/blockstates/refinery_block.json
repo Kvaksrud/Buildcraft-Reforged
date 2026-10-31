@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "buildcraftreforged:block/refinery_block"
+    },
+    "facing=south": {
+      "model": "buildcraftreforged:block/refinery_block"
+    },
+    "facing=west": {
+      "model": "buildcraftreforged:block/refinery_block"
+    },
+    "facing=east": {
+      "model": "buildcraftreforged:block/refinery_block"
+    }
+  }
+}
