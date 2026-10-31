@@ -1900,3 +1900,62 @@ New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.rou
   the `TilePipe` constructor: `isFlowing` = power passed in the last 20 ticks (`PowerPipeState.lastFlowTick`, the 9.2
   window), `requestsEnergy` = `PowerRouting.requestsEnergy`, `isOverloaded` = `PowerRouting.isOverloaded`. Item and
   fluid pipes keep `PipeFlow.NONE` until #59. #59 may replace `isFlowing` with its record's `rate > 0`.
+
+## Fluid routing (#51)
+
+New code from `docs/TRANSPORT.md` 7.2 and 7.3, package `buildcraftreforged.transport.route`; the 4.2.2
+`PipeTransportFluids`, `PipeFluidsWood` and `PipeFluidsVoid` were read for behaviour only. Recorded 2026-10-31.
+
+- **Router.** `FluidRouting.ROUTER` is a `ResourceRouter<FluidResource>` with cost 1 (1 mB per budget unit), refill
+  the tier's `fluidPerTick`, handlers from the endpoint caches (`Capabilities.Fluid.BLOCK`). Same walk, budgets,
+  transaction and reasons as items (#50): one transfer goes whole to one destination, picked by the random walk (Q2),
+  so a junction alternates between its outlets from transfer to transfer rather than splitting each tick.
+  `ResourceRouter.push` has a new overload with a `Predicate<PipeNode> canEnter` (the walk's `Rules.canEnter`); the old
+  one passes "any pipe".
+- **Lock (7.3).** `FluidPipeState` (per pipe, journaled, not saved): the fluid that last passed and when, the entry and
+  exit sides of that transfer and the mB passed this tick. The lock is that last flow: a pipe refuses another fluid
+  while `now - lastFlowTick < transport.fluidLockTicks` (new config key, 1–1200, default 20; `FluidRouting.lockTicks()`).
+  `FluidRouting.route` walks with `canEnter = state.canPass(fluid)`, so a locked start pipe gives `NO_DESTINATION`, a
+  locked pipe further on is walked around (or backed out of), and a Void pipe locked to another fluid is not entered
+  (the lock is checked before the sink test). After a real transfer every pipe of the path records it, in the same
+  transaction: a simulation neither locks nor records. Pipes on a branch the walk backed out of are not locked. Every
+  transfer renews the lock, so a fluid flowing every tick holds its pipes for as long as it flows.
+- **Intake.** Fluid pipes register `Capabilities.Fluid.BLOCK` (`TransportRegistry`, `TilePipe::getFluidHandler`):
+  `PipeFluidHandler`, one always-empty tank of capacity `fluidPerTick`; `insert` routes at once (`FluidRouting.push`)
+  and returns what reached a destination; `extract` gives nothing (4.2.2 `drain` returned null). It refuses on a
+  plugged side and on a side facing another fluid pipe, decided at call time, as the item and energy handlers.
+- **Extractor (8.2).** `ModuleExtractor.tickSource` on a fluid pipe calls `FluidRouting.extract(level, network, node,
+  facing, source)`: offers `min(simulated drain, budget of the source pipe)` from the first slot of the facing handler
+  whose fluid has a destination (Q13 applied to fluids; a slot that drains nothing, such as a refinery input, is
+  skipped), at most one successful transfer a tick, drain and fill in one root transaction. The facing and the
+  `woodenPipe.liquid.exclusion` list are #55's (`PipeManager.canExtractFluids`). The Director and the Void module work
+  on fluid pipes through the walk's defaults.
+- **Empty tanks are destinations.** A tank an Extractor has emptied takes any fluid routed past it, including another
+  fluid from the same network; the Extractor then pulls that out again. This is the same rule as items (only the
+  source block of a transfer is excluded), recorded here because the mixing GameTest runs into it.
+- **Pipe Contents (#60).** A fluid pipe's `gateHolder.flow` is a `FluidPipeFlow`: `isFlowing` = fluid passed in the
+  last 20 ticks, `fluidContent` = that fluid. The 4.2.2 Contains Fluids trigger with a filled container as parameter
+  works through it.
+- **Tests.** Unit: `FluidPipeStateTest` (no lock on a new pipe; water refuses lava up to the last locked tick and accepts
+  it after; renewal; an aborted transaction neither locks nor records; mB per tick and the side bits) and two
+  `PipeRoutingTest` cases (a refused pipe is walked around; a refused start pipe gives `NO_DESTINATION`). GameTests
+  (`FluidRoutingTests`, padded area, test blocks `gametest_fluid_source`, an endless source of one fluid, and
+  `gametest_fluid_sink`, which takes any fluid without limit): tank to tank (4 000 mB through an Extractor and gold
+  pipes, pipes hold nothing and give nothing back, Pipe Contents reads water); splitting at a junction with two tanks
+  (100 transfers, each tank at least a quarter, nothing lost); pushes into a wood line (cap 400 mB, simulated push
+  changes nothing, refill after 20 ticks) and a Void module deleting lava; mixing refusal (water and lava share a
+  trunk: the trunk stays locked to water and the lava tank untouched until all the water is through, lava moves
+  exactly `fluidLockTicks` after the last water); and the caps test for all ten tiers (ticks 21–120 deliver
+  `100 × fluidPerTick` mB, ± one tick).
+- **Not checked without a client:** nothing in #51 draws anything; fluid in pipes becomes visible with #59.
+
+### For #59 (flow records) and #57 (Isolator)
+
+- **#59.** Every real fluid transfer ends at `SEAM(#59)` in `FluidRouting.record`, inside the transfer's transaction,
+  after each path pipe's `FluidPipeState.recordPassed`. Per pipe: `lastFluid()` (the record's content),
+  `entrySide()` / `exitSide()` (0–5 in side order, `FluidPipeState.CENTRE` = 6 for a transfer that starts inside the
+  pipe or ends at a Void sink: the 9.1 `sides` byte is `entry | exit << 3`), `passed(now)` (mB this tick) and
+  `lastFlowTick()`. The rate is mB/t; width uses the tier's `fluidPerTick`. #59 may replace `FluidPipeFlow.isFlowing`
+  with its record's `rate > 0`.
+- **#57.** The Isolator needs nothing from fluid routing: it is a connection rule (#48), so an Isolator never has a
+  tank endpoint.

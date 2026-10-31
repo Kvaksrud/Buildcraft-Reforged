@@ -469,6 +469,10 @@ A fluid pipe stores no fluid, so the 4.2.2 rule becomes a lock:
 So two fluids can share a network as long as their paths do not overlap within the lock window, which matches 4.2.2
 where each pipe could hold a different fluid. The GameTest "mixing refusal" (section 14, #51) relies on this.
 
+As built (#51, 2026-10-31): the lock and the flow record's content are one per-pipe state, `FluidPipeState`; every
+transfer renews it, a pipe on a branch the walk backed out of is not locked, and a simulated transfer locks nothing.
+See `docs/PORTING-NOTES.md`, "Fluid routing (#51)".
+
 ### 7.4 Power: the 4.2.2 request/send phases
 
 4.2.2 `PipeTransportPower.updateEntity` runs per pipe per tick:

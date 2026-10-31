@@ -73,6 +73,7 @@ public class BuildCraftConfiguration {
     public static final PipeTierConfig pipeTiers;
     public static final ModConfigSpec.DoubleValue pipeBurstSeconds;
     public static final ModConfigSpec.IntValue pipeMaxRouteVisits;
+    public static final ModConfigSpec.IntValue pipeFluidLockTicks;
 
     static {
         ModConfigSpec.Builder mainConfiguration = new ModConfigSpec.Builder();
@@ -191,6 +192,9 @@ public class BuildCraftConfiguration {
         pipeMaxRouteVisits = mainConfiguration
                 .comment("Most pipes one routing walk may visit before it gives up (docs/TRANSPORT.md 4.4)")
                 .defineInRange("maxRouteVisits", 4096, 64, 65536);
+        pipeFluidLockTicks = mainConfiguration
+                .comment("How long a fluid pipe refuses other fluids after the last flow, in ticks (docs/TRANSPORT.md 7.3)")
+                .defineInRange("fluidLockTicks", 20, 1, 1200);
         mainConfiguration.pop();
 
         COMMON_SPEC = mainConfiguration.build();
