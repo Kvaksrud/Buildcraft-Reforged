@@ -165,6 +165,7 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
   | `PacketTileState` (`tile_state`) | to client | `PacketTileState`, `STATE_UPDATE` | position, up to 32 `(stateId, bytes)` |
   | `PacketGuiWidget` (`gui_widget`) | to client | `PacketGuiWidget`, `GUI_WIDGET` | container id, widget index, bytes |
   | `PacketGuiReturn` (`gui_return`) | to server | `PacketGuiReturn`, `GUI_RETURN` | container id, position, bytes |
+  | `PacketStatusWatch` (`status_watch`, #26) | to server | new | container id, watching |
 
   Each byte payload is at most `PacketData.MAX_PAYLOAD_BYTES` (32767); the codec refuses anything longer. The
   per-module 4.2.2 packets (gate, diamond/emerald pipe, refinery filter, assembly table, advanced workbench, architect,
@@ -798,6 +799,312 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
 - **GameTests** (`PipeTests`): chest and pipe bits and breaking the chest; each kind against chest, cauldron and an
   energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
   The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
+
+## Fuel and coolant registry (#43)
+
+4.2.2 registered combustion engine fuels and coolants in code (`BuildCraftEnergy.preInit`). They are data now:
+three NeoForge data maps declared in `api/fuels/FuelDataMaps` and registered by `EnergyRegistry`. Decided 2026-10-31.
+
+| Data map | File | Key | Value |
+| --- | --- | --- | --- |
+| `buildcraftreforged:combustion_fuels` | `data/buildcraftreforged/data_maps/fluid/combustion_fuels.json` | fluid | `{"power_per_cycle": FE, "total_burning_time": ticks}` |
+| `buildcraftreforged:combustion_coolants` | `data/buildcraftreforged/data_maps/fluid/combustion_coolants.json` | fluid | `{"degrees_cooling_per_mb": float}` |
+| `buildcraftreforged:solid_coolants` | `data/buildcraftreforged/data_maps/item/solid_coolants.json` | item | `{"fluid": fluid, "amount": mB}` |
+
+- **Values.** Oil 30 FE per cycle for 5000 ticks, fuel 60 FE for 25000 ticks (4.2.2: 3 and 6 MJ, × 10). Water cools
+  0.0023 heat per mB (heat units are unchanged); an ice block counts as 2000 mB of water. Lava stays out, as it was
+  commented out in 4.2.2. All values are synced to clients (not mandatory).
+- **Oil and fuel before #42.** Their entries carry a `neoforge:registered` condition on the fluid, so they load once
+  #42 registers `buildcraftreforged:oil` and `buildcraftreforged:fuel` and are skipped quietly until then. Key the
+  source fluid, not the flowing one; tanks hold source fluids. #42/#44 need no code change here.
+- **Lookups (the API for #44).** Unchanged 4.2.2 entry points: `IronEngineFuel.getFuelForFluid(Fluid)` returns a
+  `Fuel` (`liquid`, `powerPerCycle` in FE, `totalBurningTime`) or `null`; `IronEngineCoolant.getCoolant(FluidStack)`,
+  `getCoolant(ItemStack)`, `getFluidCoolant(ItemStack)` and `isCoolant(Fluid)`. Each reads the data map first and
+  falls back to the 4.2.2 code-registered maps (`fuels`, `liquidCoolants`, `solidCoolants`, filled by `addFuel` and
+  `addCoolant`), which stay for other mods. Data wins when both name a fluid. `getFuelForFluid` builds a new `Fuel`
+  for data entries on each call, so callers may cache it per fuel change; `getFluidCoolant` builds a new stack for data
+  entries. Solid coolants are a fluid and an amount, not a `FluidStack`: a `FluidStack` cannot be decoded while data
+  maps load, because fluid components are bound after them.
+- **Config multipliers.** 4.2.2 multiplied the oil and fuel burning times by `fuel.oil.combustion` and
+  `fuel.fuel.combustion` when it registered them. The new `IronEngineFuel.burningTimeMultipliers` (fluid id →
+  `DoubleSupplier`) applies them at lookup to data-map fuels, `(int) (time * multiplier)` as in 4.2.2, so a config
+  change applies without a reload. `EnergyRegistry` puts the two config values there.
+- **Data packs** add a fuel or coolant with a file at the same path (entries merge; `"replace": true` overrides an
+  entry, `"remove"` drops one). Tags work as keys, as in every data map.
+- **Tests.** `FuelRegistryTest` (JUnit) checks the shipped files against the 4.2.2 values and the code-registered
+  fallback; no data packs load there, so the data maps are empty. The GameTest `fuels` reads the loaded data maps:
+  water, ice, and lava from the GameTest data pack behind the same condition (plus an entry for a missing fluid that
+  the condition skips), data over code, the multiplier, and oil and fuel at 30/5000 and 60/25000 once #42 has
+  registered them.
+
+## Pipe network graph and cache (#49)
+
+New code from `docs/TRANSPORT.md` 3.4, package `buildcraftreforged.transport.graph`. No routing, budgets or source
+ticking yet (#50–#52).
+
+- **Classes.** `PipeNetworkManager` builds and caches networks; it reads the level only through `PipeWorld` (a
+  position → pipe lookup, "is this a loaded non-pipe block", and an endpoint-cache factory), so the whole graph is
+  unit-tested on a stub (`PipeNetworkManagerTest`). `LevelPipeWorld` is the real `PipeWorld`; `PipeNetworks` keeps one
+  manager per `ServerLevel` (created on first `get`, dropped on `LevelEvent.Unload`). `TilePipe` implements
+  `PipeWorld.Pipe` (`getPipeType`, `getTier`, `getConnectionMask`, `getModuleType`).
+- **Network.** `PipeNetwork`: `kind`, `id` (per manager, for logs), `nodes[]`, `endpoints[]`, `sourceNodes[]` (nodes with
+  `PipeModuleType.isSource()`: Extractor, Filtered Extractor, Pickup; sorted by `BlockPos.asLong`), mutable
+  `sourceCursor`, `isValid()`, `indexOf(pos)` / `node(pos)`. Node 0 is the pipe the build started from, then BFS order
+  with neighbours in side order, so the same world always builds the same arrays.
+- **Node.** `PipeNode`: `pos`, `tier`, `module` (the `PipeModuleType` at build time; #55 swaps in the module object),
+  `connectionMask`, `pipe` (the `PipeWorld.Pipe`, i.e. the `TilePipe`, for budgets and records), and `next(side)`: a node
+  index (`PipeNode.isNode`), `PipeNode.NONE` (-1), or an endpoint (`PipeNode.isEndpoint`, `PipeNode.endpointIndex`).
+  A side leads to another node only when both masks have the bit; a connected side towards an unloaded position or
+  towards a pipe block without a live block entity is `NONE`, never an endpoint.
+- **Endpoint.** `PipeNetwork.Endpoint(pos, face, node, side, cache)`: the block, its face towards the pipe (the
+  capability context), the node index and the node's side towards it, and a `BlockCapabilityCache` for the kind's
+  capability (`Capabilities.Item.BLOCK`, `Fluid.BLOCK`, `Energy.BLOCK`). The cache's listener invalidates the network;
+  its validity check is `network.isValid()`, so caches of dropped networks unregister themselves. The cache is read
+  once when it is created, because NeoForge only notifies caches that were read since their last invalidation.
+- **Dirty means unmapped** (a simplification of the 3.4 text, 31 Oct 2026). The manager keeps `byPos` for valid
+  networks only; `invalidate(pos)` drops the networks at `pos` and at its six neighbours and unmaps all their nodes,
+  so there is no separate dirty set that could grow with positions that are no longer pipes. `isDirty(pos)` is "the
+  next `get` builds". Dropping the neighbours' networks too is what makes merging work when only the new pipe has
+  reported a change; it also drops an adjacent network of another kind, which only costs a rebuild.
+- **Invalidation sources** (`PipeNetworks.invalidate(level, pos)`, a no-op on the client and when the level has no
+  manager yet): `TilePipe.onLoad`, `setRemoved` (block break and chunk unload), a connection-mask change in
+  `updateConnections`, `onConfigurationChanged` (plug or module change, even when the mask stays the same), and the
+  endpoint caches. Chest contents, tank levels and energy levels never invalidate. Masks settle on the server tick
+  after a block change (#48), so a network asked for in the same tick as a placement can still be the old shape; it
+  is invalidated again when the mask changes.
+- **Lookups never load chunks or create block entities**: `LevelPipeWorld.getPipe` uses
+  `LevelChunk.getBlockEntity(pos, CHECK)` behind `isLoaded`. `IMMEDIATE` would replace a removed pipe's block entity
+  with a fresh one during a build.
+- **Structure pipes** have no network: `get` returns null for them (TRANSPORT 11).
+
+### For #50 (item walk), #51 (fluids) and #52 (power)
+
+- Get the network with `PipeNetworks.get(serverLevel, pos)` (null when the position holds no loaded pipe, or a structure
+  pipe). It is cheap when cached. Do not keep a network across ticks without checking `isValid()`; get it again.
+- Walk with `network.nodes[i].next(side)`; `in` sides and paths are node indices. Destinations are
+  `network.endpoints[PipeNode.endpointIndex(next)]`; read the handler live with `endpoint.cache().getCapability()`
+  (cast to the kind's handler type; null when the block lost it, which the next tick's rebuild removes). Never call
+  `getCapability` from an invalidation listener.
+- Per-pipe state (budgets, fluid locks, flow records, overflow) stays on the block entity: `(TilePipe) node.pipe`.
+- The source tick (TRANSPORT 6.1) is not here: `PipeNetworkManager.networks()` lists the valid networks built so far,
+  in build order, but a network is only built when something asks for it. The tick has to make sure every source pipe's
+  network exists (for example source pipes ask for theirs when they load or when their module is fitted) and then
+  walk `networks()` with `sourceNodes` / `sourceCursor`, at `LevelTickEvent.Post` on the server.
+- `PipeModuleType.isSource()` decides `sourceNodes`; when #55 replaces the type with module objects, keep that method
+  (or its equivalent) and rebuild the network on a module change (`onConfigurationChanged` already invalidates).
+
+## Tier pipes: registration, recipes, textures and the tier table (#53)
+
+New code from `docs/TRANSPORT.md` 2.1, 2.2 and Q17 (decided 29 Oct 2026); the 4.2.2 pipe registration
+(`BuildCraftTransport.buildPipe`) was read for the recipe shapes only.
+
+- **Registration.** `TransportRegistry.PIPE_DEFINITIONS` now lists every material, so the table is the 30 tier pipes:
+  item, fluid and power × wood, stone, iron, copper, gold, quartz, diamond, emerald, netherite, ender, in that creative
+  tab order. Names follow the #48 rule (`pipe_power_netherite`, key `item.PipePowerNetherite`). The twelve keys 4.2.2
+  never had are added to `en_us.json` in the 4.2.2 wording ("Copper Transport Pipe", "Quartz Fluid Pipe",
+  "Emerald Kinesis Pipe"). The 4.2.2 `tip.*` lines describe the old per-material behaviour and are left unused.
+- **Pipe Sealant** (`pipe_waterproof`, key `item.pipeWaterproof`) is registered here because the fluid-pipe recipe
+  needs it: one green dye, shapeless, gives one, as 4.2.2 `loadRecipes`. Texture: the 4.2.2 `items/pipeWaterproof.png`.
+- **Recipes** (Q17), hand-written JSON like the rest of `data/` (the project has no datagen providers yet):
+  item pipe = `material, glass, material` in a row, 8 pipes; fluid pipe = item pipe + Pipe Sealant, shapeless, 1;
+  power pipe = item pipe + redstone, shapeless, 1; and the 4.2.2 uncrafting of a fluid or power pipe back into its item
+  pipe (`pipe_items_<material>_from_pipe_<kind>_<material>`). Materials: `#minecraft:planks` and `#c:stones`, where
+  4.2.2 used the Ore Dictionary (`plankWood`, `stone`; `c:stones` also takes andesite, diorite, granite, tuff and
+  deepslate), and exact items elsewhere: iron, copper, gold and netherite ingots, block of quartz, diamond, emerald,
+  ender pearl, `minecraft:glass`.
+- **Tier table.** `transport.tiers.<material>.itemsPerSecond`, `fluidPerTick` and `powerPerTick` in the common config
+  (`PipeTierConfig`, defined inside #19's `transport` section). Defaults are `PipeTierStats.defaults`: 1 item/s,
+  20 mB/t and 80 FE/t at tier 1, doubling per tier. Each value is a plain validated `define`, not `defineInRange`,
+  because NeoForge clamps an out-of-range number to the nearest bound while TRANSPORT.md 2.2 wants the tier default;
+  a missing, non-numeric or below-1 value is replaced by the default and logged by the config spec (one warning per
+  key). `BlockPipe.getTierStats()` returns the caps in use (defaults until the config is loaded); routing (#50–#52)
+  applies them. `transport.burstSeconds`, `fluidLockTicks` and `maxRouteVisits` belong to those issues.
+- **Textures.** Every 4.2.2 pipe texture is one material colour plus a kind overlay: diagonal dots for items, dark
+  green (`#223505`) sealant brackets for fluids, red L-bars for power. The 4.2.2 files are used where the material and
+  kind existed: items wood, stone, iron, gold, quartz, diamond (`pipeItemsDiamond_center`, the Sorter's side colours
+  left out), emerald; fluids wood, stone, iron, gold, emerald; power wood, stone, gold, quartz, diamond. The other 13 are
+  new, made by recolouring the 4.2.2 gold texture of the same kind: copper `#C8683A`, netherite `#3F3537`, ender
+  `#22796A` in all three kinds; quartz and diamond fluid pipes and the emerald power pipe in the 4.2.2 colours of
+  those materials (quartz takes its pixels from `pipeItemsQuartz`); and the iron power pipe, because 4.2.2 only had
+  the Power Limiter's mode textures (`pipePowerIronM2`…`M128`), which would be wrong on a plain pipe.
+- **Tests.** Unit (`PipeTiersTest`): the default ladder against the table; config with all tiers, a missing tier and
+  invalid values (zero, a string) run through the spec's correction; 30 registered blocks and items with the right
+  kind, tier and caps; every pipe has a blockstate, item definition, item model, texture, loot table and recipe.
+  GameTests (`TierPipeTests`): every pipe and the sealant crafts from its recipe in the server's recipe manager with
+  the right count, uncrafting included; every pipe places and reports the loaded config's caps.
+
+## Status panel (#26)
+
+New code for plan section 10 (no 4.2.2 original), in `buildcraftreforged.core.status` plus `core/gui/StatusLedger`.
+Decided 31 Oct 2026.
+
+- **Provider.** A block entity that works implements `IStatusProvider` (porting checklist step 4). One method per
+  line, each with a default, each read on the server only while someone has the panel open:
+
+  | Line | Method | Default | Type |
+  |---|---|---|---|
+  | State | `getStatusState()` | from `IMachine`: `isBlocked()` → `BLOCKED`, `isActive()` → `WORKING`, else `IDLE` | `MachineStatus` |
+  | Reason | `getStatusReason()` | `NONE` (line hidden) | `StatusReason` |
+  | Flow | `getStatusFlow()` | null (line hidden) | the tile's `FlowMeter` |
+  | Power | `getStatusPower()` | null | `StatusReport.Power` (`drawn`/`produced` helpers) |
+  | Heat | `getStatusHeat()` | null | `StatusReport.Heat(HeatStage, overheatSeconds)` |
+  | Owner | `getStatusOwner()` | `TileBuildCraft.getOwner()` | `String` |
+
+  `MachineStatus` and `StatusReason` carry the plan's values; their ordinals are the wire format, so append new values
+  at the end and add a `gui.status.state.*` / `gui.status.reason.*` key to `en_us.json`.
+- **`FlowMeter`** (`new FlowMeter(() -> level == null ? 0 : level.getGameTime())`) counts `itemsIn/itemsOut` (items),
+  `fluidIn/fluidOut` (mB) and `energyIn/energyOut` (FE) into per-tick buckets and sums the last 20 ticks; it needs no
+  tick call and is not saved. The panel shows items/s, mB/t (mB per second / 20) and FE/t (`Power.drawn(meter, stored,
+  capacity)` uses `energyIn`, `Power.produced` uses `energyOut`).
+- **Sync only while open.** `StatusWidget` is an invisible widget. A machine menu adds it
+  (`addWidget(new StatusWidget(tile))`, on both sides, in the same widget order) and the screen adds the ledger in
+  `initLedgers`: `ledgerManager.add(new StatusLedger<>(this, StatusWidget.find(container)))` (or a field, as the sample
+  does). Opening the ledger, or `SessionVars` reopening it in the next GUI, sends the server-bound `PacketStatusWatch`
+  (`status_watch`: container id, watching) and closing it sends false; closing the menu ends everything. The server
+  checks that the id is the sender's open `BuildCraftContainer`, that it has a `StatusWidget` and that `stillValid`
+  holds, and drops the packet otherwise (logged as for `gui_return`). While watched, `broadcastChanges` sends a
+  `StatusReport` over `PacketGuiWidget` at most every `StatusWidget.SEND_INTERVAL` (10) ticks and only when it changed;
+  the first goes at once. `StatusReport.STREAM_CODEC` writes absent lines as absent, so the client hides them.
+- **Blocks without a GUI.** `useWithoutItem` calls `StatusPanel.open(player, tile)` (no-op on the client; return
+  `InteractionResult.SUCCESS`). It opens the `status` menu (`CoreRegistry.statusMenu`, `ContainerStatus`: no slots,
+  watched from the moment it opens) with `GuiStatus`, which is the ledger alone, centred and always open, headed with
+  the block's name.
+- **Red light.** A block that can be blocked adds `StatusPanel.BLOCKED` (`blocked`) to its state definition (default
+  false). `TileBuildCraft.updateEntity` calls `StatusPanel.updateBlockedLight` every server tick for an
+  `IStatusProvider`, which sets the property to `getStatusState() == BLOCKED` when it differs (so keep
+  `getStatusState` cheap). The model shows it with a multipart case applying `buildcraftreforged:block/status_light`, a
+  small emissive red lamp on top of the block (see the `sample_status` blockstate). Blocks drawn by a
+  `BlockEntityRenderer` (engines) can read the same property.
+- **For #27 (owner).** Only `IStatusProvider.getStatusOwner()`'s default reads `TileBuildCraft.getOwner()`; change the
+  default when the owner becomes a game profile. The line is a plain string, at most 64 characters on the wire.
+- **For #36 (engines).** Implement `getStatusState` (`WORKING`, `IDLE`, `OVERHEATING`, `OUT_OF_FUEL`), `getStatusPower`
+  with `Power.produced(meter, stored, capacity)` and `meter.energyOut(fe)` where the engine sends power, and
+  `getStatusHeat` with `HeatStage.values()[energyStage.ordinal()]` (named and ordered as 4.2.2's
+  `TileEngine.EnergyStage`) and the overheat timer's seconds left, or `Heat.NO_COUNTDOWN`. The engine GUIs add the
+  ledger next to `EngineLedger`; engines are not blocked, so they need no `BLOCKED` property.
+- **For #63 (blocked output).** Return `BLOCKED` from `getStatusState` (the default does, through
+  `IMachine.isBlocked()`), `OUTPUT_FULL` or `NO_DESTINATION` from `getStatusReason`, and add `BLOCKED` to the block
+  with the multipart light. The Machine trigger already reads `isBlocked()`.
+- **Samples** (GameTest source set): `sample_gui` now fills all six lines (made up from its counter) and has the status
+  ledger; `sample_status` is a GUI-less block that opens the panel on right-click and cycles Working, Blocked (red light)
+  and Idle every five seconds.
+- **Tests.** JUnit `FlowMeterTest` (window, forgetting, reuse, rates) and `StatusReportTest` (codec with all and no
+  lines, bad ordinal, owner cut, `IMachine` defaults, watch packet). GameTests `status_sync_while_open` (no data before
+  the watch packet, refused packets, all six lines read by a client copy of the menu, interval, nothing after close)
+  and `status_panel_without_gui` (watched on open, `stillValid`, red light on and off without replacing the block
+  entity). Drawing, the ledger's open/close clicks and the light's look need a client and are not tested.
+
+## Laser and laser rendering (#71)
+
+Ported: `silicon/BlockLaser`, `silicon/TileLaser`, `core/EntityLaser`, `core/EntityEnergyLaser`,
+`core/EntityPowerLaser`, `core/render/RenderLaser`, `core/render/RenderEnergyLaser`. New: `silicon/render/RenderLaserTile`
+(the block entity renderer) and `silicon/render/SiliconRenderers` (4.2.2 `SiliconProxyClient.registerRenderers`).
+`SiliconRenderBlock` became the JSON model `block/laser_block`. Recorded 31 Oct 2026.
+
+- **Block.** `laser_block`, block entity type `laser`. Metadata → `BlockLaser.FACING`, the clicked face, as 4.2.2's
+  `onBlockPlaced`; the blockstate rotates the up-facing model as the markers do. `Material.iron` + `setHardness(10F)`
+  → metal sound and map colour, `strength(10F)`, `requiresCorrectToolForDrops` (1.6.4 iron needed a pickaxe) and the
+  `minecraft:mineable/pickaxe` tag. Not an opaque cube (`noOcclusion`); the shape stays a full cube, as 4.2.2's bounds.
+  Recipe `ORR/DDR/ORR` (obsidian, redstone, diamond) as 4.2.2.
+- **Model.** `block/laser_block` has `SiliconRenderBlock`'s two boxes for the up facing (4 px base, 6 x 9 x 6 px
+  emitter) with `laser_top` on up faces, `laser_bottom` on down faces and `laser_side` on the rest, UVs from the box
+  bounds as `RenderBlocks` did. The `uvRotate*` tweaks per facing are not reproduced; the blockstate rotation decides
+  the side texture's orientation.
+- **Power, MJ × 10.** `configure(250, 1500, 250, 10000)`, perdition `PerditionCalculator(5F)` (0.5 MJ/t), at most
+  `getMaxPowerSent()` = 40 FE per tick to the target, `Type.MACHINE`. FE comes in on every side through
+  `PowerEnergyHandler.registerEnergyHandler` (`SiliconRegistry.registerCapabilities`). Saved under 4.2.2's
+  `powerProvider` tag.
+- **Target search** is 4.2.2's `findTable`: an 11 x 11 x 11 box around the laser cut at the laser's own layer on the
+  side away from the facing (the laser's own plane is included), every 100 ticks while it has no valid target, a
+  random target among those whose `requiresLaserEnergy()` is true. New: positions in unloaded chunks are skipped,
+  because 26.x `getBlockEntity` would load the chunk where 1.6.4's did not.
+- **The beam is render data, not an entity**, as `EntityBlock` (#29). `TileLaser` keeps its `EntityEnergyLaser`
+  (head, tail, visible, power average over 100 ticks) and writes it after an `active` flag in its network payload;
+  the client tile rebuilds it in `readPacketPayload`, and `RenderLaserTile` draws it through `RenderEnergyLaser`.
+  Positions are sent as doubles, not 4.2.2's data watcher ints (× 8192), which overflow beyond 262144 blocks from the
+  origin (the GameTest structures sit near x 14 000 000 and caught it); the power average is a `long`. Updates go every 3 ticks as 4.2.2's
+  `sendNetworkUpdate` throttle; turning the beam off, or the target becoming valid or invalid, is sent at once (4.2.2
+  killed the entity, which reached clients by itself). `EntityLaser.onUpdate` keeps only the length and angle maths;
+  the bounding box and NBT (which 4.2.2 called useless) are gone.
+- **Texture by power.** `EntityEnergyLaser.getTexture()` picks `textures/entity/laser_1..4.png` at ≤ 10, ≤ 20, ≤ 30 and
+  above FE/t (4.2.2: 1, 2, 3 MJ/t). `RenderEnergyLaser` keeps the 40 boxes whose texture offset steps back one pixel
+  every 10 frames, so the stripes move along the beam. Light is the laser's brightness, 210, used as packed light as
+  `RenderMarker` does.
+- **Active light.** `isActive()` is `isValidTable()` on the server, as 4.2.2, and the synced `active` flag on the
+  client, so `TileBuildCraft`'s auxiliary light (+8) agrees on both sides.
+- **Gates.** `IActionReceptor` with `action_on`/`action_off`: Off removes the beam and stops delivery until On.
+- **Not done here:** the status panel provider (plan section 10, #26). `RenderMarker` keeps its private copy of
+  `RenderLaser`'s box; it can switch to `RenderLaser` with an `EntityPowerLaser` when someone next touches it.
+
+### Laser target API (for #72, #73 and other mods)
+
+`buildcraftreforged.api.power.ILaserTarget`, implemented by the target's block entity:
+
+| Method | Contract |
+|---|---|
+| `boolean requiresLaserEnergy()` | True while the target has work that needs energy. Lasers only pick targets that return true, and drop a target (beam off) as soon as it returns false. |
+| `void receiveLaserEnergy(long energy)` | Called once per tick by each laser feeding the target, server side, with the FE it took from its store: up to 40 FE. The target keeps it; there is no return value and nothing is given back. |
+| `boolean isInvalidTarget()` | True once the target is gone; return `isRemoved()`. |
+| `int getXCoord()`, `getYCoord()`, `getZCoord()` | The target's block position; the beam ends at x + 0.475, y + 9/16, z + 0.475 (jittered by ±0.1 in x and z). |
+
+- Energy is FE as `long` (4.2.2's float MJ × 10). An assembly table that needs 4.2.2's `energy` MJ for a recipe
+  compares against `energy × 10` FE.
+- Lasers search 5 blocks each way, on the facing side of the laser, so a target is fed by every laser that faces it
+  within range. A laser keeps its target until `requiresLaserEnergy()` or `isInvalidTarget()` says otherwise, then
+  searches again within 100 ticks.
+- No capability is involved: the laser finds targets by `level.getBlockEntity(pos) instanceof ILaserTarget`.
+- `LaserTests` (GameTests `laser_feeds_target`, `laser_target_search`) has the smallest target, a test-only block
+  `gametest_laser_target` that wants 400 FE; they check delivery at 40 FE/t, the beam's head, tail, length and angle,
+  the payload round trip, the gate actions, the facing and range limits and an unpowered laser.
+
+## Tank (#64)
+
+- **Blocks and items.** `factory/BlockTank` (a `BaseEntityBlock` with `BlockBuildCraft`'s ticker, as the markers) and
+  `factory/TileTank`, registered in `FactoryRegistry` as `tank_block` (block entity `tank`). `Material.glass` and
+  `setHardness(0.5F)` become glass sound, the hat instrument, strength 0.5, no occlusion, no spawns, not a redstone
+  conductor, no suffocation. Recipe as 4.2.2 (eight glass); the block drops itself and its fluid is lost, as in 4.2.2.
+  `FactoryRegistry` now carries the MMPL header and registers its capabilities from a `RegisterCapabilitiesEvent`
+  listener added in `register(modBus)`.
+- **Textures.** 4.2.2 `getBlockTexture` drew the sides with `tank_stacked_side` when the block below was a tank. Models
+  cannot look at neighbours, so the block state has `joined_below`, set on placement and by `updateShape`, and picks
+  `tank_block` or `tank_block_stacked` (both on `block/template_tank`, a 2..14 × 0..16 × 2..14 cuboid; UVs follow the
+  element, as 1.6.4's did the block bounds). `shouldSideBeRendered` (no top or bottom face between two tanks) is
+  `skipRendering` with `cullface` on the top and bottom faces.
+- **Fluid capability.** `TileTank` is itself a one-slot `ResourceHandler<FluidResource>` for the whole stack:
+  `Capabilities.Fluid.BLOCK` → the tile. The slot is 4.2.2 `getTankInfo`'s composite tank (bottom tank's fluid plus
+  every tank above with the same fluid; capacity up to the first tank with another fluid), which `getTankInfo` now
+  returns as a detached `Tank`. `insert` is 4.2.2 `fill` (refused if the bottom holds another fluid, then bottom tank
+  first and up), `extract` is `drain(FluidStack)` (bottom tank only). Each `Tank` journals itself, so one transaction
+  over several tanks rolls back as one. The 4.2.2 `fill`/`drain`/`canFill`/`canDrain` stay as plain methods. Fixes
+  from BUGFIXES: `canFill`/`canDrain` answer from the bottom tank (upstream aa24a99d9), and `drain(FluidStack)`
+  compares with the bottom tank (upstream 08edcf175).
+- **Stacking.** `moveFluidBelow` each server tick, as 4.2.2. `hasUpdate` is also set by `setChanged`, which every tank
+  change (and every committed transaction) calls, then the 4.2.2 throttle sends the tile state every
+  `2 * updateFactor` ticks.
+- **Buckets.** `onBlockActivated` → `useItemOn` over `FluidUtils.handleRightClick(tile, player, hand, true, true)`
+  (#24), so any container with the item fluid capability works, creative mode keeps the container, and an emptied
+  container goes to the inventory (see BUGFIXES, BuildCraft#2353). As in 4.2.2 a filled container always uses the
+  click, so a full tank never lets a bucket place its fluid; an empty container on an empty tank passes the click on.
+- **Light.** 4.2.2 relit the client from `getFluidLightLevel` (`FluidType.getLightLevel(stack)` now). The tile writes
+  it into the chunk's auxiliary light manager on both sides and `BlockTank.getLightEmission` reads it, as
+  `TileBuildCraft` does for active machines.
+- **Comparator** (new, plan section 6): BuildCraft 7.1's formula, composite amount × 15 / composite capacity, the same
+  for every tank in the stack. Each tank checks it every server tick and calls `updateNeighbourForOutputSignal` when it
+  changes, so a comparator beside any tank follows changes anywhere in the stack.
+- **Renderer** (`factory/render/RenderTank`, registered in `FactoryRenderers`): the render state copies the fluid,
+  `colorRenderCache` and capacity; `submit` applies 4.2.2's translate/scale and submits `FluidRenderer.renderFluid` at
+  stage `amount / capacity × (DISPLAY_STAGES - 1)` in `RenderTypes.entityTranslucent` on the block atlas, with the
+  block's light. 4.2.2 enabled face culling; the render type here draws both sides, because `FluidRenderer`'s winding
+  is not checked in game yet.
+- **Not ported:** `BptBlockTank` (deprecated in 4.2.2; blueprints are P6).
+- **GameTests** (`TankTests`): `tank_stacking` (states, bottom/top lookup, fill from the top tank up through the stack,
+  composite view, another fluid refused, comparator value, breaking the middle tank), `tank_transfer` (aborted
+  transaction across two tanks, fluid falling into the lower tank, a comparator block following it, draining through the
+  upper tank), `tank_buckets` (fill, empty, empty-on-empty passes, a stack of two buckets returns the empty one, a full
+  tank keeps the bucket, creative keeps the bucket, lava lights the tank).
+- **Not checked without a client:** the two models and textures, face culling between stacked tanks, the render layer
+  (picked from the textures' transparency), the fluid renderer (geometry, colour, light), the item model, the light
+  update on the client after a sync.
 
 ## Oil and fuel (#42)
 

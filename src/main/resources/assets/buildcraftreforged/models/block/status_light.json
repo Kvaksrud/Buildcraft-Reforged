@@ -1,0 +1,21 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "light": "buildcraftreforged:block/status_light",
+    "particle": "buildcraftreforged:block/status_light"
+  },
+  "elements": [
+    {
+      "from": [6.5, 16, 6.5],
+      "to": [9.5, 17, 9.5],
+      "light_emission": 15,
+      "faces": {
+        "up": {"uv": [6.5, 6.5, 9.5, 9.5], "texture": "#light"},
+        "north": {"uv": [6.5, 0, 9.5, 1], "texture": "#light"},
+        "south": {"uv": [6.5, 0, 9.5, 1], "texture": "#light"},
+        "west": {"uv": [6.5, 0, 9.5, 1], "texture": "#light"},
+        "east": {"uv": [6.5, 0, 9.5, 1], "texture": "#light"}
+      }
+    }
+  ]
+}

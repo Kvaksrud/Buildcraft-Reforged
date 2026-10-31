@@ -16,6 +16,7 @@ package buildcraftreforged.core;
 import buildcraftreforged.api.gates.ActionManager;
 import buildcraftreforged.api.gates.IAction;
 import buildcraftreforged.api.gates.ITrigger;
+import buildcraftreforged.core.status.ContainerStatus;
 import buildcraftreforged.core.triggers.ActionMachineControl;
 import buildcraftreforged.core.triggers.ActionMachineControl.Mode;
 import buildcraftreforged.core.triggers.ActionRedstoneOutput;
@@ -28,7 +29,9 @@ import buildcraftreforged.core.triggers.TriggerInventory;
 import buildcraftreforged.core.triggers.TriggerInventoryLevel;
 import buildcraftreforged.core.triggers.TriggerMachine;
 import java.util.function.Supplier;
+import net.minecraft.world.inventory.MenuType;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.NewRegistryEvent;
@@ -89,6 +92,10 @@ public final class CoreRegistry {
             action("actionOff", () -> new ActionMachineControl(Mode.Off));
     public static final DeferredHolder<IAction, BCAction> actionLoop =
             action("actionLoop", () -> new ActionMachineControl(Mode.Loop));
+
+    /** New: the status panel of blocks without a GUI (plan section 10). */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerStatus>> statusMenu =
+            REGISTERS.menus.register("status", () -> IMenuTypeExtension.create(ContainerStatus::new));
 
     static {
         CreativeTabBuildCraft.registerAll(REGISTERS.creativeModeTabs);

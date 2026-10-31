@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "joined_below=false": {
+      "model": "buildcraftreforged:block/tank_block"
+    },
+    "joined_below=true": {
+      "model": "buildcraftreforged:block/tank_block_stacked"
+    }
+  }
+}

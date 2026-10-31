@@ -37,7 +37,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | transport | 111 | blocks and items 23, pipes 30, triggers 14, actions 39, GUIs 5 |
 | builders | 19 | blocks and items 8, actions 7, GUIs 4 |
 | **4.2.2 total** | **199** | |
-| new in Reforged | 42 | tier pipes 30, pipe modules 10, other additions 2 |
+| new in Reforged | 44 | tier pipes 30, pipe modules 10, other additions 4 |
 
 ## core (`BuildCraftCore`)
 
@@ -135,7 +135,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [ ] | [ ] | [ ] |  |
 | Frame (`frameBlock`) | `BlockFrame` | `frame_block` | #67 | [ ] | [ ] | [ ] | Waterloggable; removed with its quarry (section 19.3). |
 | Quarry (`machineBlock`) | `BlockQuarry, TileQuarry` | `machine_block` | #67 | [ ] | [ ] | [ ] | Rule gives `machine_block`; section 6's example says `quarry`. #67 picks one and updates this row. |
-| Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [ ] | [ ] | [ ] |  |
+| Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
 | Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [ ] | [ ] | [ ] |  |
 | Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [ ] | [ ] | [ ] |  |
 | Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [ ] | [ ] | [ ] |  |
@@ -155,7 +155,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [ ] | [ ] | [ ] |  |
+| Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
 | Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_chipset_0` | #74 | [ ] | [ ] | [ ] | Metadata suffix names are placeholders; #18 notes they become items or a data component. |
@@ -178,7 +178,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Pipe block (`pipeBlock`) | `BlockGenericPipe, TileGenericPipe` | `pipe_block` | #48 | [ ] | [ ] | [ ] | Replaced by the tier pipe blocks below; kept as the shared pipe base. |
-| Pipe Sealant (`pipeWaterproof`) | `ItemBuildCraft` | `pipe_waterproof` | #53 | [ ] | [ ] | [ ] | 4.2.2 fluid-pipe ingredient. Section 8.1 gives one recipe pattern per kind; #53 decides whether it stays. |
+| Pipe Sealant (`pipeWaterproof`) | `ItemBuildCraft` | `pipe_waterproof` | #53 | [x] | [ ] | [ ] | 4.2.2 fluid-pipe ingredient, kept: fluid pipes are item pipe + sealant (TRANSPORT.md Q17). |
 | Red Pipe Wire (`redPipeWire`) | `ItemBuildCraft` | `red_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
 | Blue Pipe Wire (`bluePipeWire`) | `ItemBuildCraft` | `blue_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
 | Green Pipe Wire (`greenPipeWire`) | `ItemBuildCraft` | `green_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
@@ -353,36 +353,36 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Tier 1 items pipe (wood) | — | `pipe_items_wood` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 1 fluids pipe (wood) | — | `pipe_fluids_wood` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 1 power pipe (wood) | — | `pipe_power_wood` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 2 items pipe (stone) | — | `pipe_items_stone` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 2 fluids pipe (stone) | — | `pipe_fluids_stone` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 2 power pipe (stone) | — | `pipe_power_stone` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 3 items pipe (iron) | — | `pipe_items_iron` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 3 fluids pipe (iron) | — | `pipe_fluids_iron` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 3 power pipe (iron) | — | `pipe_power_iron` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 4 items pipe (copper) | — | `pipe_items_copper` | #50, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 4 fluids pipe (copper) | — | `pipe_fluids_copper` | #51, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 4 power pipe (copper) | — | `pipe_power_copper` | #52, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 5 items pipe (gold) | — | `pipe_items_gold` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 5 fluids pipe (gold) | — | `pipe_fluids_gold` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 5 power pipe (gold) | — | `pipe_power_gold` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 6 items pipe (quartz) | — | `pipe_items_quartz` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 6 fluids pipe (quartz) | — | `pipe_fluids_quartz` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 6 power pipe (quartz) | — | `pipe_power_quartz` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 7 items pipe (diamond) | — | `pipe_items_diamond` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 7 fluids pipe (diamond) | — | `pipe_fluids_diamond` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 7 power pipe (diamond) | — | `pipe_power_diamond` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 8 items pipe (emerald) | — | `pipe_items_emerald` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 8 fluids pipe (emerald) | — | `pipe_fluids_emerald` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 8 power pipe (emerald) | — | `pipe_power_emerald` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 9 items pipe (netherite) | — | `pipe_items_netherite` | #50, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 9 fluids pipe (netherite) | — | `pipe_fluids_netherite` | #51, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 9 power pipe (netherite) | — | `pipe_power_netherite` | #52, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 10 items pipe (ender) | — | `pipe_items_ender` | #50, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 10 fluids pipe (ender) | — | `pipe_fluids_ender` | #51, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 10 power pipe (ender) | — | `pipe_power_ender` | #52, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 1 items pipe (wood) | — | `pipe_items_wood` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 1 fluids pipe (wood) | — | `pipe_fluids_wood` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 1 power pipe (wood) | — | `pipe_power_wood` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 2 items pipe (stone) | — | `pipe_items_stone` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 2 fluids pipe (stone) | — | `pipe_fluids_stone` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 2 power pipe (stone) | — | `pipe_power_stone` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 3 items pipe (iron) | — | `pipe_items_iron` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 3 fluids pipe (iron) | — | `pipe_fluids_iron` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 3 power pipe (iron) | — | `pipe_power_iron` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 4 items pipe (copper) | — | `pipe_items_copper` | #50, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 4 fluids pipe (copper) | — | `pipe_fluids_copper` | #51, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 4 power pipe (copper) | — | `pipe_power_copper` | #52, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 5 items pipe (gold) | — | `pipe_items_gold` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 5 fluids pipe (gold) | — | `pipe_fluids_gold` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 5 power pipe (gold) | — | `pipe_power_gold` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 6 items pipe (quartz) | — | `pipe_items_quartz` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 6 fluids pipe (quartz) | — | `pipe_fluids_quartz` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 6 power pipe (quartz) | — | `pipe_power_quartz` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 7 items pipe (diamond) | — | `pipe_items_diamond` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 7 fluids pipe (diamond) | — | `pipe_fluids_diamond` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 7 power pipe (diamond) | — | `pipe_power_diamond` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 8 items pipe (emerald) | — | `pipe_items_emerald` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 8 fluids pipe (emerald) | — | `pipe_fluids_emerald` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 8 power pipe (emerald) | — | `pipe_power_emerald` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 9 items pipe (netherite) | — | `pipe_items_netherite` | #50, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 9 fluids pipe (netherite) | — | `pipe_fluids_netherite` | #51, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 9 power pipe (netherite) | — | `pipe_power_netherite` | #52, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 10 items pipe (ender) | — | `pipe_items_ender` | #50, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 10 fluids pipe (ender) | — | `pipe_fluids_ender` | #51, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 10 power pipe (ender) | — | `pipe_power_ender` | #52, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
 
 ### Pipe modules (section 8.2)
 
@@ -406,3 +406,4 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 | Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |
 | Machine blocked trigger | `TriggerMachine` | `trigger_machine_blocked` | #31 | [x] | [ ] | [ ] | Section 8.3. Tag `buildcraft.work.blocked`; true while `IMachine.isBlocked()`. Its sprite `triggers/trigger_machine_blocked` is new art, not drawn yet. |
+| Status panel (shared ledger and the GUI of blocks without one) | — | menu `status` | #26 | [x] | [ ] | [ ] | Section 10. `core/status`, `StatusLedger`; red light `block/status_light`. Sample blocks `sample_gui` and `sample_status` (dev runs). Renders needs a client check. |
