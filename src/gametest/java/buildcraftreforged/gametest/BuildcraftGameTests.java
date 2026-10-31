@@ -73,6 +73,10 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_FE_AND_ENGINES =
             function("engine_pushes_into_fe_and_engines");
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_ORIENTATION = function("engine_orientation");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_LASER_CRAFTING = function("assembly_laser_crafting");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_QUEUE_AND_TAGS = function("assembly_queue_and_tags");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_SELECTION_SAVE_AND_SYNC =
+            function("assembly_selection_save_and_sync");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_RECORDED_AND_SAVED = function("owner_recorded_and_saved");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
@@ -127,6 +131,9 @@ public final class BuildcraftGameTests {
             registry.register(ENGINE_PUSHES_INTO_RECEPTOR, EngineTests::pushesIntoReceptor);
             registry.register(ENGINE_PUSHES_INTO_FE_AND_ENGINES, EngineTests::pushesIntoForgeEnergyAndEngines);
             registry.register(ENGINE_ORIENTATION, EngineTests::orientation);
+            registry.register(ASSEMBLY_LASER_CRAFTING, AssemblyTableTests::laserCrafting);
+            registry.register(ASSEMBLY_QUEUE_AND_TAGS, AssemblyTableTests::queueAndTags);
+            registry.register(ASSEMBLY_SELECTION_SAVE_AND_SYNC, AssemblyTableTests::selectionSaveAndSync);
             registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
             registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
             registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
@@ -223,6 +230,11 @@ public final class BuildcraftGameTests {
                 ENGINE_ORIENTATION)) {
             event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine,
                     new TestData<>(environment, EMPTY_STRUCTURE, 200, 0, true)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> assembly : List.of(ASSEMBLY_LASER_CRAFTING, ASSEMBLY_QUEUE_AND_TAGS,
+                ASSEMBLY_SELECTION_SAVE_AND_SYNC)) {
+            event.registerTest(assembly.identifier(), new FunctionGameTestInstance(assembly,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> owner : List.of(OWNER_RECORDED_AND_SAVED, OWNER_BREAK, OWNER_PLACE)) {
             event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,

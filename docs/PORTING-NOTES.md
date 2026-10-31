@@ -1252,6 +1252,116 @@ Not ported: `TileEngineLegacy` (converts pre-4.0 saves, which cannot reach 26.x)
   range 0 so the blast cannot reach neighbouring tests) and two
   receivers in `EngineTests`. Rendering, particles and the right-click in a client are not tested.
 
+## Assembly table (#72)
+
+Ported: `silicon/BlockLaserTable`, `silicon/TileAssemblyTable`, `silicon/gui/ContainerAssemblyTable`,
+`silicon/gui/GuiAssemblyTable`, and `Utils.addToRandomInventoryAround`. New: `silicon/AssemblyTableRecipe` (the JSON
+recipe type and its serializer), `silicon/AssemblyRecipeManager` (where the table finds its recipes) and
+`silicon/gui/SiliconScreens` (screen registration and the client's recipe copy). Recorded 31 Oct 2026.
+
+- **Block.** `assembly_table_block`, block entity type `assembly_table`, menu `assembly_table_block`. 4.2.2's
+  `BlockLaserTable` had two metadata variants; each is now its own block, built as `new BlockLaserTable(properties,
+  TileX::new)`, so #73 registers `assembly_workbench_block` the same way. `ItemLaserTable` (names per metadata) is
+  gone: each block's item is a plain `ItemBlockBuildCraft` with the 4.2.2 key (`tile.assemblyTableBlock`). Material,
+  hardness, sound, pickaxe tag and `noOcclusion` as the laser (#71). Shape 16 × 9 × 16 px (4.2.2 block bounds); JSON
+  model `block/assembly_table_block` with 4.2.2's `assemblytable_top/bottom/side` textures, side UVs from the bounds
+  (v 7–16) as `RenderBlocks` did. Right-click opens the menu unless the player sneaks. Crafting recipe `ORO/ODO/OGO`
+  (obsidian, redstone, diamond, diamond gear) as 4.2.2.
+- **Energy is FE** (`long`): the recipe's `energy` is FE (4.2.2 MJ × 10). The table is an `ILaserTarget`:
+  `requiresLaserEnergy()` while a recipe is current and less than five times its energy is stored, as 4.2.2. When the
+  stored energy reaches the recipe's, the table crafts and the store goes to 0 (4.2.2 discards the excess too).
+- **Output** goes to a random neighbouring inventory (`Utils.addToRandomInventoryAround`, which now also reaches other
+  mods' blocks through the item capability), then would go to a pipe (`SEAM(#50)`, 4.2.2's `addToRandomPipeAround`),
+  and what is left drops above the table. The drop is what is left, not 4.2.2's whole output (docs/BUGFIXES.md,
+  silicon). 4.2.2 did not put output into engines (`SEAM(#36)` in `Utils`).
+- **Items.** The table is a vanilla `Container` of 12 slots, every side (`TileBuildCraft.registerItemHandler`), and
+  drops its contents when broken.
+- **Recipe selection and queue** are 4.2.2's: `plannedOutput` in click order, `currentRecipe` the one being powered,
+  `setNextCurrentRecipe` after each craft or when the current one can no longer be made. The GUI lists the first 8
+  recipes the inventory can make (4.2.2's 8 slots); clicking plans or cancels one.
+- **Network.** 4.2.2's three packets are replaced:
+  - `SELECTION_ASSEMBLY` (client → server): the screen sends `PacketGuiReturn` with the `SelectionMessage` (select flag
+    and output stack, through `ItemStack.STREAM_CODEC`) as extra data; `TileAssemblyTable.readGuiData` applies it after
+    `PacketHandler` has checked the menu and distance. The screen applies the click locally first, as 4.2.2 did.
+  - `SELECTION_ASSEMBLY_GET`/`SEND`: the planned outputs and the current output are part of the tile's network payload,
+    sent to the players tracking the chunk whenever they change (next tick) and with the chunk. Clients therefore also
+    see other players' clicks and the current recipe moving on, which 4.2.2 did not send.
+  - The energy numbers (required, stored, rate) are 4.2.2's six 16-bit progress bars as vanilla data slots. FE are
+    whole numbers and are sent as they are; the rate is FE/t × 100. The ledger shows FE and FE/t.
+- **Recipes are keyed by output**, as 4.2.2 did (item id and damage then; item and components now): in saved data
+  (`planned`, a list of stacks, and `recipe`, the current one), in the selection message and in the payload. Saved
+  data and the payload are looked up again when the level is known (loading now happens before the block entity has
+  a level) and whenever the recipe objects change (datapack reload, joining a server). Saved tags: `items`,
+  `energyStored` (FE, a long; 4.2.2 saved MJ as a float), `planned`, `recipe`.
+- **Not done here:** the 4.2.2 recipes themselves (their items do not exist yet; see the table below), JEI categories
+  (#74), the status panel provider (plan section 10, #26), the builders' `BptBlockInventory` for the table (P6).
+
+### Recipe format (`buildcraftreforged:assembly`)
+
+```json
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 5000,
+  "inputs": [
+    { "tag": "c:dyes/red", "count": 1 },
+    { "item": "minecraft:redstone" },
+    { "item": "minecraft:iron_ingot" }
+  ],
+  "result": { "id": "buildcraftreforged:red_pipe_wire", "count": 8 }
+}
+```
+
+- `energy` (int, at least 1): FE to craft once. 4.2.2 recipes: MJ × 10.
+- `inputs` (1 to 12 entries, the table's slot count): each is an exact item (`item`, 4.2.2's `ItemStack` input,
+  components ignored as 4.2.2 ignored NBT) or an item tag (`tag`, 4.2.2's Ore Dictionary name), with `count`
+  (default 1). Inputs are matched by total count across the 12 slots, in any slots. Ore names become `c:` tags with a
+  slash (`dyeRed` → `c:dyes/red`, plan section 6).
+- `result`: an item stack template (`id`, optional `count` and `components`), as vanilla recipe results.
+- Files go in `data/<namespace>/recipe/`. The table lists recipes ordered by recipe id, then any added in code to
+  `AssemblyRecipe.assemblyRecipes` (the api list, for other mods). A data pack can add, replace or remove recipes; the
+  type is sent whole to clients (`OnDatapackSyncEvent.sendRecipes`), whose GUI lists them.
+- Recipes load before item components are bound, so `AssemblyTableRecipe` keeps the templates and
+  `AssemblyRecipeManager` builds the 4.2.2 `AssemblyRecipe` objects on first use after each load, one list per side.
+- The repository has no datagen providers yet; recipes are written by hand like the crafting recipes.
+
+### The 4.2.2 assembly recipes, for the issues that add their items
+
+Every recipe 4.2.2 registered (`BuildCraftSilicon.loadRecipes`, `BuildCraftTransport` post-init, `ItemFacade.addFacade`),
+with energy × 10. The registry names are PARITY.md's, some of them placeholders. Each issue adds the JSON files with
+its items.
+
+| Output | Inputs | FE | Issue |
+|---|---|---|---|
+| Redstone Chipset (`redstone_chipset_0`) | redstone | 100000 | #74 |
+| Redstone Iron Chipset (`redstone_chipset_1`) | redstone, iron ingot | 200000 | #74 |
+| Redstone Golden Chipset (`redstone_chipset_2`) | redstone, gold ingot | 400000 | #74 |
+| Redstone Diamond Chipset (`redstone_chipset_3`) | redstone, diamond | 800000 | #74 |
+| 2 Pulsating Chipsets (`redstone_chipset_4`) | redstone, ender pearl | 400000 | #74 |
+| Gate (`pipe_gate_0`) | Redstone Chipset | 200000 | #74 |
+| Iron AND / OR Gate (`pipe_gate_1`, `_2`) | Iron Chipset, red pipe wire | 400000 each | #74 |
+| Gold AND / OR Gate (`pipe_gate_3`, `_4`) | Golden Chipset, red and blue pipe wire | 800000 each | #74 |
+| Diamond AND / OR Gate (`pipe_gate_5`, `_6`) | Diamond Chipset, red, blue, green and yellow pipe wire | 1600000 each | #74 |
+| Autarchic Gate (`pipe_gate_autarchic_0`) | Gate, Pulsating Chipset, Iron Chipset | 100000 | #74 |
+| Autarchic Iron AND / OR (`_1`, `_2`) | that gate, Pulsating Chipset, Iron Chipset | 200000 each | #74 |
+| Autarchic Gold AND / OR (`_3`, `_4`) | that gate, Pulsating Chipset, Iron Chipset | 400000 each | #74 |
+| Autarchic Diamond AND / OR (`_5`, `_6`) | that gate, Pulsating Chipset, Iron Chipset | 800000 each | #74 |
+| 8 Red / Blue / Green / Yellow Pipe Wire | 1 of `c:dyes/red` (`blue`, `green`, `yellow`), redstone, iron ingot | 5000 each | #60 |
+| 8 Plugs | 1 Cobblestone Structure Pipe | 10000 | #61 |
+| 6 Facades of a block | 3 Cobblestone Structure Pipes, the block | 80000 | #61 |
+
+4.2.2 created one facade recipe per facade-able block at start-up (`addFacade`); with data-driven recipes that is
+either one JSON per block or a recipe type of its own for #61 to decide.
+
+### Tests
+
+GameTests `assembly_laser_crafting` (a laser under the table powers a planned recipe selected through the GUI return
+path: crafts after 400 FE at 40 FE/t, inputs used, output dropped, GUI data slots read back on a client copy),
+`assembly_queue_and_tags` (two planned recipes in turn, output into a chest, a tag input takes exactly its count, the
+five-times energy cap) and `assembly_selection_save_and_sync` (JSON → 4.2.2 input array, cancelling, a malformed
+selection refused, payload to a client copy, save and load, drop on break). Their recipes are test-only
+(`gametest_data`: `gametest_assembly_items`, `gametest_assembly_tag`) because no 4.2.2 output item exists yet.
+Drawing, clicking in the screen and the client's recipe sync need a client and are not tested.
+
 ## Owner tracking and the owner-profile fake player (#27)
 
 New: `core/utils/BuildCraftPlayer`. Changed: `core/TileBuildCraft`, `core/utils/BlockUtil`. Decision in the API mapping

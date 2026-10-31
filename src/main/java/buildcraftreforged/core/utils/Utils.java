@@ -15,8 +15,11 @@ import buildcraftreforged.api.core.IAreaProvider;
 import buildcraftreforged.api.core.LaserKind;
 import buildcraftreforged.api.core.Position;
 import buildcraftreforged.core.EntityBlock;
+import buildcraftreforged.core.inventory.ITransactor;
+import buildcraftreforged.core.inventory.Transactor;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import net.minecraft.core.BlockPos;
@@ -34,11 +37,12 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import org.jspecify.annotations.Nullable;
 
 /*
  * Not ported yet, waiting for the classes they call:
- * - addToRandomInventoryAround: ITransactor/Transactor (#23) and TileEngine (#36).
+ * - addToRandomInventoryAround: ported (#72); its TileEngine exclusion waits for #36.
  * - addToRandomPipeAround, checkPipesConnections: IPipeTile (#34, #48).
  * - checkLegacyPipesConnections: IFramePipeConnection (#67).
  * - preDestroyBlock: TileBuildCraft (#21), IDropControlInventory and InvUtils (#23).
@@ -49,6 +53,37 @@ public class Utils {
 
     public static final Random RANDOM = new Random();
     private static final List<Direction> directions = new ArrayList<Direction>(Arrays.asList(Direction.values()));
+
+    /**
+     * Puts stack into one inventory next to the given position, picked at random among those that take some of it.
+     * Returns the number of items added. New: a neighbour that is not a Container (another mod's block) is reached
+     * through its item capability, as #23's TransactorHandler does.
+     */
+    public static int addToRandomInventoryAround(Level world, int x, int y, int z, ItemStack stack) {
+        Collections.shuffle(directions);
+        for (Direction orientation : directions) {
+            Position pos = new Position(x, y, z, orientation);
+            pos.moveForwards(1.0);
+
+            BlockPos blockPos = new BlockPos((int) pos.x, (int) pos.y, (int) pos.z);
+            // 1.6.4's getBlockTileEntity did not load chunks; 26.x's getBlockEntity would.
+            if (!world.isLoaded(blockPos))
+                continue;
+            BlockEntity tileInventory = world.getBlockEntity(blockPos);
+            ITransactor transactor = tileInventory == null ? null : Transactor.getTransactorFor(tileInventory);
+            if (transactor == null && tileInventory != null) {
+                var handler = world.getCapability(Capabilities.Item.BLOCK, blockPos, orientation.getOpposite());
+                if (handler != null)
+                    transactor = Transactor.getTransactorFor(handler);
+            }
+            // SEAM(#36): 4.2.2 also skipped a TileEngine (`!(tileInventory instanceof TileEngine)`).
+            if (transactor != null && transactor.add(stack, orientation.getOpposite(), false).getCount() > 0) {
+                return transactor.add(stack, orientation.getOpposite(), true).getCount();
+            }
+        }
+        return 0;
+
+    }
 
     public static Direction get2dOrientation(Position pos1, Position pos2) {
         double Dx = pos1.x - pos2.x;
