@@ -6,10 +6,12 @@
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
  *
  * Modified by Buildcraft Reforged, 2026: fluids named by registry id, solid coolants keyed by Item, the numeric id
- * overload removed.
+ * overload removed; lookups read the combustion_coolants and solid_coolants data maps first.
  */
 package buildcraftreforged.api.fuels;
 
+import buildcraftreforged.api.fuels.FuelDataMaps.CoolantData;
+import buildcraftreforged.api.fuels.FuelDataMaps.SolidCoolantData;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,6 +25,9 @@ import net.neoforged.neoforge.fluids.FluidStack;
  *
  * <p>4.2.2 keyed solid coolants by {@code StackWrapper} (item id and damage). Items carry no damage-as-variant after
  * the flattening, so the key is the {@link Item}. Fluid names are registry ids, as in {@link IronEngineFuel}.
+ *
+ * <p>Lookups read the {@link FuelDataMaps#COMBUSTION_COOLANTS} and {@link FuelDataMaps#SOLID_COOLANTS} data maps
+ * first and fall back to {@link #liquidCoolants} and {@link #solidCoolants}, which keep the 4.2.2 code registration.
  */
 public final class IronEngineCoolant {
 
@@ -30,7 +35,11 @@ public final class IronEngineCoolant {
     public static Map<Item, FluidStack> solidCoolants = new HashMap<Item, FluidStack>();
 
     public static FluidStack getFluidCoolant(ItemStack stack) {
-        return stack == null || stack.isEmpty() ? null : solidCoolants.get(stack.getItem());
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+        SolidCoolantData data = BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()).getData(FuelDataMaps.SOLID_COOLANTS);
+        return data != null ? data.toFluidStack() : solidCoolants.get(stack.getItem());
     }
 
     public static Coolant getCoolant(ItemStack stack) {
@@ -38,7 +47,20 @@ public final class IronEngineCoolant {
     }
 
     public static Coolant getCoolant(FluidStack fluidStack) {
-        return fluidStack != null && !fluidStack.isEmpty() ? liquidCoolants.get(getName(fluidStack.getFluid())) : null;
+        return fluidStack != null && !fluidStack.isEmpty() ? getCoolant(fluidStack.getFluid()) : null;
+    }
+
+    private static Coolant getCoolant(Fluid fluid) {
+        final CoolantData data = BuiltInRegistries.FLUID.wrapAsHolder(fluid).getData(FuelDataMaps.COMBUSTION_COOLANTS);
+        if (data != null) {
+            return new Coolant() {
+                @Override
+                public float getDegreesCoolingPerMB(float currentHeat) {
+                    return data.degreesCoolingPerMB();
+                }
+            };
+        }
+        return liquidCoolants.get(getName(fluid));
     }
 
     private IronEngineCoolant() {
@@ -77,7 +99,7 @@ public final class IronEngineCoolant {
     }
 
     public static boolean isCoolant(Fluid fluid) {
-        return liquidCoolants.containsKey(getName(fluid));
+        return getCoolant(fluid) != null;
     }
 
     private static String getName(Fluid fluid) {

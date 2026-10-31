@@ -5,6 +5,8 @@ import buildcraftreforged.api.transport.IPipeConnection;
 import buildcraftreforged.api.transport.IPipeConnection.ConnectOverride;
 import buildcraftreforged.api.transport.IPipeTile;
 import buildcraftreforged.core.TileBuildCraft;
+import buildcraftreforged.transport.graph.PipeNetworks;
+import buildcraftreforged.transport.graph.PipeWorld;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -27,9 +29,12 @@ import org.jspecify.annotations.Nullable;
  * neighbour block changed, a neighbour's capability was invalidated, or a plug or module changed here or on a
  * neighbouring pipe. The mask is not saved; it is synced to the client, where it selects the cached model.
  *
+ * <p>Loading, removal (including chunk unload), a mask change and a plug or module change invalidate the cached
+ * network around the pipe ({@link PipeNetworks}, docs/TRANSPORT.md 3.4).
+ *
  * <p>Budgets, fluid locks, flow records and the overflow stack of 3.1 belong to #50–#59.
  */
-public class TilePipe extends TileBuildCraft implements IPipeTile {
+public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pipe {
 
     /** The connection mask, for the client model ({@code PipeBlockStateModel}). */
     public static final ModelProperty<Byte> CONNECTIONS = new ModelProperty<>();
@@ -86,6 +91,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile {
     private void onConfigurationChanged() {
         setChanged();
         scheduleConnectionUpdate();
+        // The module is part of the graph node even when the mask stays the same (docs/TRANSPORT.md 3.4).
+        PipeNetworks.invalidate(level, worldPosition);
         // The neighbouring pipes look at our plugs and module too.
         for (Direction side : Direction.values()) {
             TilePipe neighbour = neighbourPipe(side);
@@ -103,13 +110,14 @@ public class TilePipe extends TileBuildCraft implements IPipeTile {
     public void onLoad() {
         super.onLoad();
         scheduleConnectionUpdate();
-        // SEAM(#49): PipeNetworkManager.invalidate(worldPosition).
+        PipeNetworks.invalidate(level, worldPosition);
     }
 
     @Override
     public void setRemoved() {
         super.setRemoved();
-        // SEAM(#49): PipeNetworkManager.invalidate(worldPosition).
+        // Also covers chunk unload: the pipe leaves its network, splitting it.
+        PipeNetworks.invalidate(level, worldPosition);
     }
 
     @Override
@@ -134,7 +142,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile {
         if (mask != connectionMask) {
             connectionMask = mask;
             sendNetworkUpdate();
-            // SEAM(#49): PipeNetworkManager.invalidate(worldPosition).
+            PipeNetworks.invalidate(level, worldPosition);
         }
 
         // The rule is symmetric for two pipes, so a neighbour that disagrees missed a change (it was unloaded, or

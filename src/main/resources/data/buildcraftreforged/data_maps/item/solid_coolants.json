@@ -1,0 +1,8 @@
+{
+  "values": {
+    "minecraft:ice": {
+      "fluid": "minecraft:water",
+      "amount": 2000
+    }
+  }
+}
