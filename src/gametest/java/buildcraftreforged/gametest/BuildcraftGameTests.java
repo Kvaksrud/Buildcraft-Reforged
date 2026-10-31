@@ -210,6 +210,7 @@ public final class BuildcraftGameTests {
             SeamTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -396,6 +397,11 @@ public final class BuildcraftGameTests {
         for (String name : SeamTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, SeamTests.MAX_TICKS)));
+        }
+        // #74 chipsets and silicon recipes: nine lasers under a table, in the padded area.
+        for (String name : SiliconRecipeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, SiliconRecipeTests.MAX_TICKS)));
         }
         // #59 flow records: running lines watched for 300 ticks, in the padded area like item routing.
         for (String name : FlowRecordTests.TESTS.keySet()) {

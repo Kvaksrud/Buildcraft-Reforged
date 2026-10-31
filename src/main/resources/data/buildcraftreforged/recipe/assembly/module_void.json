@@ -1,0 +1,18 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 20000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_red_chipset"
+    },
+    {
+      "tag": "c:dyes/black"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:module_void"
+  }
+}

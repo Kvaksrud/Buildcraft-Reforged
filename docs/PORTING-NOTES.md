@@ -2565,3 +2565,50 @@ Decided 2026-10-31.
   `maxEnergyExtracted()`. 4.2.2 balance is unchanged: a redstone engine (10 FE pulses) still cannot feed a quarry
   (500 FE minimum) or a mining well (1 000 FE).
 - **Quarry faces.** The quarry takes power on all six faces, the front included (GameTest `quarry_power_on_every_face`).
+
+## Chipsets, silicon recipes and the JEI categories (#74)
+
+Ported `core/ItemRedstoneChipset` and the recipe half of `BuildCraftSilicon.loadRecipes` and
+`BuildCraftTransport.postInit`. New: the module recipes (PLAN 8.2), `platform/jei/AssemblyRecipeCategory` and
+`RefineryRecipeCategory`. Recorded 2026-10-31.
+
+- **Chipsets.** The item with five damage values is five items, named after the 4.2.2 icons and custom item stack
+  names: `redstone_red_chipset`, `redstone_iron_chipset`, `redstone_gold_chipset`, `redstone_diamond_chipset`,
+  `redstone_pulsating_chipset` (4.2.2 keys `item.redstoneChipset.0` … `.4`). Registered in `SiliconRegistry`
+  (`redstoneChipset`, a list by damage; `getChipset(damage)`), machines tab, 4.2.2 textures. `ItemRedstoneChipset`
+  keeps `chipsetNames` and holds `chipset` (the damage).
+- **Assembly recipes** are JSON under `data/buildcraftreforged/recipe/assembly/`, one file per output, named after it
+  (`assembly/gate_iron_and`, `assembly/red_pipe_wire`, …): every 4.2.2 recipe of the table in "Assembly table (#72)"
+  except plugs and facades, MJ × 10. Inputs are exact items where 4.2.2 used an `ItemStack` and `c:dyes/<colour>` where
+  it used `dyeRed` …; results carry no components (a blank gate). The table lists recipes by id, so its order is
+  alphabetical, not 4.2.2's registration order; that only shows when more than 8 recipes can be made at once.
+- **Gate AND/OR swap** (4.2.2's twelve shapeless recipes: Redstone Chipset + AND gate = OR gate and back, iron, gold
+  and diamond, normal and autarchic) is vanilla `minecraft:crafting_transmute` (`gate_iron_or_from_and.json` …),
+  which copies the gate's components to the result: a programmed gate keeps its `gate_settings` (and name) through the
+  swap. This answers #60's open question; 4.2.2 gates carried no program, so a blank gate behaves as in 4.2.2.
+- **Module recipes** (new, decided 2026-10-31; PLAN 8.2 "takes the old ingredient"): the 4.2.2 pipe recipe with the
+  glass replaced by a Redstone Chipset, in the Assembly Table, 20 000 FE (a tenth of a Gate), one module per craft:
+  Extractor 2 of `#minecraft:planks` (4.2.2 `plankWood`), Filtered Extractor 2 emeralds, Director 2 iron ingots, Sorter
+  2 diamonds, Pickup 2 obsidian, Void `c:dyes/black` + redstone, Colour Tag 2 lapis blocks, Colour Sorter lapis block +
+  diamond (Daizuli), Filtered Colour Tag lapis block + emerald (Emzuli), Isolator 2 sandstone. The energy and the
+  chipset grade are balance numbers of our own; change them in the JSON (and `SiliconRecipeTests.expected`).
+- **JEI.** Two categories, `buildcraftreforged:assembly` (the table's 12 inputs in a 4 × 3 grid, output, energy in FE;
+  catalyst the Assembly Table) and `buildcraftreforged:refinery` (one or two input fluids, output, FE per cycle and the
+  delay when above one tick; catalyst the Refinery). They read `AssemblyRecipeManager.getRecipes` and
+  `RefineryRecipeManager.getDataRecipes(null)` plus the api lists on the client. JEI starts from
+  `RecipesReceivedEvent` at `LOWEST` priority, after `SiliconScreens` and `FactoryScreens` have kept the client copy.
+  Gates and modules have no categories of their own: they are made in the table and show there, and the AND/OR swaps
+  show in JEI's crafting category.
+- **Tests.** GameTests `silicon_assembly_recipes_load` (all 33 recipes by id: type, energy, inputs, counts, blank
+  output, found by output; nothing else under `assembly/`; chipset keys), `silicon_gate_and_or_crafting` (all twelve
+  swaps, blank and programmed; the plain gate has no swap) and `silicon_chipset_laser_crafting` (a Redstone Chipset,
+  100 000 FE, from one redstone on a table under nine charged lasers, into a chest). `assembly_laser_crafting` and
+  `assembly_queue_and_tags` now check that their test recipes are among the offered outputs, since redstone and iron
+  also offer chipsets.
+- **Not done here:** plug and facade recipes (#61 is not on `main` yet). #61 adds `assembly/pipe_plug` (8 plugs from 1
+  Cobblestone Structure Pipe, 10 000 FE) and the facade recipes (6 facades from 3 Cobblestone Structure Pipes and the
+  block, 80 000 FE; one JSON per block or a recipe type of its own, as noted under #72), and extends
+  `SiliconRecipeTests.expected` and its count. The Advanced Crafting Table's crafting recipe (`OWO/OCO/ORO` with a
+  Redstone Chipset) belongs to #73.
+- **Not checked without a client:** the chipset item textures in the inventory, both JEI categories (layout, fluid
+  rendering, text, catalysts, the tag inputs cycling) and the swaps in JEI's crafting category.

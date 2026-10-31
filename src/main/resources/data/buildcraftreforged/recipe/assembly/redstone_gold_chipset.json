@@ -1,0 +1,15 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 400000,
+  "inputs": [
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:gold_ingot"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:redstone_gold_chipset"
+  }
+}

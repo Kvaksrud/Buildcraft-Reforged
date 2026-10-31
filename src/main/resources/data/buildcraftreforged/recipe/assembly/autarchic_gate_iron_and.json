@@ -1,0 +1,18 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 200000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:gate_iron_and"
+    },
+    {
+      "item": "buildcraftreforged:redstone_pulsating_chipset"
+    },
+    {
+      "item": "buildcraftreforged:redstone_iron_chipset"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:autarchic_gate_iron_and"
+  }
+}
