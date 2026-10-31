@@ -5,15 +5,11 @@ import buildcraftreforged.transport.TilePipe;
 import net.minecraft.server.level.ServerLevel;
 
 /**
- * What the Pipe Contents trigger (#60) reads from a power pipe, from the power phases (docs/TRANSPORT.md 7.4, 12):
- * power flowed through the pipe in the last {@link #FLOW_TICKS} ticks (the measuring window of 9.2), the Requests
- * Energy answer of {@link PowerRouting#requestsEnergy} and the overload of {@link PowerRouting#isOverloaded}. Server
- * only; on the client everything reads false. #59 may replace {@link #isFlowing} with the flow record.
+ * What the Pipe Contents trigger (#60) reads from a power pipe (docs/TRANSPORT.md 7.4, 9, 12): power flows while its flow
+ * record's rate is above zero; the Requests Energy answer of {@link PowerRouting#requestsEnergy} and the overload of
+ * {@link PowerRouting#isOverloaded} come from the power phases. Server only; on the client everything reads false.
  */
 public final class PowerPipeFlow implements PipeFlow {
-
-    /** Two 10-tick buckets, as the flow record's rate (docs/TRANSPORT.md 9.2). */
-    public static final int FLOW_TICKS = 20;
 
     private final TilePipe pipe;
 
@@ -23,9 +19,7 @@ public final class PowerPipeFlow implements PipeFlow {
 
     @Override
     public boolean isFlowing() {
-        long last = pipe.getPowerState().lastFlowTick();
-        return pipe.getLevel() instanceof ServerLevel level && last != Long.MIN_VALUE
-                && level.getGameTime() - last < FLOW_TICKS;
+        return pipe.getFlowTracker().record().isFlowing();
     }
 
     @Override

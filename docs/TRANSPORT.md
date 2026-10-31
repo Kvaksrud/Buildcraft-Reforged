@@ -746,6 +746,11 @@ at once. There are no server-bound transport payloads (PLAN 19.2).
 - Nothing on the client simulates individual items. The block-entity renderer returns at once when `rate == 0`, so
   only pipes with flow cost a draw. The static pipe body is the cached model per connection mask (#48).
 
+As built (#59, 31 Oct 2026): the payload's positions are VarInts, not `short[]` (x, z and y + 2048 do not fit 16 bits
+at a 384-block build height); the fluid column's horizontal arms fill from the bottom as 4.2.2 and its texture scrolls
+by the sprite's own animation, not at a speed set by the ratio; power records one exit, the outlet that took the most.
+Details in `docs/PORTING-NOTES.md`, "Flow records and flow rendering (#59)".
+
 ---
 
 ## 10. Basic Extractor (#58)
