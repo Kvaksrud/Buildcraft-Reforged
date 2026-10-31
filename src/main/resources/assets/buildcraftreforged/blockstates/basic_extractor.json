@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "buildcraftreforged:block/basic_extractor"
+    },
+    "facing=south": {
+      "model": "buildcraftreforged:block/basic_extractor",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "buildcraftreforged:block/basic_extractor",
+      "y": 270
+    },
+    "facing=east": {
+      "model": "buildcraftreforged:block/basic_extractor",
+      "y": 90
+    },
+    "facing=up": {
+      "model": "buildcraftreforged:block/basic_extractor",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "buildcraftreforged:block/basic_extractor",
+      "x": 90
+    }
+  }
+}

@@ -135,6 +135,10 @@ final class SiliconRecipeTests {
                     List.of(tag("c:dyes/" + colour, 1), in(Items.REDSTONE), in(Items.IRON_INGOT))));
         }
 
+        // #144: 4.2.2 BuildCraftTransport.postInit. The facade recipes are a type of their own (PlugFacadeRecipeTests).
+        list.add(new Expected("pipe_plug", TransportRegistry.plugItem.get(), 8, 10000,
+                List.of(in(TransportRegistry.pipeStructureCobblestoneItem.get()))));
+
         Map<PipeModuleType, List<In>> modules = new LinkedHashMap<>();
         modules.put(PipeModuleType.EXTRACTOR, List.of(tag("minecraft:planks", 2)));
         modules.put(PipeModuleType.FILTERED_EXTRACTOR, List.of(in(Items.EMERALD, 2)));
@@ -158,12 +162,12 @@ final class SiliconRecipeTests {
 
     /**
      * Each recipe loads under {@code assembly/<output>}, as the JSON type with the expected energy, inputs and blank
-     * output, and the table finds it by its output; nothing else is in the folder.
+     * output, and the table finds it by its output; nothing else of that type is in the folder.
      */
     static void assemblyRecipesLoad(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         List<Expected> expected = expected();
-        helper.assertValueEqual(expected.size(), 33, "expected recipes (23 from 4.2.2, 10 modules)");
+        helper.assertValueEqual(expected.size(), 34, "expected recipes (24 from 4.2.2, 10 modules)");
         for (Expected recipe : expected) {
             Identifier id = Identifier.fromNamespaceAndPath(BuildcraftReforged.MOD_ID, "assembly/" + recipe.id());
             Optional<RecipeHolder<?>> holder = level.getServer().getRecipeManager()
@@ -191,7 +195,8 @@ final class SiliconRecipeTests {
 
         long shipped = level.getServer().getRecipeManager().recipeMap().byType(SiliconRegistry.assemblyRecipeType.get())
                 .stream()
-                .filter(holder -> holder.id().identifier().getNamespace().equals(BuildcraftReforged.MOD_ID)
+                .filter(holder -> holder.value().getClass() == AssemblyTableRecipe.class
+                        && holder.id().identifier().getNamespace().equals(BuildcraftReforged.MOD_ID)
                         && holder.id().identifier().getPath().startsWith("assembly/"))
                 .count();
         helper.assertValueEqual(shipped, (long) expected.size(), "assembly recipes shipped");

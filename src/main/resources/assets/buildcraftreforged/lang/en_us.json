@@ -167,6 +167,7 @@
   "tile.spring.water": "Water Spring",
   "tile.spring.oil": "Oil Spring",
   "tile.filteredBufferBlock": "Filtered Buffer",
+  "tile.basicExtractor": "Basic Extractor",
   "tip.PipeFluidsCobblestone": "Basic pipe, 10 mB/t\nWon't connect to Stone",
   "tip.PipeFluidsEmerald": "Extraction pipe, 40 mB/t",
   "tip.PipeFluidsGold": "Basic pipe, 40 mB/t",

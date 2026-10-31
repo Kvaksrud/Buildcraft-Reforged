@@ -1,0 +1,214 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "buildcraftreforged:block/pipe_items_wood",
+    "side": "buildcraftreforged:block/pipe_items_wood",
+    "plate": "minecraft:block/oak_planks"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        1,
+        0
+      ],
+      "to": [
+        15,
+        15,
+        4
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            1,
+            0,
+            15,
+            4
+          ],
+          "texture": "#side"
+        },
+        "down": {
+          "uv": [
+            1,
+            0,
+            15,
+            4
+          ],
+          "texture": "#side"
+        },
+        "east": {
+          "uv": [
+            0,
+            1,
+            4,
+            15
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            0,
+            1,
+            4,
+            15
+          ],
+          "texture": "#side"
+        },
+        "north": {
+          "uv": [
+            1,
+            1,
+            15,
+            15
+          ],
+          "texture": "#plate"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            15,
+            15
+          ],
+          "texture": "#plate"
+        }
+      }
+    },
+    {
+      "from": [
+        3,
+        3,
+        4
+      ],
+      "to": [
+        13,
+        13,
+        9
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            3,
+            4,
+            13,
+            9
+          ],
+          "texture": "#side"
+        },
+        "down": {
+          "uv": [
+            3,
+            4,
+            13,
+            9
+          ],
+          "texture": "#side"
+        },
+        "east": {
+          "uv": [
+            4,
+            3,
+            9,
+            13
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            4,
+            3,
+            9,
+            13
+          ],
+          "texture": "#side"
+        },
+        "north": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#plate"
+        },
+        "south": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#plate"
+        }
+      }
+    },
+    {
+      "from": [
+        4,
+        4,
+        9
+      ],
+      "to": [
+        12,
+        12,
+        16
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            4,
+            9,
+            12,
+            16
+          ],
+          "texture": "#side"
+        },
+        "down": {
+          "uv": [
+            4,
+            9,
+            12,
+            16
+          ],
+          "texture": "#side"
+        },
+        "east": {
+          "uv": [
+            9,
+            4,
+            16,
+            12
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            9,
+            4,
+            16,
+            12
+          ],
+          "texture": "#side"
+        },
+        "north": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#plate"
+        },
+        "south": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#plate"
+        }
+      }
+    }
+  ]
+}

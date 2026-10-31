@@ -3189,3 +3189,54 @@ Changed (additive): `FactoryRegistry`, `FactoryScreens`, the pickaxe tag; new ax
 - **Not checked without a client:** both block models and the item models, the red light on the hopper, both GUIs
   (layout, progress arrow, the yellow tool tip, the status ledger), the recipes in the crafting grid, and clicks
   through the real network path (the tests open the menus on the server).
+
+## Structure Pipe, Basic Extractor, plug and facade recipes (#54, #58, #144)
+
+New code from `docs/TRANSPORT.md` 10, 11 and Q17; the 4.2.2 `PipeStructureCobblestone`, `PipeItemsWood`,
+`PipeLogicWood`, `BuildCraftTransport.postInit` and `ItemFacade.addFacade` were read for behaviour only. Recorded
+2026-11-01.
+
+- **Structure Pipe (#54).** `BlockPipeStructure` (kind `STRUCTURE`) is a `BlockPipe` with no material:
+  `BlockPipe.material` is nullable, `getTier()` is 0 and `getTierStats()` is `PipeTierStats.NONE`. It is registered
+  beside the tier table (`TransportRegistry.pipeStructureCobblestone`, item `pipeStructureCobblestoneItem`, key
+  `item.PipeStructureCobblestone`) and is valid for the shared `pipe` block entity type. The connection rule, the
+  network manager, gates, wire (`isWireConnectedTo`), facades and plugs already handled `STRUCTURE`; nothing else
+  changed. Model: the `buildcraftreforged:pipe` block-state model with #61's `pipe_structure_cobblestone` texture.
+  Recipe (Q17): gravel + Stone Transport Pipe, shapeless, 1.
+- **Basic Extractor (#58).** `BlockBasicExtractor` (`FACING` = the inventory face, set from the clicked face; wrench:
+  `IRotatableBlock`, the next side in side order with a non-pipe item handler) and `TileBasicExtractor`. The pipe
+  face connects to item pipes only, through `IPipeConnection` (`CONNECT` for `ITEM` on the pipe face, `DISCONNECT`
+  otherwise); the block has no item handler, so it is a network endpoint that never receives. The four side faces have
+  a Forge Energy handler that stores nothing (capacity 641 so callers see it): `insert` is the pulse. Engines reach it
+  through their Forge Energy path (`TileEngine.sendPower` inserts in a root transaction and keeps what was refused),
+  so no `IPowerReceptor` is needed. The pulse is `ItemRouting.extract(..., maxItems, outer)`, a new overload that
+  runs inside the caller's transaction. The flow record is a `FlowAccumulator` measured on the extractor's own tick at
+  each 10-tick boundary and sent in its payload when `FlowRecord.differsFrom` says so.
+- **Suction animation.** `BasicExtractorRenderer` (client): the stripes (`textures/pipe/basic_extractor_stripes.png`,
+  32 × 16, a 4-pixel diagonal period) are drawn on the four sides of the three steps with u shifted by
+  `phase × 4 px`, so they stand still when idle; `phase` is 0 to 1 over the second half of the stroke of an engine on
+  a side face that faces the extractor (`TileEngine.progress` past 0.5), and only while the client record has a rate.
+  The record's item slides along the centre line from just inside the inventory face to the pipe face over the same
+  half-stroke. The static body is the block model `block/basic_extractor` (three boxes, wooden pipe sides, oak plank
+  ends).
+- **Not done.** Gates and wire on the Basic Extractor: `PipeGateHolder` is tied to `TilePipe` (its container), so
+  the extractor needs a holder of its own before `GateVanilla.addEnergyPulser` can pulse it. The status panel on
+  right-click (PLAN section 10) is not added either.
+- **Plug and facade assembly recipes (#144).** `assembly/pipe_plug.json` is a plain `buildcraftreforged:assembly`
+  recipe (1 Structure Pipe, 10 000 FE, 8 plugs). Facades are one file, `assembly/pipe_facade.json`, of the new
+  serializer `buildcraftreforged:assembly_facades` (`transport/FacadeAssemblyRecipe`, a subclass of
+  `AssemblyTableRecipe` with the same fields and recipe type): energy 80 000, inputs 3 Structure Pipes, result 6
+  facades. `AssemblyTableRecipe.toAssemblyRecipes()` (one recipe by default) is what `AssemblyRecipeManager` now
+  flattens; the facade type returns one 4.2.2 recipe per `ItemFacade.getAllFacades()` state with an item, adding the
+  block's item to the inputs and the state to the output. As in 4.2.2, the sideways log states get no recipe (the
+  turning recipe makes them). The list is built on the side that reads it, after the registries are frozen, so modded
+  facade blocks get recipes too. `SiliconRecipeTests` now expects the plug among the plain recipes and counts plain
+  `AssemblyTableRecipe`s only. JEI lists them through the Assembly Table category as before; the plugin registers a
+  subtype interpreter on the `facade` component (`registerFromDataComponentTypes`) so each facade is its own entry.
+- **Tests.** GameTests `structure_pipe_connects_only_to_structure`, `structure_pipe_holds_pluggables`,
+  `basic_extractor_engine_pulses` (a powered redstone engine on top moves one item per pulse through iron pipes),
+  `basic_extractor_pulse_rules` (pulse arithmetic, energy only on the side faces, pipe-face-only connection, empty and
+  full budgets, an aborted pulse, the wrench, the recipe), `basic_extractor_no_engine`, `plug_facade_recipes_listed`
+  and `plug_facade_laser_crafting` (8 plugs and 6 stone facades made under lasers).
+- **Not checked without a client:** the Structure Pipe and Basic Extractor models and items, the stripes and the
+  item slide, the JEI entries for plugs and facades (one per facade, the recipe pages).

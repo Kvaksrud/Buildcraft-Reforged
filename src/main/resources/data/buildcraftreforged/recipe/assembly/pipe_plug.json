@@ -1,0 +1,8 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 10000,
+  "inputs": [
+    { "item": "buildcraftreforged:pipe_structure_cobblestone" }
+  ],
+  "result": { "id": "buildcraftreforged:pipe_plug", "count": 8 }
+}
