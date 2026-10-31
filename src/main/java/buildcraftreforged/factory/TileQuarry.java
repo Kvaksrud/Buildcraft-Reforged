@@ -172,6 +172,9 @@ public class TileQuarry extends TileBuildCraft implements IMachine, IPowerRecept
         // 4.2.2 let a client quarry that was not alive run the server logic too; the client only follows the packets.
         if (level == null || level.isClientSide()) {
             super.updateEntity();
+            // The arm is client render data: draw it as soon as the synced state says the frame is done.
+            if (isAlive && builderDone && arm == null && box.isInitialized())
+                createUtilsIfNeeded();
             return;
         }
         if (!isAlive) {
@@ -210,7 +213,12 @@ public class TileQuarry extends TileBuildCraft implements IMachine, IPowerRecept
 
         if (bluePrintBuilder != null) {
 
+            boolean wasDone = builderDone;
             builderDone = bluePrintBuilder.done;
+            // builderDone is not saved: after a load the frame is found complete again here, and the client has to
+            // hear it to draw the arm, even while the head stands still.
+            if (builderDone != wasDone)
+                sendNetworkUpdate();
             if (!builderDone) {
 
                 buildFrame();
