@@ -14,11 +14,8 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 | Block metadata | `BlockState` properties | Engines: facing. Pipes: waterlogged plus model data. |
 | `TileEntity` + `updateEntity()` | `BlockEntity` + `BlockEntityTicker` | Keep the tick cadence and `SafeTimeTracker` logic. |
 | `readFromNBT`/`writeToNBT` | the current block-entity save API (`ValueInput`/`ValueOutput` in 1.21.6+; confirm the 26.x form) | Keep the same tag names where the data survives. |
-| `IInventory`, `ISidedInventory` | `IItemHandler` via `Capabilities.Item.BLOCK` | Internal `SimpleInventory` port keeps slot semantics; expose handlers per side exactly as 4.2.2 `ISidedInventory` did. |
-| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge transfer API: `ResourceHandler<FluidResource>` via `Capabilities.Fluid.BLOCK`, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. 26.3 has no `IFluidHandler` (confirmed in #24). |
-
 | `IInventory`, `ISidedInventory` | Vanilla `Container`, `WorldlyContainer`; exposed as `ResourceHandler<ItemResource>` via `Capabilities.Item.BLOCK` (26.x has no `IItemHandler`) | Internal `SimpleInventory` port keeps slot semantics; handlers per side exactly as 4.2.2 `ISidedInventory` did. See Inventory (#23). |
-| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge `IFluidHandler` capability, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. |
+| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge transfer API: `ResourceHandler<FluidResource>` via `Capabilities.Fluid.BLOCK`, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. 26.3 has no `IFluidHandler` (confirmed in #24). |
 | `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as NeoForge's `EnergyHandler` (26.x's transaction-based replacement for `IEnergyStorage`) via `Capabilities.Energy.BLOCK` | Section 7. Adapter `api/power/PowerEnergyHandler` (#35). |
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
@@ -1900,6 +1897,50 @@ New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.rou
   the `TilePipe` constructor: `isFlowing` = power passed in the last 20 ticks (`PowerPipeState.lastFlowTick`, the 9.2
   window), `requestsEnergy` = `PowerRouting.requestsEnergy`, `isOverloaded` = `PowerRouting.isOverloaded`. Item and
   fluid pipes keep `PipeFlow.NONE` until #59. #59 may replace `isFlowing` with its record's `rate > 0`.
+
+## Blocked output (#63)
+
+New code for plan section 8.3 and `docs/TRANSPORT.md` 6.3, in `buildcraftreforged.core.status`. Decided 2026-10-31.
+
+- **`MachineOutput`** is a machine's item output buffer and its Blocked state. The machine keeps one
+  (`new MachineOutput(flowMeter)` counts `itemsOut`, or `new MachineOutput()`), `add(stack)`s what it makes, and calls
+  `push(level, worldPosition)` every server tick. A push offers every pending stack to the item capability of each
+  neighbour (`Capabilities.Item.BLOCK`, on the neighbour's side facing the machine), in a random side order, each insert
+  in its own root transaction with `ResourceHandlerUtil.insertStacking`. Item pipes, chests, other mods' inventories
+  and other machines all take part the same way, so 4.2.2's two calls (`addToRandomInventoryAround`, then
+  `addToRandomPipeAround`) are one. Engines (`IPowerEmitter` block entities) are skipped, as 4.2.2 skipped
+  `TileEngine`.
+- **State.** After a push: blocked when something is pending and the push moved nothing; cleared by the first push that
+  moves anything, or when nothing is pending. `hasPending()` is what a machine checks before it makes more ("stops"):
+  a quarry mines the next block only when its output is empty. Whatever is not taken stays in the buffer;
+  nothing is ever spilled (the deliberate change from 4.2.2, which dropped such items).
+- **Wiring a machine (three one-liners).** `isBlocked()` → `output.isBlocked()` (the status panel State line, the red
+  light and the Machine trigger "blocked" all read it through `IMachine.isBlocked()` and the default
+  `IStatusProvider.getStatusState()`); `getStatusReason()` → `output.getReason()`; `saveAdditional` / `loadAdditional`
+  → `output.save(output)` / `output.load(input)` (list `pendingOutput`; the blocked state is not saved and is
+  recomputed by the next push). When the block is broken, call `output.dropAll(level, pos)` from
+  `preRemoveSideEffects`, as an inventory's contents drop. The block adds `StatusPanel.BLOCKED` and the multipart red
+  light as in "Status panel (#26)". A machine whose output is not items (a full tank) can report the same state with
+  `setBlocked(StatusReason.OUTPUT_FULL)` / `setBlocked(StatusReason.NONE)`; the refinery keeps its 4.2.2 flag.
+- **Reason line.** `OUTPUT_FULL` ("Output blocked") when something next to the machine could take items but is full
+  or saturated; `NO_DESTINATION` ("No destination") when nothing around takes items at all. A neighbour that refuses
+  says which through `IOutputRefusal.whyRefused(resource)`; a plain inventory without it counts as full. Item pipes
+  implement it (`PipeItemHandler`): a simulated push that finds a destination but no budget, or a walk that finds no
+  destination while the network still has an item endpoint other than the pushing block (a full chest the walk
+  backed out of), is "Output blocked"; a pipe line that reaches no item handler is "No destination". This refines
+  TRANSPORT.md 6.3, where a walk's `NO_DESTINATION` alone would have shown "No destination" for a pipe to a full
+  chest, against the section 14 test that expects "Output blocked".
+- **For #67 (quarry) and the other P4 machines.** Replace 4.2.2's `mineStack` sequence (`addToRandomInventoryAround`,
+  `addToRandomPipeAround`, `dropItem`) with `output.add(stack)`; push every tick; skip the next work step while
+  `output.hasPending()`. The mining well, auto workbench and assembly table can do the same.
+- **Tests.** GameTests `blocked_output_pipe_to_full_chest` (TRANSPORT.md 14: machine, two gold pipes, a full chest:
+  red light, State Blocked, Reason "Output blocked", Machine trigger blocked and Work Done false, one item pending and
+  no more made; the pending item survives a save and load; emptying a slot clears all three within three ticks and
+  cobblestone arrives), `blocked_output_full_chest` (a full chest beside the machine) and
+  `blocked_output_no_destination` (nothing around, then a pipe leading nowhere: "No destination"; a chest at the end
+  unblocks it). They use the test-only machine `gametest_output_block` (`OutputTestBlocks`, dev runs only), which
+  makes one cobblestone whenever its output is empty. Every test ends with no item entity in its area. The red light's
+  look needs a client and is not checked.
 
 ## Fluid routing (#51)
 

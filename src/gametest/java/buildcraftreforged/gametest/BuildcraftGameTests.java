@@ -175,6 +175,7 @@ public final class BuildcraftGameTests {
                 registry.register(throughput(material), helper -> ItemRoutingTests.throughput(helper, material));
             }
             ModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            BlockedOutputTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -319,6 +320,11 @@ public final class BuildcraftGameTests {
         for (String name : ModuleTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, ModuleTests.MAX_TICKS)));
+        }
+        // #63 blocked output: a machine, pipes and chests, in the padded area like item routing.
+        for (String name : BlockedOutputTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, BlockedOutputTests.MAX_TICKS)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {
