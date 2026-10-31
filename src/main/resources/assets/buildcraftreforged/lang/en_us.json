@@ -234,5 +234,8 @@
   "item.moduleColourTag": "Colour Tag Module",
   "item.moduleColourSorter": "Colour Sorter Module",
   "item.moduleFilteredColourTag": "Filtered Colour Tag Module",
-  "item.moduleIsolator": "Isolator Module"
+  "item.moduleIsolator": "Isolator Module",
+  "jei.buildcraftreforged.energy": "%s FE",
+  "jei.buildcraftreforged.energy_per_cycle": "%s FE per cycle",
+  "jei.buildcraftreforged.delay": "Every %s ticks"
 }

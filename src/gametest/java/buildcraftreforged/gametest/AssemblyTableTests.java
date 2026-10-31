@@ -44,8 +44,8 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
  * #72 assembly table: the JSON recipe type, crafting with laser power, the plan queue, tag inputs, output into a
  * neighbouring inventory, the selection through the GUI return, the GUI's energy numbers, saving and the client
  * payload. The recipes are test-only (gametest_data: gametest_assembly_items, 400 FE, redstone + 2 iron ingots ->
- * 2 diamonds; gametest_assembly_tag, 200 FE, 2 of c:dyes/red + redstone -> emerald), because the 4.2.2 outputs
- * (chipsets, gates, pipe wire, plugs, facades) are not registered yet.
+ * 2 diamonds; gametest_assembly_tag, 200 FE, 2 of c:dyes/red + redstone -> emerald), cheap enough to craft in a
+ * few ticks. The shipped 4.2.2 recipes (#74) are tested in SiliconRecipeTests.
  */
 final class AssemblyTableTests {
     private static final BlockPos LASER = new BlockPos(2, 1, 2);
@@ -62,7 +62,8 @@ final class AssemblyTableTests {
         table.setItem(1, new ItemStack(Items.IRON_INGOT, 2));
 
         AssemblyRecipe diamonds = recipe(helper, Items.DIAMOND);
-        helper.assertValueEqual(table.getPotentialOutputs(), List.of(diamonds), "potential outputs");
+        // Since #74 the shipped chipset recipes are offered too (redstone, iron ingot).
+        helper.assertTrue(table.getPotentialOutputs().contains(diamonds), "the test recipe is not offered");
         helper.assertFalse(table.requiresLaserEnergy(), "a table with nothing planned wants energy");
 
         // The GUI's click: a SelectionMessage in a GUI return for the open menu, as the server receives it.
@@ -125,7 +126,7 @@ final class AssemblyTableTests {
 
         AssemblyRecipe diamonds = recipe(helper, Items.DIAMOND);
         AssemblyRecipe emerald = recipe(helper, Items.EMERALD);
-        helper.assertValueEqual(table.getPotentialOutputs().size(), 2, "potential outputs");
+        helper.assertTrue(table.getPotentialOutputs().containsAll(List.of(diamonds, emerald)), "potential outputs");
         table.planOutput(diamonds);
         table.planOutput(emerald);
         helper.assertTrue(table.isAssembling(diamonds), "the first planned recipe is not current");

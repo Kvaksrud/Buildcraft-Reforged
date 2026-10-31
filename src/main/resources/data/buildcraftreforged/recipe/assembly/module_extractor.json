@@ -1,0 +1,16 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 20000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_red_chipset"
+    },
+    {
+      "tag": "minecraft:planks",
+      "count": 2
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:module_extractor"
+  }
+}

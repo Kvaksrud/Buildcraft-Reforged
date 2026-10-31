@@ -1,0 +1,15 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 400000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_iron_chipset"
+    },
+    {
+      "item": "buildcraftreforged:red_pipe_wire"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:gate_iron_or"
+  }
+}

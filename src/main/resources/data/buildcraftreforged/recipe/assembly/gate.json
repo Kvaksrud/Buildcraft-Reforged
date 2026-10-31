@@ -1,0 +1,12 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 200000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_red_chipset"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:gate"
+  }
+}
