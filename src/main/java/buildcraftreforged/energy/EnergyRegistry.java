@@ -14,16 +14,19 @@
  */
 package buildcraftreforged.energy;
 
+import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.api.fuels.FuelDataMaps;
 import buildcraftreforged.api.fuels.IronEngineFuel;
 import buildcraftreforged.api.power.PowerEnergyHandler;
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.CreativeTabBuildCraft;
+import buildcraftreforged.core.ItemBlockBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.fluids.BCFluid;
 import buildcraftreforged.energy.gui.ContainerEngine;
+import buildcraftreforged.energy.worldgen.OilWellFeature;
 import com.mojang.serialization.MapCodec;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +35,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.sounds.SoundEvent;
@@ -41,6 +45,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
+import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
@@ -57,6 +63,7 @@ import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
+import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.transfer.fluid.BucketResourceHandler;
 
 /**
@@ -136,6 +143,23 @@ public final class EnergyRegistry {
                 }
             });
 
+    // Oil worldgen (#45): the oil spring under large wells and the oil_well feature type. The configured feature,
+    // placed feature and biome modifier are data (data/buildcraftreforged/worldgen, neoforge/biome_modifier).
+    public static final DeferredRegister<MapCodec<? extends Feature>> FEATURE_TYPES =
+            DeferredRegister.create(Registries.FEATURE_TYPE, BuildcraftReforged.MOD_ID);
+
+    /** 4.2.2 springBlock with metadata 1 (tile.spring.oil); bedrock look, obsidian hardness, no drops (PLAN.md 19.2). */
+    public static final DeferredBlock<BlockSpring> springOil = REGISTERS.blocks.registerBlock("spring_oil",
+            properties -> new BlockSpring(BlockSpring.EnumSpring.OIL, properties),
+            properties -> properties.overrideDescription("tile.spring.oil").mapColor(MapColor.STONE)
+                    .instrument(NoteBlockInstrument.BASEDRUM).strength(50.0F, 1200.0F).noLootTable().randomTicks()
+                    .sound(SoundType.STONE));
+    /** 4.2.2 ItemSpring, an ItemBlockBuildCraft named per spring type. */
+    public static final DeferredItem<ItemBlockBuildCraft> springOilItem = springItem();
+
+    public static final DeferredHolder<MapCodec<? extends Feature>, MapCodec<OilWellFeature>> oilWellFeature =
+            FEATURE_TYPES.register("oil_well", () -> OilWellFeature.CODEC);
+
     private EnergyRegistry() {
     }
 
@@ -207,8 +231,17 @@ public final class EnergyRegistry {
         return item;
     }
 
+    private static DeferredItem<ItemBlockBuildCraft> springItem() {
+        DeferredItem<ItemBlockBuildCraft> item = REGISTERS.items.registerItem("spring_oil",
+                properties -> new ItemBlockBuildCraft(springOil.get(), properties),
+                properties -> properties.overrideDescription("tile.spring.oil"));
+        CreativeTabBuildCraft.MACHINES.add(item);
+        return item;
+    }
+
     public static void register(IEventBus modBus) {
         REGISTERS.register(modBus);
+        FEATURE_TYPES.register(modBus);
 
         // Iron Engine Fuels and Coolants (#43): the values are data (FuelDataMaps); the 4.2.2 config multipliers
         // scale the oil and fuel burning times when the engine looks them up.
