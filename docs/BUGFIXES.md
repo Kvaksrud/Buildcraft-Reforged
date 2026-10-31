@@ -86,6 +86,35 @@ bucket mapping introduced by the 1.7 port; the 4.2.2 code does not have them (no
 | Decision | Not applicable: PLAN.md section 19.2 replaces the explosion with fire, so the block is replaced by fire in one call and there is no explosion to order. |
 | Applied in | — |
 
+Triage for #36 (`energy/TileEngine`, `BlockEngine`, `ItemEngine`, `TileEngineWithInventory`), decided 31 Oct 2026:
+`git log` since 4.2.2 on the 6.0 line lists the 1.7 port, header, style, network and MJ API (`IBatteryObject`)
+commits, the creative engine and 5.x's per-part collision boxes and ray traces (`ca1eb0b4ee`, `5d762c6f6d`,
+`84b1d58320`, which fix boxes 4.2.2 does not have: not applicable). `42d0e641b8` (BuildCraft#1584) replaces casts to
+`TileEngine` with `instanceof` checks; the port already uses `instanceof` everywhere (not applicable). The two fixes
+PLAN.md section 3 accepted in advance are below.
+
+#### BuildCraft#1827: engines facing each other pass power back and forth
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`527cc7d6d465149e78b65e47a0170359cd45b7fd`](https://github.com/BuildCraft/BuildCraft/commit/527cc7d6d465149e78b65e47a0170359cd45b7fd) ("do not send power where power is received, close #1827", 18 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1827](https://github.com/BuildCraft/BuildCraft/issues/1827) |
+| Class | Upstream: `transport/PipeTransportPower`. Here: `energy/TileEngine` (`isPoweredTile`) |
+| Symptom | Power goes back where it came from. Upstream fixed it in the power pipe (no power sent to a side that delivers power); in 4.2.2 the same loop exists between two engines facing each other, each a receptor for the other's pulses. |
+| Decision | Accepted (PLAN.md section 3): the upstream commit's pipe code is replaced by the rewrite (section 8), so the rule is applied to engines instead. `isPoweredTile` rejects a neighbour that is an `IPowerEmitter` emitting towards this engine, as `PowerEnergyHandler` already refuses Forge Energy on an emitting side. Engines in a chain still pass power on. GameTest `engine_pushes_into_fe_and_engines`. |
+| Applied in | #36 |
+
+#### BuildCraft#1771: engines do not keep their orientation in blueprints
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`30e4d493b3ea6e551d60e18d5e66a7393cff20c4`](https://github.com/BuildCraft/BuildCraft/commit/30e4d493b3ea6e551d60e18d5e66a7393cff20c4) ("fixed engines orientation, for #1771", 10 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1771](https://github.com/BuildCraft/BuildCraft/issues/1771) |
+| Class | `energy/BptBlockEngine` (`rotateLeft`; `SchematicEngine` upstream) |
+| Symptom | Rotating a blueprint turned engines around the DOWN axis, the wrong way, so built engines faced the wrong side. |
+| Decision | Accepted (PLAN.md section 3): the orientation is `BlockEngine.FACING`, and `BlockEngine.rotate`/`mirror` turn it with the structure as vanilla blocks do, which is what the P6 schematic layer uses (`BlockState.rotate`). `BptBlockEngine` is not ported. |
+| Applied in | #36 |
+
 ### factory
 
 #### BuildCraft#2353: liquid dupe with the tank
