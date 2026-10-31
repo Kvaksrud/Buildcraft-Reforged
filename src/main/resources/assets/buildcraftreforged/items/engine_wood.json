@@ -1,0 +1,10 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "buildcraftreforged:block/engine_wood",
+    "model": {
+      "type": "buildcraftreforged:engine",
+      "texture": "buildcraftreforged:textures/block/base_wood.png"
+    }
+  }
+}

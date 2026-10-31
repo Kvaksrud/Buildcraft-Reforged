@@ -23,6 +23,7 @@ import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.fluids.BCFluid;
+import buildcraftreforged.energy.gui.ContainerEngine;
 import com.mojang.serialization.MapCodec;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -47,6 +49,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.common.SoundActions;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 import net.neoforged.neoforge.fluids.FluidInteractionRegistry;
 import net.neoforged.neoforge.fluids.FluidType;
@@ -71,8 +74,15 @@ public final class EnergyRegistry {
         return Collections.unmodifiableList(ENGINE_TILES);
     }
 
-    // Engines (#37, #38, #44) go here, below ENGINE_TILES:
-    // public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);
+    // Engines (#37, #38, #44) go here, below ENGINE_TILES.
+    public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);
+    public static final EngineEntry<TileEngineStone> engineStone = engine("engineStone", "engine_stone", TileEngineStone::new);
+
+    /** 4.2.2 GuiIds.ENGINE_STONE: the Stirling engine's ContainerEngine. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerEngine>> engineStoneMenu = REGISTERS.menus.register(
+            "engine_stone", () -> IMenuTypeExtension.create((containerId, inventory, extraData) -> new ContainerEngine(
+                    EnergyRegistry.engineStoneMenu.get(), containerId, inventory,
+                    ContainerEngine.clientTile(inventory, extraData.readBlockPos(), EnergyRegistry.engineStone))));
 
     // Oil and fuel (4.2.2 BuildCraftEnergy.preInit). fluidOil and fluidFuel are the source fluids; 4.2.2's
     // buildcraftFluidOil/buildcraftFluidFuel (the BCFluid) are the fluid types.

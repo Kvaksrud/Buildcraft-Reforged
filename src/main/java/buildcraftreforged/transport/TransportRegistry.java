@@ -328,5 +328,7 @@ public final class TransportRegistry {
         TileBuildCraft.registerItemHandler(event, pipeTile.get());
         // docs/TRANSPORT.md 6.2, 7.4: power pipes take pushes through the energy capability.
         event.registerBlockEntity(Capabilities.Energy.BLOCK, pipeTile.get(), TilePipe::getEnergyHandler);
+        // docs/TRANSPORT.md 6.2, 7.2: fluid pipes take pushes through the fluid capability.
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, pipeTile.get(), TilePipe::getFluidHandler);
     }
 }

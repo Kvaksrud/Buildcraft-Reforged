@@ -115,6 +115,14 @@ PLAN.md section 3 accepted in advance are below.
 | Decision | Accepted (PLAN.md section 3): the orientation is `BlockEngine.FACING`, and `BlockEngine.rotate`/`mirror` turn it with the structure as vanilla blocks do, which is what the P6 schematic layer uses (`BlockState.rotate`). `BptBlockEngine` is not ported. |
 | Applied in | #36 |
 
+Triage for #37 and #38 (`energy/TileEngineWood`, `TileEngineStone`, `gui/ContainerEngine`, `gui/GuiEngine`,
+`gui/GuiStoneEngine`), decided 2026-10-31: `git log 4.2.2..origin/7.1.x` lists the 1.7 port, headers, style, the
+MJ → RF unit work (`b906f7b7a`, `c961de9daf`, `b5c212970`, which fixes a redstone engine made 10 × weaker by that
+conversion, and `d691d72bc`, which fixes the Stirling `TARGET_OUTPUT` that conversion broke), the gate API refactor,
+the overheat mechanic (`20031e79e`, #40's business) and creative engines (`3f6fafb4a`). None fixes a bug that exists
+in 4.2.2: not applicable. The one deliberate change, power pipes connecting to the redstone engine, is a plan
+section 7 decision recorded in `docs/PORTING-NOTES.md`.
+
 ### factory
 
 #### BuildCraft#2353: liquid dupe with the tank

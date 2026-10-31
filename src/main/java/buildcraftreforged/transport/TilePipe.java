@@ -9,8 +9,11 @@ import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeWorld;
 import buildcraftreforged.transport.module.ModuleDirector;
 import buildcraftreforged.transport.module.PipeModule;
+import buildcraftreforged.transport.route.FluidPipeFlow;
+import buildcraftreforged.transport.route.FluidPipeState;
 import buildcraftreforged.transport.route.PipeBudget;
 import buildcraftreforged.transport.route.PipeEnergyHandler;
+import buildcraftreforged.transport.route.PipeFluidHandler;
 import buildcraftreforged.transport.route.PipeItemHandler;
 import buildcraftreforged.transport.route.PowerPipeFlow;
 import buildcraftreforged.transport.route.PowerPipeState;
@@ -31,6 +34,7 @@ import net.neoforged.neoforge.model.data.ModelData;
 import net.neoforged.neoforge.model.data.ModelProperty;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
@@ -50,8 +54,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Item pipes take pushes through the item capability and route them at once ({@link PipeItemHandler},
  * docs/TRANSPORT.md 6.2), power pipes through the energy capability ({@link PipeEnergyHandler}, 6.2 and 7.4); every
- * pipe keeps its throughput {@link PipeBudget} (5), and power pipes their {@link PowerPipeState}. Fluid locks and flow records of 3.1
- * belong to #51 and #59. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
+ * pipe keeps its throughput {@link PipeBudget} (5), and power pipes their {@link PowerPipeState}. Fluid pipes take
+ * pushes through the fluid capability ({@link PipeFluidHandler}) and keep their lock and last flow in
+ * {@link FluidPipeState} (7.3); the flow records of 3.1 belong to #59. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
  * {@link buildcraftreforged.transport.route.ItemRouting}).
  */
 public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pipe {
@@ -72,12 +77,16 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     private final PipeEnergyHandler[] energyHandlers = new PipeEnergyHandler[6];
     private final PowerPipeState powerState = new PowerPipeState();
     private int powerLimit;
+    private final PipeFluidHandler[] fluidHandlers = new PipeFluidHandler[6];
+    private final FluidPipeState fluidState = new FluidPipeState();
 
     public TilePipe(BlockPos pos, BlockState state) {
         super(TransportRegistry.pipeTile.get(), pos, state);
         kind = state.getBlock() instanceof BlockPipe pipe ? pipe.kind : PipeType.ITEM;
         if (kind == PipeType.POWER)
             gateHolder.flow = new PowerPipeFlow(this);
+        else if (kind == PipeType.FLUID)
+            gateHolder.flow = new FluidPipeFlow(this);
     }
 
     public byte getConnectionMask() {
@@ -114,6 +123,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     /** Power pipes: overload, FE passed this tick and the last request phase (docs/TRANSPORT.md 7.4). Not saved. */
     public PowerPipeState getPowerState() {
         return powerState;
+    }
+
+    /** Fluid pipes: the one-fluid lock and the last flow (docs/TRANSPORT.md 7.3, 9.2). Not saved. */
+    public FluidPipeState getFluidState() {
+        return fluidState;
     }
 
     /**
@@ -357,6 +371,16 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         if (energyHandlers[index] == null)
             energyHandlers[index] = new PipeEnergyHandler(this, side);
         return energyHandlers[index];
+    }
+
+    /** Fluid pipes expose {@link PipeFluidHandler} on every side; it refuses sides facing a fluid pipe or a plug. */
+    public @Nullable ResourceHandler<FluidResource> getFluidHandler(@Nullable Direction side) {
+        if (kind != PipeType.FLUID || side == null)
+            return null;
+        int index = side.get3DDataValue();
+        if (fluidHandlers[index] == null)
+            fluidHandlers[index] = new PipeFluidHandler(this, side);
+        return fluidHandlers[index];
     }
 
     @Override
