@@ -14,6 +14,7 @@
 package buildcraftreforged.core;
 
 import buildcraftreforged.core.utils.ConfigUtils;
+import buildcraftreforged.transport.PipeTierConfig;
 import java.util.List;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
@@ -67,6 +68,9 @@ public class BuildCraftConfiguration {
     // Engines (PLAN.md section 9)
     public static final ModConfigSpec.BooleanValue engineExplode;
     public static final ModConfigSpec.IntValue engineOverheatTimerSeconds;
+
+    // Transport (PLAN.md section 8, docs/TRANSPORT.md 2.2)
+    public static final PipeTierConfig pipeTiers;
 
     static {
         ModConfigSpec.Builder mainConfiguration = new ModConfigSpec.Builder();
@@ -178,6 +182,7 @@ public class BuildCraftConfiguration {
 
         // New in Buildcraft Reforged (PLAN.md section 8); filled in by P3
         mainConfiguration.comment("Pipes and transport").push("transport");
+        pipeTiers = new PipeTierConfig(mainConfiguration);
         mainConfiguration.pop();
 
         COMMON_SPEC = mainConfiguration.build();

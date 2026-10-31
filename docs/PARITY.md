@@ -178,7 +178,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Pipe block (`pipeBlock`) | `BlockGenericPipe, TileGenericPipe` | `pipe_block` | #48 | [ ] | [ ] | [ ] | Replaced by the tier pipe blocks below; kept as the shared pipe base. |
-| Pipe Sealant (`pipeWaterproof`) | `ItemBuildCraft` | `pipe_waterproof` | #53 | [ ] | [ ] | [ ] | 4.2.2 fluid-pipe ingredient. Section 8.1 gives one recipe pattern per kind; #53 decides whether it stays. |
+| Pipe Sealant (`pipeWaterproof`) | `ItemBuildCraft` | `pipe_waterproof` | #53 | [x] | [ ] | [ ] | 4.2.2 fluid-pipe ingredient, kept: fluid pipes are item pipe + sealant (TRANSPORT.md Q17). |
 | Red Pipe Wire (`redPipeWire`) | `ItemBuildCraft` | `red_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
 | Blue Pipe Wire (`bluePipeWire`) | `ItemBuildCraft` | `blue_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
 | Green Pipe Wire (`greenPipeWire`) | `ItemBuildCraft` | `green_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
@@ -353,36 +353,36 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Tier 1 items pipe (wood) | — | `pipe_items_wood` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 1 fluids pipe (wood) | — | `pipe_fluids_wood` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 1 power pipe (wood) | — | `pipe_power_wood` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 2 items pipe (stone) | — | `pipe_items_stone` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 2 fluids pipe (stone) | — | `pipe_fluids_stone` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 2 power pipe (stone) | — | `pipe_power_stone` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 3 items pipe (iron) | — | `pipe_items_iron` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 3 fluids pipe (iron) | — | `pipe_fluids_iron` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 3 power pipe (iron) | — | `pipe_power_iron` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 4 items pipe (copper) | — | `pipe_items_copper` | #50, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 4 fluids pipe (copper) | — | `pipe_fluids_copper` | #51, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 4 power pipe (copper) | — | `pipe_power_copper` | #52, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 5 items pipe (gold) | — | `pipe_items_gold` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 5 fluids pipe (gold) | — | `pipe_fluids_gold` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 5 power pipe (gold) | — | `pipe_power_gold` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 6 items pipe (quartz) | — | `pipe_items_quartz` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 6 fluids pipe (quartz) | — | `pipe_fluids_quartz` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 6 power pipe (quartz) | — | `pipe_power_quartz` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 7 items pipe (diamond) | — | `pipe_items_diamond` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 7 fluids pipe (diamond) | — | `pipe_fluids_diamond` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 7 power pipe (diamond) | — | `pipe_power_diamond` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 8 items pipe (emerald) | — | `pipe_items_emerald` | #50, #53 | [ ] | [ ] | [ ] |  |
-| Tier 8 fluids pipe (emerald) | — | `pipe_fluids_emerald` | #51, #53 | [ ] | [ ] | [ ] |  |
-| Tier 8 power pipe (emerald) | — | `pipe_power_emerald` | #52, #53 | [ ] | [ ] | [ ] |  |
-| Tier 9 items pipe (netherite) | — | `pipe_items_netherite` | #50, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 9 fluids pipe (netherite) | — | `pipe_fluids_netherite` | #51, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 9 power pipe (netherite) | — | `pipe_power_netherite` | #52, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 10 items pipe (ender) | — | `pipe_items_ender` | #50, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 10 fluids pipe (ender) | — | `pipe_fluids_ender` | #51, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
-| Tier 10 power pipe (ender) | — | `pipe_power_ender` | #52, #53 | [ ] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 1 items pipe (wood) | — | `pipe_items_wood` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 1 fluids pipe (wood) | — | `pipe_fluids_wood` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 1 power pipe (wood) | — | `pipe_power_wood` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 2 items pipe (stone) | — | `pipe_items_stone` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 2 fluids pipe (stone) | — | `pipe_fluids_stone` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 2 power pipe (stone) | — | `pipe_power_stone` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 3 items pipe (iron) | — | `pipe_items_iron` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 3 fluids pipe (iron) | — | `pipe_fluids_iron` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 3 power pipe (iron) | — | `pipe_power_iron` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 4 items pipe (copper) | — | `pipe_items_copper` | #50, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 4 fluids pipe (copper) | — | `pipe_fluids_copper` | #51, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 4 power pipe (copper) | — | `pipe_power_copper` | #52, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 5 items pipe (gold) | — | `pipe_items_gold` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 5 fluids pipe (gold) | — | `pipe_fluids_gold` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 5 power pipe (gold) | — | `pipe_power_gold` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 6 items pipe (quartz) | — | `pipe_items_quartz` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 6 fluids pipe (quartz) | — | `pipe_fluids_quartz` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 6 power pipe (quartz) | — | `pipe_power_quartz` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 7 items pipe (diamond) | — | `pipe_items_diamond` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 7 fluids pipe (diamond) | — | `pipe_fluids_diamond` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 7 power pipe (diamond) | — | `pipe_power_diamond` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 8 items pipe (emerald) | — | `pipe_items_emerald` | #50, #53 | [x] | [ ] | [ ] |  |
+| Tier 8 fluids pipe (emerald) | — | `pipe_fluids_emerald` | #51, #53 | [x] | [ ] | [ ] |  |
+| Tier 8 power pipe (emerald) | — | `pipe_power_emerald` | #52, #53 | [x] | [ ] | [ ] |  |
+| Tier 9 items pipe (netherite) | — | `pipe_items_netherite` | #50, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 9 fluids pipe (netherite) | — | `pipe_fluids_netherite` | #51, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 9 power pipe (netherite) | — | `pipe_power_netherite` | #52, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 10 items pipe (ender) | — | `pipe_items_ender` | #50, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 10 fluids pipe (ender) | — | `pipe_fluids_ender` | #51, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
+| Tier 10 power pipe (ender) | — | `pipe_power_ender` | #52, #53 | [x] | [ ] | [ ] | New material and texture (section 8.6). |
 
 ### Pipe modules (section 8.2)
 

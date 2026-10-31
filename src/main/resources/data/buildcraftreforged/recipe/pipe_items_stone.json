@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "buildcraftreforged:pipe_items",
+  "key": {
+    "g": "minecraft:glass",
+    "m": "#c:stones"
+  },
+  "pattern": [
+    "mgm"
+  ],
+  "result": {
+    "count": 8,
+    "id": "buildcraftreforged:pipe_items_stone"
+  }
+}

@@ -798,3 +798,43 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
 - **GameTests** (`PipeTests`): chest and pipe bits and breaking the chest; each kind against chest, cauldron and an
   energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
   The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
+
+## Tier pipes: registration, recipes, textures and the tier table (#53)
+
+New code from `docs/TRANSPORT.md` 2.1, 2.2 and Q17 (decided 29 Oct 2026); the 4.2.2 pipe registration
+(`BuildCraftTransport.buildPipe`) was read for the recipe shapes only.
+
+- **Registration.** `TransportRegistry.PIPE_DEFINITIONS` now lists every material, so the table is the 30 tier pipes:
+  item, fluid and power × wood, stone, iron, copper, gold, quartz, diamond, emerald, netherite, ender, in that creative
+  tab order. Names follow the #48 rule (`pipe_power_netherite`, key `item.PipePowerNetherite`). The twelve keys 4.2.2
+  never had are added to `en_us.json` in the 4.2.2 wording ("Copper Transport Pipe", "Quartz Fluid Pipe",
+  "Emerald Kinesis Pipe"). The 4.2.2 `tip.*` lines describe the old per-material behaviour and are left unused.
+- **Pipe Sealant** (`pipe_waterproof`, key `item.pipeWaterproof`) is registered here because the fluid-pipe recipe
+  needs it: one green dye, shapeless, gives one, as 4.2.2 `loadRecipes`. Texture: the 4.2.2 `items/pipeWaterproof.png`.
+- **Recipes** (Q17), hand-written JSON like the rest of `data/` (the project has no datagen providers yet):
+  item pipe = `material, glass, material` in a row, 8 pipes; fluid pipe = item pipe + Pipe Sealant, shapeless, 1;
+  power pipe = item pipe + redstone, shapeless, 1; and the 4.2.2 uncrafting of a fluid or power pipe back into its item
+  pipe (`pipe_items_<material>_from_pipe_<kind>_<material>`). Materials: `#minecraft:planks` and `#c:stones`, where
+  4.2.2 used the Ore Dictionary (`plankWood`, `stone`; `c:stones` also takes andesite, diorite, granite, tuff and
+  deepslate), and exact items elsewhere: iron, copper, gold and netherite ingots, block of quartz, diamond, emerald,
+  ender pearl, `minecraft:glass`.
+- **Tier table.** `transport.tiers.<material>.itemsPerSecond`, `fluidPerTick` and `powerPerTick` in the common config
+  (`PipeTierConfig`, defined inside #19's `transport` section). Defaults are `PipeTierStats.defaults`: 1 item/s,
+  20 mB/t and 80 FE/t at tier 1, doubling per tier. Each value is a plain validated `define`, not `defineInRange`,
+  because NeoForge clamps an out-of-range number to the nearest bound while TRANSPORT.md 2.2 wants the tier default;
+  a missing, non-numeric or below-1 value is replaced by the default and logged by the config spec (one warning per
+  key). `BlockPipe.getTierStats()` returns the caps in use (defaults until the config is loaded); routing (#50–#52)
+  applies them. `transport.burstSeconds`, `fluidLockTicks` and `maxRouteVisits` belong to those issues.
+- **Textures.** Every 4.2.2 pipe texture is one material colour plus a kind overlay: diagonal dots for items, dark
+  green (`#223505`) sealant brackets for fluids, red L-bars for power. The 4.2.2 files are used where the material and
+  kind existed: items wood, stone, iron, gold, quartz, diamond (`pipeItemsDiamond_center`, the Sorter's side colours
+  left out), emerald; fluids wood, stone, iron, gold, emerald; power wood, stone, gold, quartz, diamond. The other 13 are
+  new, made by recolouring the 4.2.2 gold texture of the same kind: copper `#C8683A`, netherite `#3F3537`, ender
+  `#22796A` in all three kinds; quartz and diamond fluid pipes and the emerald power pipe in the 4.2.2 colours of
+  those materials (quartz takes its pixels from `pipeItemsQuartz`); and the iron power pipe, because 4.2.2 only had
+  the Power Limiter's mode textures (`pipePowerIronM2`…`M128`), which would be wrong on a plain pipe.
+- **Tests.** Unit (`PipeTiersTest`): the default ladder against the table; config with all tiers, a missing tier and
+  invalid values (zero, a string) run through the spec's correction; 30 registered blocks and items with the right
+  kind, tier and caps; every pipe has a blockstate, item definition, item model, texture, loot table and recipe.
+  GameTests (`TierPipeTests`): every pipe and the sealant crafts from its recipe in the server's recipe manager with
+  the right count, uncrafting included; every pipe places and reports the loaded config's caps.

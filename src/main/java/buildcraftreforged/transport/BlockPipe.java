@@ -64,6 +64,11 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
         return material.tier;
     }
 
+    /** The configured caps of this pipe's tier ({@code transport.tiers.<material>}); routing (#50–#52) applies them. */
+    public PipeTierStats getTierStats() {
+        return PipeTierConfig.current(material);
+    }
+
     /**
      * Whether the block on {@code side} exposes this kind's capability on the face towards the pipe (rule 4 of
      * docs/TRANSPORT.md 3.2).

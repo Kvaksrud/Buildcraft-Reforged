@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "buildcraftreforged:pipe_power",
+  "ingredients": [
+    "minecraft:redstone",
+    "buildcraftreforged:pipe_items_stone"
+  ],
+  "result": {
+    "id": "buildcraftreforged:pipe_power_stone"
+  }
+}

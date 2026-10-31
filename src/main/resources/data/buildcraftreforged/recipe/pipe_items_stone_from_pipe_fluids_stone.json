@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "buildcraftreforged:pipe_items",
+  "ingredients": [
+    "buildcraftreforged:pipe_fluids_stone"
+  ],
+  "result": {
+    "id": "buildcraftreforged:pipe_items_stone"
+  }
+}

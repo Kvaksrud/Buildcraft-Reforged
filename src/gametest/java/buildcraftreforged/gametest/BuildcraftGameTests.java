@@ -46,6 +46,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_KINDS_AND_ENDPOINTS = function("pipe_kinds_and_endpoints");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_PLUGS_AND_MODULES = function("pipe_plugs_and_modules");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_WATERLOGGING = function("pipe_waterlogging");
+    private static final ResourceKey<Consumer<GameTestHelper>> TIER_PIPES_CRAFTABLE = function("tier_pipes_craftable");
+    private static final ResourceKey<Consumer<GameTestHelper>> TIER_PIPES_CAPS = function("tier_pipes_caps");
 
     private BuildcraftGameTests() {
     }
@@ -70,6 +72,8 @@ public final class BuildcraftGameTests {
             registry.register(PIPE_KINDS_AND_ENDPOINTS, PipeTests::kindsAndEndpoints);
             registry.register(PIPE_PLUGS_AND_MODULES, PipeTests::plugsAndModules);
             registry.register(PIPE_WATERLOGGING, PipeTests::waterlogging);
+            registry.register(TIER_PIPES_CRAFTABLE, TierPipeTests::craftable);
+            registry.register(TIER_PIPES_CAPS, TierPipeTests::caps);
         });
         FluidTankTests.register(event);
     }
@@ -114,6 +118,10 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         event.registerTest(id("pipe_waterlogging"), new FunctionGameTestInstance(PIPE_WATERLOGGING,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        for (ResourceKey<Consumer<GameTestHelper>> tierPipes : List.of(TIER_PIPES_CRAFTABLE, TIER_PIPES_CAPS)) {
+            event.registerTest(tierPipes.identifier(), new FunctionGameTestInstance(tierPipes,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        }
     }
 
     /** Test-only capabilities (see {@link PipeTests#ENERGY_BLOCK}). */
