@@ -206,6 +206,7 @@ public final class BuildcraftGameTests {
             RoutingModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlockedOutputTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            EngineWrenchTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SeamTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
@@ -385,6 +386,11 @@ public final class BuildcraftGameTests {
         for (String name : MiningWellTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, MiningWellTests.MAX_TICKS)));
+        }
+        // Engine wrench, engine Reason line and quarry power faces, in the padded area.
+        for (String name : EngineWrenchTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, EngineWrenchTests.MAX_TICKS)));
         }
         // #130 seams: machines with pipes, chests and engines, in the padded area.
         for (String name : SeamTests.TESTS.keySet()) {
