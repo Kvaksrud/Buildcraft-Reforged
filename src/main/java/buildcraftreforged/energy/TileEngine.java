@@ -435,7 +435,7 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         return isPoweredTile(tile, orientation);
     }
 
-    /** The wrench: the next of the six faces in data-value order, or the previous one when {@code reverse}. */
+    /** The sneaking wrench: the next of the six faces in data-value order, or the previous one when {@code reverse}. */
     public void cycleOrientation(boolean reverse) {
         int step = reverse ? 5 : 1;
         setOrientation(Direction.from3DDataValue((getOrientation().get3DDataValue() + step) % 6));

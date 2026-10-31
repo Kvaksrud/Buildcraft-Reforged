@@ -55,10 +55,13 @@ public class ItemWrench extends ItemBuildCraft implements IToolWrench {
         if (state.isAir() || player == null)
             return InteractionResult.PASS;
 
-        // Blocks that turn both ways (engines) take the plain click forward and the sneaking click back.
-        if (state.getBlock() instanceof IRotatableBlock rotatable && rotatable.rotatesBothWays())
-            return rotatable.rotateBlock(world, pos, context.getClickedFace(), player.isShiftKeyDown())
-                    ? InteractionResult.SUCCESS : InteractionResult.PASS;
+        // Engines turn on a sneaking click only; a plain click is a normal use of the block.
+        if (state.getBlock() instanceof IRotatableBlock rotatable && rotatable.rotatesOnSneakOnly()) {
+            if (!player.isShiftKeyDown())
+                return InteractionResult.PASS;
+            return rotatable.rotateBlock(world, pos, context.getClickedFace()) ? InteractionResult.SUCCESS
+                    : InteractionResult.PASS;
+        }
 
         if (player.isShiftKeyDown() != isShiftRotation(state.getBlock().getClass()))
             return InteractionResult.PASS;

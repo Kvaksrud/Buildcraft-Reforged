@@ -2555,11 +2555,12 @@ Decided 2026-10-31.
 
 ## Engine wrench and engine Reason line (play-test feedback, 31 Oct 2026)
 
-- **Wrench.** A wrench click turns an engine to the next of its six faces in data-value order (down, up, north,
-  south, west, east), a sneaking click one face back, whether or not anything takes power there. 4.2.2 jumped to the
-  next face with a power receiver (`switchOrientation`), which placement still uses. `IRotatableBlock` gained
-  `rotatesBothWays()` and `rotateBlock(..., reverse)`; `ItemWrench` sends both clicks to such blocks. The wrench still
-  restarts an engine shut down by overheating before it turns anything.
+- **Wrench.** A sneaking wrench click turns an engine to the next of its six faces in data-value order (down, up,
+  north, south, west, east), whether or not anything takes power there; a plain click is a normal use (GUI or status
+  panel). Changed on 1 Nov 2026 from "plain click forward, sneaking click back" after play-testing. 4.2.2 turned on a
+  plain click and jumped to the next face with a power receiver (`switchOrientation`), which placement still uses.
+  `IRotatableBlock.rotatesOnSneakOnly()` tells `ItemWrench` to rotate such blocks on a sneaking click only. The wrench
+  still restarts an engine shut down by overheating before it turns anything.
 - **No re-aim on load.** 4.2.2 re-aimed an engine whose face had no receiver when its chunk loaded (`checkOrienation`);
   with free turning that would undo the player's choice, so it is gone.
 - **Reason line.** A running engine that delivers nothing says why: `NO_POWER_TARGET` ("Not facing a power receiver")
