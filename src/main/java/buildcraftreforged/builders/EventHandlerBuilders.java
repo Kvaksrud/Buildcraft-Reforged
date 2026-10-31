@@ -43,6 +43,7 @@ public class EventHandlerBuilders {
     @SubscribeEvent
     public static void serverStop(ServerStoppingEvent event) {
         TilePathMarker.clearAvailableMarkersList();
+        BuildCraftBuilders.clearLibrary();
     }
 
 }

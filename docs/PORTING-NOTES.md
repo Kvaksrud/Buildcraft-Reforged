@@ -2991,3 +2991,87 @@ pickaxe and `needs_diamond_tool` block tags, `BuildcraftGameTests`. Decided 2026
 - **Not checked without a client or a generated world:** fields in newly generated deserts and oceans (frequency,
   look, lag), the spring's bedrock texture and its item in the creative tab, and that no "far chunk" warning appears
   while chunks generate.
+
+## Architect table and blueprint items (#77)
+
+Ported `builders/BlockArchitect`, `TileArchitect`, `ItemBptBase`, `ItemBptTemplate`, `ItemBptBluePrint`,
+`gui/ContainerTemplate` and `gui/GuiTemplate`, and the library half of `BuildCraftBuilders` (`getBptRootIndex`,
+`getPlayerIndex`, `getBptItemStack`, `MAX_BLUEPRINTS_NAME_SIZE`) as `builders/BuildCraftBuilders`. New:
+`builders/BptItemData`, `builders/render/RenderArchitect`. Changed (additive): `BuildersRegistry`, `BuildersScreens`,
+`BuildersRenderers`, `EventHandlerBuilders` (the library is dropped when the server stops), the pickaxe tag. #76 has not
+landed: capture goes through #75's `BptBlueprint.readFromWorld`, which already asks `BlueprintManager` for each block's
+schematic, so #76's registry is used without a change here. Decided 2026-11-01.
+
+- **Names.** Block `architect_block` (4.2.2 `architectBlock`), block entity `architect`, menu `architect_block`, items
+  `template_item` and `blueprint_item`, data component `buildcraftreforged:blueprint`. Lang keys are 4.2.2's.
+- **Block.** `Material.iron`, hardness 5, metal sound, pickaxe, drops itself. The metadata front becomes `FACING`
+  (horizontal); placing turns the front to the player, as 4.2.2. 4.2.2's metadata 0 (down) turned a capture like west,
+  so the default state faces west. The model is `architect_front` on the front, `architect_top` on top and
+  `architect_sides` elsewhere (4.2.2's `getIcon`); `architect_top_pos`/`_neg` were registered but never shown and are not
+  copied. Any wrench in `c:tools/wrench` turns it with 4.2.2's cycle (west, south, east, north) on a plain click; ours
+  goes through `IRotatableBlock`. A plain click opens the GUI, sneaking passes.
+- **Creative tab and recipes.** 4.2.2 had no recipe for the table, the template or the blueprint (all commented out)
+  and left the table out of the creative tab. The table and the template are in the machines tab so they can be had;
+  the blueprint item is not (4.2.2 `setCreativeTab(null)`); there are still no recipes.
+- **Area and lasers.** As 4.2.2: on its first tick the table takes the marker area next to it
+  (`Utils.getNearbyAreaProvider`), removes the markers and puts up the stripes box, drawn by `RenderArchitect` as
+  `RenderFiller` draws the filler's.
+- **Scanning.** As 4.2.2: a Blueprint or Template item in the left slot with the right slot empty starts a 200-tick
+  count (`TileArchitect.COMPUTING_TIME`); then the whole box is captured at once: a blueprint through
+  `BptBlueprint.readFromWorld` per position, a template as `setMask` (filled where `isEmptyBlock` is false; a redstone
+  signal at the table inverts it, 4.2.2's mask swap). The anchor is the table's position relative to the box minimum,
+  and the capture is turned to the table's front exactly as 4.2.2 (front west: none; north: one `rotateLeft`; east:
+  two; south: three). If the result `equals` the table's last library entry it is reused, else `storeBluePrint` adds a
+  new one; the right slot gets the item and the left slot is emptied.
+- **Library.** `BuildCraftBuilders.getBptRootIndex(server)` is one `BptRootIndex` in
+  `BlueprintPaths.serverLibrary(server)` (`<world>/buildcraft-reforged/blueprints/`) with the server's registries,
+  `loadIndex` and `importNewFiles` on first use as 4.2.2, dropped on `ServerStoppingEvent`. `getPlayerIndex(server,
+  uuid)` caches `BptPlayerIndex.forPlayer` per UUID. 4.2.2's `IBuilderHook` is not ported (no 4.2.2 module used it).
+- **Items.** 4.2.2 put the library number in the damage and the name in the "BptName" tag. Both now live in
+  `BptItemData(id, name, author)`, set by `BuildCraftBuilders.getBptItemStack(item, id, name, author)`; a clean item has
+  no component (4.2.2 damage 0), and the item model's `has_component` condition picks `*_clean` or `*_used`. Stack size
+  1. The tooltip shows the name; an unnamed blueprint's is "#" and its library number (4.2.2's `getName()`, which
+  `getBptItemStack` put on the item too). Using the item on the server reloads the entry and refreshes name and author, as 4.2.2's
+  `onItemRightClick` did. **Author** is new: the table's owner (the player who placed it, #27); empty for a table placed
+  without a player. It is also stored in the blueprint file.
+- **Name.** The GUI's name field takes letters, digits and spaces up to 14 characters, and Backspace, exactly as 4.2.2's
+  `handleClientInput`; anything else is ignored. Each key goes to the server as a `PacketGuiReturn` whose extra data is
+  the character (4.2.2 `ARCHITECT_NAME`); the server refuses a payload that is not exactly one character. The name is
+  synced to the client with the box (4.2.2's two `@TileNetworkData` fields) and capped at 14 when loaded. The file name
+  is sanitised by `storeBluePrint` (#75).
+- **Inventory.** Two slots, stack limit 1. 4.2.2's `isItemValidForSlot` was false, so the item capability lets nothing
+  in (pipes, hoppers); the GUI slots take anything, as 1.6.4's `Slot` did. Tags as 4.2.2: `lastTemplateId`,
+  `computingTime`, `isComputing`, `box`, `Items`, `name`. The progress arrow is a `DataSlot` for `computingTime`.
+- **Status panel.** State "No work area" without a box, "Working" while scanning, "Done" while the right slot holds the
+  result, else "Idle". No power line (the table takes none, as 4.2.2).
+- **Not ported:** `GuiIds.ARCHITECT_TABLE` routing (the menu type replaces it), `addCreativeItems`, and the
+  `BptBlockRotateInventory` registration of the table itself (#76 registers schematics).
+
+### For #78 (builder) and #80 (library)
+
+- An item is a blueprint or template when `stack.getItem() instanceof ItemBptBase`; `ItemBptBase.getBptId(stack)` is
+  4.2.2's `getItemDamage()` (0 for a clean item) and `getBptData(stack)` gives name and author. `ItemBptTemplate` versus
+  `ItemBptBluePrint` tells the kind; the loaded `BptBase` is a `BptTemplate` or `BptBlueprint` to match.
+- Load on the server with `BuildCraftBuilders.getBptRootIndex(level.getServer()).getBluePrint(id)` (null when the file
+  is gone or unreadable). The architect has already turned the capture to its own front, so the builder turns it to its
+  own as 4.2.2's `TileBuilder` did.
+- Make items with `BuildCraftBuilders.getBptItemStack(BuildersRegistry.blueprintItem.get() / templateItem.get(), id,
+  bpt.getName(), bpt.author)`; #80's upload and download should keep the component's author.
+- #80 should use `getPlayerIndex(server, uuid)` for the per-player lists and add its client library with
+  `BlueprintPaths.clientLibrary()`; ids in items are always the server's library numbers.
+
+### Tests
+
+GameTests (`ArchitectTests`, padded area, the filler's marker layout: a 3 × 3 × 3 box with the table west of it):
+`architect_scan_blueprint` (the markers go and the box comes up; a name typed through the GUI return path with a
+Backspace and an ignored '/'; Working while scanning, nothing before 200 ticks, then the blueprint item with id, name and
+the owner as author, Done; the file in the world's library reads back equal, with size 3 × 3 × 3, anchor (-1, 0, 0),
+stone, cobblestone, north stairs, the chest with its diamonds, the marker spots as air; a second scan of the same
+structure reuses the entry), `architect_scan_template` (the template mask matches the four blocks; named "#" and its number, as 4.2.2, no author;
+with a redstone block beside the table the mask is inverted and a new entry is made) and
+`architect_facing_turns_capture` (the wrench cycle; a table facing south turns the capture once: cobblestone, chest and
+stairs, now east, where `rotateLeft` puts them).
+
+**Not checked without a client:** the block model and its facing, the item icons (clean and used) and tooltip, the
+stripes box rendering, the GUI (layout, progress arrow, clicking the name field, typing, the blinking cursor, the status
+ledger), and a wrench from another mod.

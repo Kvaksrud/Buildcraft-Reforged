@@ -23,6 +23,7 @@ import buildcraftreforged.builders.filler.pattern.PatternHorizon;
 import buildcraftreforged.builders.filler.pattern.PatternPyramid;
 import buildcraftreforged.builders.filler.pattern.PatternStairs;
 import buildcraftreforged.builders.gui.ContainerFiller;
+import buildcraftreforged.builders.gui.ContainerTemplate;
 import buildcraftreforged.builders.triggers.BuildersActionProvider;
 import buildcraftreforged.core.BlockBuildCraft;
 import buildcraftreforged.core.CreativeTabBuildCraft;
@@ -32,6 +33,7 @@ import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -79,6 +81,33 @@ public final class BuildersRegistry {
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerFiller>> fillerMenu =
             REGISTERS.menus.register("filler_block", () -> IMenuTypeExtension.create(ContainerFiller::new));
 
+    /** BlockArchitect's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(5F). */
+    public static final DeferredBlock<BlockArchitect> architectBlock = REGISTERS.blocks.registerBlock(RegistryNames.of("architectBlock"),
+            BlockArchitect::new, properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.architectBlock")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    /** 4.2.2 left the architect out of the creative tab and had no recipe for it; it is in the tab so it can be had. */
+    public static final DeferredItem<ItemBlockBuildCraft> architectBlockItem = blockItem("architectBlock", architectBlock);
+
+    /** 4.2.2 GameRegistry.registerTileEntity(TileArchitect.class, "net.minecraft.src.builders.TileTemplate"). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileArchitect>> architectTile =
+            REGISTERS.blockEntityTypes.register("architect", () -> new BlockEntityType<>(TileArchitect::new, architectBlock.get()));
+
+    /** 4.2.2 GuiIds.ARCHITECT_TABLE. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerTemplate>> architectMenu =
+            REGISTERS.menus.register("architect_block", () -> IMenuTypeExtension.create(ContainerTemplate::new));
+
+    /** 4.2.2's item damage and "BptName" tag on blueprint and template items (plan section 6). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BptItemData>> bptData =
+            REGISTERS.dataComponents.registerComponentType("blueprint",
+                    builder -> builder.persistent(BptItemData.CODEC).networkSynchronized(BptItemData.STREAM_CODEC));
+
+    /** ItemBptBase: maxStackSize 1, the machines tab. */
+    public static final DeferredItem<ItemBptTemplate> templateItem = REGISTERS.items.registerItem(RegistryNames.of("templateItem"),
+            ItemBptTemplate::new, properties -> properties.overrideDescription("item.templateItem").stacksTo(1));
+    /** ItemBptBluePrint: as ItemBptBase, but setCreativeTab(null). */
+    public static final DeferredItem<ItemBptBluePrint> blueprintItem = REGISTERS.items.registerItem(RegistryNames.of("blueprintItem"),
+            ItemBptBluePrint::new, properties -> properties.overrideDescription("item.blueprintItem").stacksTo(1));
+
     static {
         // 4.2.2 BuildCraftBuilders.init: create the filler registry and add the patterns. Each pattern's gate action
         // is registered as filler_<tag> on the way (FillerRegistry.addPattern).
@@ -90,6 +119,8 @@ public final class BuildersRegistry {
         FillerManager.registry.addPattern(new PatternBox());
         FillerManager.registry.addPattern(new PatternPyramid());
         FillerManager.registry.addPattern(new PatternStairs());
+
+        CreativeTabBuildCraft.MACHINES.add(templateItem);
     }
 
     private BuildersRegistry() {
@@ -118,6 +149,8 @@ public final class BuildersRegistry {
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
         TileBuildCraft.registerItemHandler(event, fillerTile.get());
         PowerEnergyHandler.registerEnergyHandler(event, fillerTile.get());
+        // 4.2.2's TileArchitect was an IInventory; canPlaceItem keeps everything out, as isItemValidForSlot did.
+        TileBuildCraft.registerItemHandler(event, architectTile.get());
     }
 
     public static void register(IEventBus modBus) {
