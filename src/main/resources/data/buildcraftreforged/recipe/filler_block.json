@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "b": "minecraft:ink_sac",
+    "t": "buildcraftreforged:marker_block",
+    "y": "minecraft:yellow_dye",
+    "c": "minecraft:crafting_table",
+    "g": "buildcraftreforged:gold_gear_item",
+    "C": "minecraft:chest"
+  },
+  "pattern": [
+    "btb",
+    "ycy",
+    "gCg"
+  ],
+  "result": {
+    "id": "buildcraftreforged:filler_block"
+  }
+}
