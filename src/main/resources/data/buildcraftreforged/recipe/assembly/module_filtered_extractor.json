@@ -1,0 +1,16 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 20000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_red_chipset"
+    },
+    {
+      "item": "minecraft:emerald",
+      "count": 2
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:module_filtered_extractor"
+  }
+}
