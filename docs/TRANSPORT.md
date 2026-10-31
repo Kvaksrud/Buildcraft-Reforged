@@ -800,6 +800,10 @@ Ported from 4.2.2 as PLAN 8.5. Transport-specific mapping:
 All other triggers and actions (Pipe Signal, Redstone Input, Signal Output, Redstone Output) and every gate kind are
 unchanged and are not transport-specific.
 
+Implemented in #60 (31 Oct 2026): the pipe reads these through `PipeGateHolder.flow` (a `PipeFlow`, set by #59 and
+#52) and hands module actions to `PipeGateHolder.target` (an `IPipeGateTarget`, set by #55 and #57); see
+`docs/PORTING-NOTES.md` "Gates, pipe wire, and pipe triggers and actions (#60)".
+
 ---
 
 ## 13. Ownership of the remaining P3 issues

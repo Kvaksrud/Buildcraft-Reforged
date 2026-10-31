@@ -68,6 +68,13 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER =
             function("oil_fuel_no_ignition_outside_nether");
 
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_ITEMS_AND_FITTING = function("gate_items_and_fitting");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_LOGIC_KINDS = function("gate_logic_kinds");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_WIRE_SIGNALS = function("gate_wire_signals");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_PIPE_CONTENTS = function("gate_pipe_contents");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_MODULE_ACTIONS_AND_PULSER = function("gate_module_actions_and_pulser");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_MENU = function("gate_menu");
+
     private BuildcraftGameTests() {
     }
 
@@ -109,6 +116,12 @@ public final class BuildcraftGameTests {
             registry.register(OIL_FUEL_LIQUIDS, OilFuelTests::liquids);
             registry.register(OIL_FUEL_NETHER_IGNITION, OilFuelTests::netherIgnition);
             registry.register(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, OilFuelTests::noIgnitionOutsideNether);
+            registry.register(GATE_ITEMS_AND_FITTING, GateTests::itemsAndFitting);
+            registry.register(GATE_LOGIC_KINDS, GateTests::logicKinds);
+            registry.register(GATE_WIRE_SIGNALS, GateTests::wireSignals);
+            registry.register(GATE_PIPE_CONTENTS, GateTests::pipeContents);
+            registry.register(GATE_MODULE_ACTIONS_AND_PULSER, GateTests::moduleActionsAndPulser);
+            registry.register(GATE_MENU, GateTests::menu);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -187,6 +200,18 @@ public final class BuildcraftGameTests {
                 padded(environment, Level.NETHER, 40)));
         event.registerTest(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER.identifier(), new FunctionGameTestInstance(
                 OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, padded(environment, Level.OVERWORLD, 40)));
+        event.registerTest(id("gate_items_and_fitting"), new FunctionGameTestInstance(GATE_ITEMS_AND_FITTING,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("gate_logic_kinds"), new FunctionGameTestInstance(GATE_LOGIC_KINDS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        event.registerTest(id("gate_wire_signals"), new FunctionGameTestInstance(GATE_WIRE_SIGNALS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
+        event.registerTest(id("gate_pipe_contents"), new FunctionGameTestInstance(GATE_PIPE_CONTENTS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gate_module_actions_and_pulser"), new FunctionGameTestInstance(GATE_MODULE_ACTIONS_AND_PULSER,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gate_menu"), new FunctionGameTestInstance(GATE_MENU,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
     }
 
     /**

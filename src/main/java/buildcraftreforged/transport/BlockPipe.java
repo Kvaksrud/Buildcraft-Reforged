@@ -7,6 +7,10 @@ import buildcraftreforged.core.DefaultProps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -26,6 +30,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
@@ -103,8 +108,10 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
     protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block block,
             @Nullable Orientation orientation, boolean movedByPiston) {
         super.neighborChanged(state, level, pos, block, orientation, movedByPiston);
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TilePipe pipe)
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TilePipe pipe) {
             pipe.scheduleConnectionUpdate();
+            pipe.gateHolder.onNeighborBlockChange();
+        }
     }
 
     @Override
@@ -130,6 +137,56 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
     private static double pipeDurability() {
         return BuildCraftConfiguration.COMMON_SPEC.isLoaded() ? BuildCraftConfiguration.pipeDurability.get()
                 : DefaultProps.PIPES_DURABILITY;
+    }
+
+    // Gates and pipe wire (#60), 4.2.2 BlockGenericPipe.onBlockActivated and the redstone methods.
+
+    /** Blocks are placed, and gate and wire items fit themselves (their useOn), without opening the gate. */
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult) {
+        if (stack.getItem() instanceof BlockItem || stack.getItem() instanceof ItemGate
+                || stack.getItem() instanceof ItemPipeWire)
+            return InteractionResult.PASS;
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    /**
+     * Sneaking with an empty hand strips the pipe's wires, then its gate; a click on the gate opens the gate GUI.
+     * Facades (#61) come first in 4.2.2's strip order; module GUIs (#55) take the clicks that miss the gate.
+     */
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+            BlockHitResult hitResult) {
+        if (level.getBlockEntity(pos) instanceof TilePipe pipe) {
+            if (player.isShiftKeyDown() && player.getMainHandItem().isEmpty()) {
+                if (pipe.gateHolder.stripEquipment())
+                    return InteractionResult.SUCCESS;
+            } else if (pipe.gateHolder.hasGate() && pipe.gateHolder.isGateHit(hitResult.getLocation())) {
+                pipe.gateHolder.gate.openGui(player);
+                return InteractionResult.SUCCESS;
+            }
+        }
+        return super.useWithoutItem(state, level, pos, player, hitResult);
+    }
+
+    /** 4.2.2 {@code canConnectRedstone}: dust connects to a pipe with a gate. */
+    @Override
+    protected boolean shouldRedstoneWireConnectTo(BlockState state, BlockGetter level, BlockPos pos,
+            @Nullable Direction direction) {
+        return direction != null && level.getBlockEntity(pos) instanceof TilePipe pipe
+                && pipe.gateHolder.canConnectRedstone();
+    }
+
+    /** 4.2.2 isProvidingWeakPower and isProvidingStrongPower both answered {@code Pipe.isPoweringTo}. */
+    @Override
+    protected int getSignal(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+        return level.getBlockEntity(pos) instanceof TilePipe pipe ? pipe.gateHolder.isPoweringTo(direction) : 0;
+    }
+
+    @Override
+    protected int getDirectSignal(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+        return getSignal(state, level, pos, direction);
     }
 
     @Override

@@ -45,6 +45,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     private @Nullable PipeModuleType moduleType;
     private boolean connectionsDirty = true;
     private final BlockCapabilityCache<?, ?>[] endpointCaches = new BlockCapabilityCache<?, ?>[6];
+    /** The gate and pipe wire (#60). */
+    public final PipeGateHolder gateHolder = new PipeGateHolder(this);
 
     public TilePipe(BlockPos pos, BlockState state) {
         super(TransportRegistry.pipeTile.get(), pos, state);
@@ -125,6 +127,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         super.updateEntity();
         if (connectionsDirty)
             updateConnections();
+        gateHolder.updateEntity();
     }
 
     /** Server side: applies the connection rule on all six sides. */
@@ -143,6 +146,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
             connectionMask = mask;
             sendNetworkUpdate();
             PipeNetworks.invalidate(level, worldPosition);
+            gateHolder.onConnectionsChanged();
         }
 
         // The rule is symmetric for two pipes, so a neighbour that disagrees missed a change (it was unloaded, or
@@ -206,11 +210,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return PipeConnections.hasSide(connectionMask, with);
     }
 
-    /** 4.2.2's deprecated pipe object; the pipe is this block entity now. */
+    /** 4.2.2's deprecated pipe object; the pipe is this block entity now, and its gate and wire half answer here. */
     @Deprecated
     @Override
-    public @Nullable IPipe getPipe() {
-        return null;
+    public IPipe getPipe() {
+        return gateHolder;
     }
 
     @Override
@@ -225,6 +229,13 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return false;
     }
 
+    /** The gate and wires drop with the pipe (4.2.2 {@code Pipe.onBlockRemoval}). */
+    @Override
+    public void destroy() {
+        super.destroy();
+        gateHolder.onBlockRemoval();
+    }
+
     // Save and sync
 
     @Override
@@ -232,6 +243,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         super.saveAdditional(output);
         output.putByte("plugs", pluggedMask);
         output.storeNullable("module", PipeModuleType.CODEC, moduleType);
+        gateHolder.writeToNBT(output);
     }
 
     @Override
@@ -239,6 +251,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         super.loadAdditional(input);
         pluggedMask = input.getByteOr("plugs", (byte) 0);
         moduleType = input.read("module", PipeModuleType.CODEC).orElse(null);
+        gateHolder.readFromNBT(input);
         scheduleConnectionUpdate();
     }
 
@@ -246,12 +259,14 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     public void writePacketPayload(RegistryFriendlyByteBuf data) {
         super.writePacketPayload(data);
         data.writeByte(connectionMask);
+        gateHolder.writeRenderState(data);
     }
 
     @Override
     public void readPacketPayload(RegistryFriendlyByteBuf data) {
         super.readPacketPayload(data);
         connectionMask = (byte) (data.readByte() & 63);
+        gateHolder.readRenderState(data);
     }
 
     /** Client: the new mask picks another cached model and shape, so refresh the model data and re-mesh. */

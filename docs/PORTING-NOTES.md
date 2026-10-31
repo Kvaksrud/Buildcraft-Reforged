@@ -1174,3 +1174,102 @@ of `BuildCraftEnergy.preInit`. Decisions recorded 31 Oct 2026.
 - 4.2.2 `RefineryRecipes.addRecipe(new FluidStack(fluidOil, 1), new FluidStack(fluidFuel, 1), 12, 1)` was registered
   in `BuildCraftEnergy.preInit`; #68 owns it now (oil in, fuel out, `energy` 12 MJ, so 120 FE, `delay` 1).
 - `FluidRenderer` draws the tank contents from the fluid models registered here.
+
+## Gates, pipe wire, and pipe triggers and actions (#60)
+
+Ported from 4.2.2 `Gate`, `GateVanilla`, `ItemGate`, `EnergyPulser`, `PipeTriggerProvider`, `ITriggerPipe`,
+`transport/triggers/*`, `gui/ContainerGateInterface`, `gui/GuiGateInterface`, the gate and wire half of `Pipe`, and
+the gate and wire parts of `TileGenericPipe`, `BlockGenericPipe` and `PipeRendererTESR`. Decided 2026-10-31.
+
+- **Where it lives.** `TilePipe.gateHolder` is a `PipeGateHolder`, the gate and wire half of 4.2.2's `Pipe` object
+  (wires, signal strengths, the gate, `redstonePowered`, the wire render state, fitting and stripping). It
+  implements `IPipe`, and `TilePipe.getPipe()` returns it, so `ActionManager.getPipeTriggers` and the trigger
+  providers keep their 4.2.2 signatures. The shared files only call into it: `TilePipe` (tick, save, payload,
+  `destroy`, mask change), `BlockPipe` (neighbour change, use, redstone), `TransportRegistry` (entries).
+- **Items.** The two 4.2.2 gate items with seven damage values each are fourteen items, named after the 4.2.2 icons:
+  `gate`, `gate_iron_and` … `gate_diamond_or`, `autarchic_gate` … `autarchic_gate_diamond_or`, with the 4.2.2
+  keys `item.pipeGate.<damage>` and `item.pipeGateAutarchic.<damage>`. `ItemGate` holds `kind` and `autarchic`
+  (4.2.2 `series`). Wires are `ItemPipeWire` (`red_pipe_wire` …), 4.2.2 `ItemBuildCraft`. `Gate.GateKind` keeps the
+  4.2.2 ordinals (saved as `Kind`).
+- **Programming travels with the gate** (plan section 6, item NBT → data components). Taking a gate off stores its
+  triggers, parameters and actions in the `buildcraftreforged:gate_settings` component (`GateSettings`, one entry
+  per used position, registry ids); fitting it puts them back. 4.2.2 lost the program. A programmed gate does not
+  stack with a blank one.
+- **Fitting and GUI.** Use a gate or wire item on a pipe to fit it (`ItemGate.useOn`, `ItemPipeWire.useOn`); sneak-use
+  takes it off (the gate only when the gate is clicked). Sneaking with an empty hand strips wires red to yellow, then
+  the gate (4.2.2 `stripEquipment`; facades go first once #61 adds them). A gate is "clicked" when the hit lies on the
+  pipe centre box, on a face whose side is not connected: 4.2.2 ray-traced the gate boxes there. A click on the gate
+  opens the gate menu; `BlockPipe.useItemOn` passes block items, gates and wires to their own use, so placing blocks
+  against a gated pipe still works (4.2.2 returned false for `ItemPipe` and signs). #55 decides how a module GUI
+  shares the remaining clicks.
+- **Signals** are 4.2.2's: a broadcasting gate puts 255 on its pipe's colour, each wired pipe takes its strongest
+  neighbour minus one, and a pipe with no stronger neighbour drops to 0 and makes its neighbours look again, one
+  step per tick. Two pipes share a colour when both have it and are connected to each other, or one is a Structure
+  Pipe (#54). Taking a wire off leaves the pipe's strength for that colour as it was, as in 4.2.2.
+- **Redstone.** `BlockPipe.getSignal` and `getDirectSignal` both answer 4.2.2 `isPoweringTo` (15 on every side
+  except towards a connected pipe while the gate emits); `shouldRedstoneWireConnectTo` is 4.2.2 `canConnectRedstone`
+  (dust connects only to a pipe with a gate). `redstonePowered` is `hasNeighborSignal`, read on neighbour change and
+  saved. As in 4.2.2, a gate emitting redstone strongly powers the solid blocks around its pipe, and the pipe then
+  reads itself as powered: "Redstone Signal On → Redstone Signal" latches.
+- **Pipe triggers and actions** (TRANSPORT.md 12) are registered in `TransportRegistry` under their 4.2.2 field
+  names (`trigger_pipe_empty`, `trigger_red_signal_active`, `action_red_signal`, `action_energy_pulser`, …); the
+  4.2.2 arrays become `action_pipe_color_<colour>`, `action_pipe_direction_<side>`, `action_power_limiter_m<n>` and the
+  lists `TransportRegistry.actionPipeColor` / `actionPipeDirection` / `actionPowerLimiter` (by `EnumColor`,
+  `Direction`, `PowerMode` ordinal). `TriggerRedstoneInput` is registered in `CoreRegistry` as in 4.2.2
+  (`trigger_redstone_active` / `_inactive`). 4.2.2's `PipePowerIron.PowerMode` is `transport/PowerMode`, in FE/t.
+- **Pipe Contents** reads `PipeGateHolder.flow`, a `PipeFlow` (`isFlowing`, `itemContent`, `fluidContent`,
+  `requestsEnergy`, `isOverloaded`), `PipeFlow.NONE` until #59 (flow records) and #52 (power phases) set it. Power
+  Requested is offered on every power pipe (Q21). Structure Pipes get no Pipe Contents triggers.
+- **Module actions.** `PipeGateHolder.target` is an `IPipeGateTarget` (4.2.2 `Pipe.getActions` and
+  `actionsActivated` overrides): it adds its actions to the gate's list and receives every action with a trigger and
+  its state after each resolution. #55 (Director: Pipe Direction; on a power pipe Power Limiter), #57 (Colour Tag and
+  Colour Sorter: Pipe Color; Filtered Colour Tag: Extraction Preset) set it when a module is fitted.
+- **Autarchic gates.** `EnergyPulser` sends `min(2^(n-1), 64) × 1.01` MJ, now `EnergyPulser.pulseEnergy(n)` FE (10,
+  20, 40 … 646), every 10 ticks to its `IPowerReceptor`. Pipes need no power (TRANSPORT.md 12), so on a pipe the
+  receptor is null: the actions are offered and light the gate, nothing more. `GateVanilla.addEnergyPulser` takes the
+  gate holder's block entity as the receptor when it is an `IPowerReceptor`; the Basic Extractor (#58) needs a holder
+  of its own for that.
+- **Gate menu.** `ContainerGateInterface` (menu `buildcraftreforged:gate`) and `GuiGateInterface` keep the 4.2.2
+  layouts and `gate_interface_1..4.png`. The `GATE_*` packets are a hidden `GateWidget` (server to client: the offered
+  lists when the menu opens, then the selection and the trigger-state bits whenever they change) and a
+  `PacketGuiReturn` per changed position (`SelectionReturn`). The server refuses a position outside the gate, a
+  trigger or action it did not offer, and a parameter on a gate below gold or a trigger without one; a parameter is
+  the server's own carried stack (plan section 19.2). The menu closes when its gate comes off.
+- **Rendering** is a `BlockEntityRenderer`, `transport/render/PipeRendererTESR` (4.2.2's `renderGatesWires`), the pipe
+  type's only renderer: #59's flow renderer goes into the same class. Wire boxes and gate boxes use the 4.2.2 block
+  textures as their own textures (`textures/pipe/texture_<colour>_<dark|lit>.png`, `textures/pipe/gate*_<lit|dark>.png`).
+  The server computes the render state (wire set and lit per colour, wire connections per colour and side, gate kind,
+  series and light) and sends it in the pipe's payload after the connection mask.
+- **Icons.** The 4.2.2 trigger and action icons for pipe contents, colours, extraction presets, directions and
+  limiters are GUI sprites under `textures/gui/sprites/triggers/`. Descriptions stay 4.2.2's English strings.
+- **GameTests** (`GateTests`): `gate_items_and_fitting`, `gate_logic_kinds` (every kind's AND/OR resolution,
+  redstone input and output), `gate_wire_signals` (four colours along five pipes, a pipe missing a colour, an
+  unconnected pipe), `gate_pipe_contents` (stubbed flow), `gate_module_actions_and_pulser`, `gate_menu` (lists,
+  widget data, checked selections, save and load).
+
+### For #74 (chipsets and gate recipes)
+
+- 4.2.2 `BuildCraftSilicon.loadRecipes`, in MJ (× 10 for FE): Assembly Table — Gate = Redstone Chipset, 20 000;
+  Iron AND / OR = Iron Chipset + Red Pipe Wire, 40 000; Gold AND / OR = Golden Chipset + Red + Blue Pipe Wire,
+  80 000; Diamond AND / OR = Diamond Chipset + Red + Blue + Green + Yellow Pipe Wire, 160 000; each autarchic gate =
+  the gate of the same kind + Pulsating Chipset + Iron Chipset, at half the gate's cost (10 000 … 80 000).
+  Crafting table, shapeless — Redstone Chipset + an AND gate gives the OR gate and the other way round, for iron, gold
+  and diamond, normal and autarchic.
+- `BuildCraftTransport.loadRecipes`: Assembly Table — 8 Red, Blue, Green, Yellow Pipe Wire = the dye (`dyeRed` … ,
+  so the `c:dyes/*` tags per the Ore Dictionary rule) + redstone + iron ingot, 500 MJ.
+- Items: `TransportRegistry.getGateItem(kind, autarchic)`, `getPipeWire(color)`; a recipe result is a blank gate (no
+  `gate_settings`). The AND↔OR swap in 4.2.2 dropped nothing because 4.2.2 gates carried no program; a recipe that
+  takes a programmed gate should either keep the component or refuse it (open question for #74).
+- JEI: the gate category can list `GateSettings`-free stacks only.
+
+### For #52, #54, #55, #57, #58, #59, #61
+
+- #59 / #52: set `pipe.gateHolder.flow` to the pipe's flow record and power state (`PipeFlow`).
+- #55 / #57: set `pipe.gateHolder.target` when a module is fitted, clear it when removed; offer the module's actions
+  from `addActions` (4.2.2: `PipeItemsIron` six directions except the open side, `PipeItemsLapis` 16 colours,
+  `PipeItemsDaizuli` colours and directions, `PipeItemsEmzuli` four presets, `PipePowerIron` seven limits).
+- #54: a Structure Pipe carries wire across any neighbour wired with the same colour (`PipeGateHolder.isWireConnectedTo`).
+- #58: the Basic Extractor takes gates and wires "like a pipe end"; it needs a `PipeGateHolder`-like holder with
+  itself as the `IPowerReceptor` so the autarchic pulser feeds it.
+- #61: facades and plugs hide the gate on their side (`PipeRendererTESR.shouldRenderNormalPipeSide`, `SEAM(#61)`),
+  drop on removal and come first in `stripEquipment`.
