@@ -1900,3 +1900,63 @@ New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.rou
   the `TilePipe` constructor: `isFlowing` = power passed in the last 20 ticks (`PowerPipeState.lastFlowTick`, the 9.2
   window), `requestsEnergy` = `PowerRouting.requestsEnergy`, `isOverloaded` = `PowerRouting.isOverloaded`. Item and
   fluid pipes keep `PipeFlow.NONE` until #59. #59 may replace `isFlowing` with its record's `rate > 0`.
+
+## Pump and flood gate (#65)
+
+Ported `factory/BlockPump`, `TilePump`, `PumpDimensionList`, `BlockFloodGate`, `TileFloodGate` and the pump half of
+`FactoryProxy`/`FactoryProxyClient` (`newPumpTube`, `pumpTexture`). New: `factory/render/RenderPump`. Recorded
+2026-10-31.
+
+- **Blocks.** `pump_block` (block entity `pump`) and `flood_gate_block` (block entity `flood_gate`), `BlockBuildCraft`
+  subclasses: `Material.iron` + `setHardness(5F)` → metal sound and map colour, strength 5, pickaxe,
+  `requiresCorrectToolForDrops`. Models are `cube_bottom_top` with the 4.2.2 top, bottom and side textures. Recipes as
+  4.2.2: the flood gate's `IGI/FTF/IFI` (iron, iron gear, iron bars, tank); the pump ships 4.2.2's fallback recipe
+  `iri/iTi/gpg` (iron, redstone, tank, iron gear, gold waterproof pipe → `pipe_fluids_gold`), which 4.2.2 used only
+  when mining was disabled or there was no mining well. The mining well (#66) adds 4.2.2's main recipe (tank over
+  mining well) and makes the two follow `mining.enabled`.
+- **Right-click.** A wrench (not sneaking) resets the pump's tank filter and rebuilds its queue, or rebuilds the flood
+  gate's queue, as 4.2.2. An empty hand opens the status panel; any other held item passes, so blocks can be placed
+  against them as in 4.2.2.
+- **Redstone.** `onNeighborBlockChange` → `neighborChanged`, `isBlockIndirectlyGettingPowered` → `hasNeighborSignal`.
+  A powered pump drops its queue and pulls its tube in; a powered gate stops and rebuilds when unpowered.
+- **Pump power.** 4.2.2 `configure(1, 15, 10, 100)` and `configurePowerPerdition(1, 100)` × 10: 10–150 FE per
+  receive, activation 100, 1000 FE stored; each block pumped costs `useEnergy(100, 100)`. Energy capability through
+  `PowerEnergyHandler` on every side.
+- **Search order** is 4.2.2's, unchanged: every 128 pump ticks with nothing queued it rebuilds from `aimY`, then looks
+  straight down for the first pumpable fluid below a non-solid column (`Material.blocksMovement` → the legacy
+  `BlockState.isSolid`) and moves `aimY` there; the queue is a flood fill up and sideways (never down) from `aimY`,
+  64 blocks around, one layer per y, drained top layer first and last-found first, one block every 16 ticks. The tube
+  goes down 0.01 blocks per tick. Water is only removed while fewer than 9 blocks were found or `consumeWater` is on.
+- **Tube.** 4.2.2 spawned an `EntityBlock` entity for the tube. `TilePump` keeps the `EntityBlock` (render data, #71)
+  on both sides, sized and placed as 4.2.2's `setTubePosition`, and `RenderPump` draws it with `RenderEntityBlock` in
+  `entityCutout(textures/block/pump_tube.png)`, lit with the pump's light. `aimY`, `tubeY` and `powered` are the
+  network payload, as 4.2.2's stream. The render box reaches from the pump down to the lower of `aimY` and the tube.
+- **Fluids.** The pump is a drain-only one-slot `ResourceHandler<FluidResource>` over its 16 000 mB `SingleUseTank`
+  (4.2.2 `fill` returned 0); it pushes up to 400 mB per tick into neighbours (`FluidUtils.pushFluidToConsumers`). The
+  flood gate is fill-only over its 2000 mB `Tank` (4.2.2 `drain` returned null). Tag names as 4.2.2 (`tank`, `aimY`,
+  `tubeY`, `powered`, `rebuildDelay`).
+- **`PumpDimensionList`.** `pumping.controlList` entries are `+/<dimension>/<fluid>` or `-/...` with a dimension key
+  (`minecraft:the_nether`) and a fluid id (`minecraft:lava`) or `*`; a fluid name without a namespace matches by path,
+  so 4.2.2's `lava` still works. Later entries win, nothing matching means not allowed, as 4.2.2. The list is parsed on
+  first use and again when the option changes; a malformed option is logged and the default list used (4.2.2 threw at
+  start-up). JUnit `PumpDimensionListTest`.
+- **Flood gate.** `getFluidBlockId(fluid, true)` → `FluidUtils.getFluidBlock` (the source state);
+  `canBePlacedInWorld` → `FluidType.canBePlacedInLevel`; water in dimension -1 → water in `Level.NETHER` is
+  discarded a bucket at a time, as 4.2.2. It fills soft blocks that are not full fluid blocks, bottom layer first, with
+  4.2.2's rebuild back-off (128 to 16 384 ticks). BuildCraft#2165 applied: nothing outside the build height is queued.
+- **Soft blocks.** 4.2.2's `BuildCraftCore.postInit` filled `BuildCraftAPI.softBlocks`; the port had the set but never
+  filled it, so `BlockUtil.isSoftBlock` was air only and the flood gate could not replace flowing fluid. `CoreRegistry`
+  now fills it on common setup: every `LiquidBlock` (1.6.4 `BlockFluid`/`IFluidBlock`), every `VegetationBlock`, sugar
+  cane and cactus (1.6.4 `IPlantable`), snow layers, vines and fire. The builders and filler read the same set.
+- **Status panel** (new). Pump: Working, Idle (nothing to pump, or switched off by redstone), No power (fewer than
+  100 FE stored), Blocked with "Output blocked" while the next block's fluid does not fit in the tank, which also lights
+  the status light (`StatusPanel.BLOCKED`, multipart blockstate); Flow counts mB pumped and pushed, Power the FE used.
+  Flood gate: Working while it placed fluid in the last 128 ticks, else Idle; Flow counts mB placed.
+- **GameTests** (`PumpTests`, padded area): `pump_small_pool` (no pumping without power while the tube goes down; a
+  1x2 water pool drained into a tank beside the pump; a 3x3 pool pumped but not consumed; the pump refuses fluid),
+  `pump_oil` (a 2x2x2 oil pool two blocks down: the top layer is emptied before the bottom layer is touched, 8000 mB
+  pumped, the tube's last aim is the bottom layer), `flood_gate_fills_hole` (a 3x3x2 hole under a gate in a stone
+  floor fills with water sources; the gate refuses extraction and takes 2000 mB).
+- **Not checked without a client:** the two block models and their textures, the tube's look (geometry, UVs,
+  texture, light, the render box when it reaches far down), the status light on the pump, the status panel screens,
+  and the recipes in the crafting grid.

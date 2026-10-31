@@ -136,8 +136,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Frame (`frameBlock`) | `BlockFrame` | `frame_block` | #67 | [ ] | [ ] | [ ] | Waterloggable; removed with its quarry (section 19.3). |
 | Quarry (`machineBlock`) | `BlockQuarry, TileQuarry` | `machine_block` | #67 | [ ] | [ ] | [ ] | Rule gives `machine_block`; section 6's example says `quarry`. #67 picks one and updates this row. |
 | Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
-| Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [ ] | [ ] | [ ] |  |
-| Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [ ] | [ ] | [ ] |  |
+| Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [x] | [ ] | [ ] | 100 FE per block; `PumpDimensionList` takes dimension keys and fluid ids; status panel and status light added. Ships 4.2.2's fallback recipe (gold waterproof pipe) until the mining well (#66) adds the tank-over-mining-well recipe. GameTests `pump_small_pool`, `pump_oil`; model and tube renderer not checked in game. |
+| Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [x] | [ ] | [ ] | Nothing queued outside the build height (BuildCraft#2165); status panel added. GameTest `flood_gate_fills_hole`; model not checked in game. |
 | Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [x] | [ ] | [ ] | JSON recipe type `buildcraftreforged:refinery`; status panel added. GameTests `refinery_oil_to_fuel`, `refinery_filters_and_blocked`, `refinery_recipes`; renderer and item model not checked in game. `BptBlockRefinery` waits for the builder (#78). |
 | Hopper (`blockHopper`) | `BlockHopper, TileHopper` | `block_hopper` | #70 | [ ] | [ ] | [ ] |  |
 

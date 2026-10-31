@@ -1,0 +1,17 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "buildcraftreforged:block/pump_block"
+      }
+    },
+    {
+      "when": {
+        "blocked": "true"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/status_light"
+      }
+    }
+  ]
+}

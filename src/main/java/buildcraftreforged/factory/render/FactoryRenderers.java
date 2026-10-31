@@ -20,5 +20,6 @@ public final class FactoryRenderers {
     static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(FactoryRegistry.tankTile.get(), context -> new RenderTank());
         event.registerBlockEntityRenderer(FactoryRegistry.refineryTile.get(), context -> new RenderRefinery());
+        event.registerBlockEntityRenderer(FactoryRegistry.pumpTile.get(), context -> new RenderPump());
     }
 }

@@ -100,6 +100,9 @@ public final class BuildcraftGameTests {
             function("power_routing_engine_to_machine");
     private static final ResourceKey<Consumer<GameTestHelper>> POWER_ROUTING_SPLITTING = function("power_routing_splitting");
     private static final ResourceKey<Consumer<GameTestHelper>> POWER_ROUTING_LIMITER = function("power_routing_limiter");
+    private static final ResourceKey<Consumer<GameTestHelper>> PUMP_SMALL_POOL = function("pump_small_pool");
+    private static final ResourceKey<Consumer<GameTestHelper>> PUMP_OIL = function("pump_oil");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLOOD_GATE_FILLS_HOLE = function("flood_gate_fills_hole");
 
     private BuildcraftGameTests() {
     }
@@ -173,6 +176,9 @@ public final class BuildcraftGameTests {
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
+            registry.register(PUMP_SMALL_POOL, PumpTests::smallPool);
+            registry.register(PUMP_OIL, PumpTests::oil);
+            registry.register(FLOOD_GATE_FILLS_HOLE, PumpTests::floodGate);
             for (PipeMaterial material : PipeMaterial.values()) {
                 registry.register(powerCaps(material), helper -> PowerRoutingTests.tierCaps(helper, material));
             }
@@ -315,6 +321,13 @@ public final class BuildcraftGameTests {
             event.registerTest(powerCaps(material).identifier(), new FunctionGameTestInstance(powerCaps(material),
                     padded(environment, Level.OVERWORLD, PowerRoutingTests.WINDOW_END + 20)));
         }
+        // #65 pump and flood gate: pools and holes built in the padded area.
+        event.registerTest(PUMP_SMALL_POOL.identifier(), new FunctionGameTestInstance(PUMP_SMALL_POOL,
+                padded(environment, Level.OVERWORLD, PumpTests.POOL_TICKS)));
+        event.registerTest(PUMP_OIL.identifier(), new FunctionGameTestInstance(PUMP_OIL,
+                padded(environment, Level.OVERWORLD, PumpTests.OIL_TICKS)));
+        event.registerTest(FLOOD_GATE_FILLS_HOLE.identifier(), new FunctionGameTestInstance(FLOOD_GATE_FILLS_HOLE,
+                padded(environment, Level.OVERWORLD, PumpTests.FLOOD_TICKS)));
     }
 
     private static ResourceKey<Consumer<GameTestHelper>> powerCaps(PipeMaterial material) {

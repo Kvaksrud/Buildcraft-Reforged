@@ -2,6 +2,8 @@
   "values": [
     "buildcraftreforged:laser_block",
     "buildcraftreforged:assembly_table_block",
-    "buildcraftreforged:refinery_block"
+    "buildcraftreforged:refinery_block",
+    "buildcraftreforged:pump_block",
+    "buildcraftreforged:flood_gate_block"
   ]
 }
