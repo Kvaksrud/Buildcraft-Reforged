@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "w": "#c:cobblestones",
+    "g": "minecraft:glass",
+    "G": "buildcraftreforged:stone_gear_item",
+    "p": "minecraft:piston"
+  },
+  "pattern": [
+    "www",
+    " g ",
+    "GpG"
+  ],
+  "result": {
+    "id": "buildcraftreforged:engine_stone"
+  }
+}

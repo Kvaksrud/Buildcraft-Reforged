@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "i": "minecraft:iron_ingot",
+    "p": "minecraft:redstone",
+    "g": "buildcraftreforged:iron_gear_item",
+    "P": "minecraft:iron_pickaxe"
+  },
+  "pattern": [
+    "ipi",
+    "igi",
+    "iPi"
+  ],
+  "result": {
+    "id": "buildcraftreforged:mining_well_block"
+  }
+}

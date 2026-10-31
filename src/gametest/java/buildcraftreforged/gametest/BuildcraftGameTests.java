@@ -100,6 +100,17 @@ public final class BuildcraftGameTests {
             function("power_routing_engine_to_machine");
     private static final ResourceKey<Consumer<GameTestHelper>> POWER_ROUTING_SPLITTING = function("power_routing_splitting");
     private static final ResourceKey<Consumer<GameTestHelper>> POWER_ROUTING_LIMITER = function("power_routing_limiter");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_TANK_TO_TANK = function("fluid_routing_tank_to_tank");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_SPLITTING = function("fluid_routing_splitting");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_PUSH_AND_VOID = function("fluid_routing_push_and_void");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_MIXING_REFUSAL =
+            function("fluid_routing_mixing_refusal");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_WOOD_REDSTONE_OUTPUT = function("engine_wood_redstone_output");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_BURNS_FUEL = function("engine_stone_burns_fuel");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_OUTPUT_CONTROL = function("engine_stone_output_control");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_MENU = function("engine_stone_menu");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_DELIVERY_THROUGH_KINESIS_PIPE =
+            function("engine_delivery_through_kinesis_pipe");
     private static final ResourceKey<Consumer<GameTestHelper>> PUMP_SMALL_POOL = function("pump_small_pool");
     private static final ResourceKey<Consumer<GameTestHelper>> PUMP_OIL = function("pump_oil");
     private static final ResourceKey<Consumer<GameTestHelper>> FLOOD_GATE_FILLS_HOLE = function("flood_gate_fills_hole");
@@ -173,6 +184,8 @@ public final class BuildcraftGameTests {
                 registry.register(throughput(material), helper -> ItemRoutingTests.throughput(helper, material));
             }
             ModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            BlockedOutputTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -182,11 +195,24 @@ public final class BuildcraftGameTests {
             for (PipeMaterial material : PipeMaterial.values()) {
                 registry.register(powerCaps(material), helper -> PowerRoutingTests.tierCaps(helper, material));
             }
+            registry.register(FLUID_ROUTING_TANK_TO_TANK, FluidRoutingTests::tankToTank);
+            registry.register(FLUID_ROUTING_SPLITTING, FluidRoutingTests::splitting);
+            registry.register(FLUID_ROUTING_PUSH_AND_VOID, FluidRoutingTests::pushAndVoid);
+            registry.register(FLUID_ROUTING_MIXING_REFUSAL, FluidRoutingTests::mixingRefusal);
+            for (PipeMaterial material : PipeMaterial.values()) {
+                registry.register(fluidCaps(material), helper -> FluidRoutingTests.tierCaps(helper, material));
+            }
+            registry.register(ENGINE_WOOD_REDSTONE_OUTPUT, WoodStoneEngineTests::woodRedstoneOutput);
+            registry.register(ENGINE_STONE_BURNS_FUEL, WoodStoneEngineTests::stoneBurnsFuel);
+            registry.register(ENGINE_STONE_OUTPUT_CONTROL, WoodStoneEngineTests::stoneOutputControl);
+            registry.register(ENGINE_STONE_MENU, WoodStoneEngineTests::stoneMenu);
+            registry.register(ENGINE_DELIVERY_THROUGH_KINESIS_PIPE, WoodStoneEngineTests::deliveryThroughKinesisPipe);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
         EngineTests.register(event);
         PowerRoutingTests.register(event);
+        FluidRoutingTests.register(event);
     }
 
     @SubscribeEvent
@@ -195,6 +221,7 @@ public final class BuildcraftGameTests {
         PipeTests.registerTestCapabilities(event);
         EngineTests.registerCapabilities(event);
         PowerRoutingTests.registerCapabilities(event);
+        FluidRoutingTests.registerCapabilities(event);
     }
 
     @SubscribeEvent
@@ -312,6 +339,16 @@ public final class BuildcraftGameTests {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, ModuleTests.MAX_TICKS)));
         }
+        // #63 blocked output: a machine, pipes and chests, in the padded area like item routing.
+        for (String name : BlockedOutputTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, BlockedOutputTests.MAX_TICKS)));
+        }
+        // #66 mining well: digs columns down to a bedrock floor, in the padded area.
+        for (String name : MiningWellTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, MiningWellTests.MAX_TICKS)));
+        }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {
             event.registerTest(power.identifier(), new FunctionGameTestInstance(power,
@@ -320,6 +357,20 @@ public final class BuildcraftGameTests {
         for (PipeMaterial material : PipeMaterial.values()) {
             event.registerTest(powerCaps(material).identifier(), new FunctionGameTestInstance(powerCaps(material),
                     padded(environment, Level.OVERWORLD, PowerRoutingTests.WINDOW_END + 20)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> fluid : List.of(FLUID_ROUTING_TANK_TO_TANK, FLUID_ROUTING_SPLITTING,
+                FLUID_ROUTING_PUSH_AND_VOID, FLUID_ROUTING_MIXING_REFUSAL)) {
+            event.registerTest(fluid.identifier(), new FunctionGameTestInstance(fluid,
+                    padded(environment, Level.OVERWORLD, FluidRoutingTests.MAX_TICKS)));
+        }
+        for (PipeMaterial material : PipeMaterial.values()) {
+            event.registerTest(fluidCaps(material).identifier(), new FunctionGameTestInstance(fluidCaps(material),
+                    padded(environment, Level.OVERWORLD, FluidRoutingTests.WINDOW_END + 20)));
+        }
+        // #37 and #38: engines with redstone blocks and neighbours a few blocks apart, in the padded area.
+        for (ResourceKey<Consumer<GameTestHelper>> engine : List.of(ENGINE_WOOD_REDSTONE_OUTPUT, ENGINE_STONE_BURNS_FUEL,
+                ENGINE_STONE_OUTPUT_CONTROL, ENGINE_STONE_MENU, ENGINE_DELIVERY_THROUGH_KINESIS_PIPE)) {
+            event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine, padded(environment, Level.OVERWORLD, 400)));
         }
         // #65 pump and flood gate: pools and holes built in the padded area.
         event.registerTest(PUMP_SMALL_POOL.identifier(), new FunctionGameTestInstance(PUMP_SMALL_POOL,
@@ -332,6 +383,10 @@ public final class BuildcraftGameTests {
 
     private static ResourceKey<Consumer<GameTestHelper>> powerCaps(PipeMaterial material) {
         return function("power_routing_caps_" + material.getSerializedName());
+    }
+
+    private static ResourceKey<Consumer<GameTestHelper>> fluidCaps(PipeMaterial material) {
+        return function("fluid_routing_caps_" + material.getSerializedName());
     }
 
     private static ResourceKey<Consumer<GameTestHelper>> throughput(PipeMaterial material) {

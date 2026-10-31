@@ -94,7 +94,7 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
 
         @Override
         public int getCount() {
-            return 4;
+            return getGUINetworkDataCount();
         }
     };
 
@@ -464,6 +464,11 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
             default:
                 return 0;
         }
+    }
+
+    /** Values in guiData: the 4 above, plus any a subclass adds after them (the Stirling engine's burn times). */
+    protected int getGUINetworkDataCount() {
+        return 4;
     }
 
     /* STATE INFORMATION */

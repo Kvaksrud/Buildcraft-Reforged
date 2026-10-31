@@ -14,11 +14,8 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 | Block metadata | `BlockState` properties | Engines: facing. Pipes: waterlogged plus model data. |
 | `TileEntity` + `updateEntity()` | `BlockEntity` + `BlockEntityTicker` | Keep the tick cadence and `SafeTimeTracker` logic. |
 | `readFromNBT`/`writeToNBT` | the current block-entity save API (`ValueInput`/`ValueOutput` in 1.21.6+; confirm the 26.x form) | Keep the same tag names where the data survives. |
-| `IInventory`, `ISidedInventory` | `IItemHandler` via `Capabilities.Item.BLOCK` | Internal `SimpleInventory` port keeps slot semantics; expose handlers per side exactly as 4.2.2 `ISidedInventory` did. |
-| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge transfer API: `ResourceHandler<FluidResource>` via `Capabilities.Fluid.BLOCK`, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. 26.3 has no `IFluidHandler` (confirmed in #24). |
-
 | `IInventory`, `ISidedInventory` | Vanilla `Container`, `WorldlyContainer`; exposed as `ResourceHandler<ItemResource>` via `Capabilities.Item.BLOCK` (26.x has no `IItemHandler`) | Internal `SimpleInventory` port keeps slot semantics; handlers per side exactly as 4.2.2 `ISidedInventory` did. See Inventory (#23). |
-| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge `IFluidHandler` capability, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. |
+| Forge `IFluidHandler`, `FluidStack`, `FluidRegistry` | NeoForge transfer API: `ResourceHandler<FluidResource>` via `Capabilities.Fluid.BLOCK`, `FluidStack`, `Fluid` + `FluidType` + `LiquidBlock` + bucket | Oil and Fuel registered here; mB values unchanged. 26.3 has no `IFluidHandler` (confirmed in #24). |
 | `PowerHandler`, `IPowerReceptor`, `IPowerEmitter` | Ported `PowerHandler` holding FE, exposed as NeoForge's `EnergyHandler` (26.x's transaction-based replacement for `IEnergyStorage`) via `Capabilities.Energy.BLOCK` | Section 7. Adapter `api/power/PowerEnergyHandler` (#35). |
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
@@ -1900,6 +1897,218 @@ New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.rou
   the `TilePipe` constructor: `isFlowing` = power passed in the last 20 ticks (`PowerPipeState.lastFlowTick`, the 9.2
   window), `requestsEnergy` = `PowerRouting.requestsEnergy`, `isOverloaded` = `PowerRouting.isOverloaded`. Item and
   fluid pipes keep `PipeFlow.NONE` until #59. #59 may replace `isFlowing` with its record's `rate > 0`.
+
+## Blocked output (#63)
+
+New code for plan section 8.3 and `docs/TRANSPORT.md` 6.3, in `buildcraftreforged.core.status`. Decided 2026-10-31.
+
+- **`MachineOutput`** is a machine's item output buffer and its Blocked state. The machine keeps one
+  (`new MachineOutput(flowMeter)` counts `itemsOut`, or `new MachineOutput()`), `add(stack)`s what it makes, and calls
+  `push(level, worldPosition)` every server tick. A push offers every pending stack to the item capability of each
+  neighbour (`Capabilities.Item.BLOCK`, on the neighbour's side facing the machine), in a random side order, each insert
+  in its own root transaction with `ResourceHandlerUtil.insertStacking`. Item pipes, chests, other mods' inventories
+  and other machines all take part the same way, so 4.2.2's two calls (`addToRandomInventoryAround`, then
+  `addToRandomPipeAround`) are one. Engines (`IPowerEmitter` block entities) are skipped, as 4.2.2 skipped
+  `TileEngine`.
+- **State.** After a push: blocked when something is pending and the push moved nothing; cleared by the first push that
+  moves anything, or when nothing is pending. `hasPending()` is what a machine checks before it makes more ("stops"):
+  a quarry mines the next block only when its output is empty. Whatever is not taken stays in the buffer;
+  nothing is ever spilled (the deliberate change from 4.2.2, which dropped such items).
+- **Wiring a machine (three one-liners).** `isBlocked()` → `output.isBlocked()` (the status panel State line, the red
+  light and the Machine trigger "blocked" all read it through `IMachine.isBlocked()` and the default
+  `IStatusProvider.getStatusState()`); `getStatusReason()` → `output.getReason()`; `saveAdditional` / `loadAdditional`
+  → `output.save(output)` / `output.load(input)` (list `pendingOutput`; the blocked state is not saved and is
+  recomputed by the next push). When the block is broken, call `output.dropAll(level, pos)` from
+  `preRemoveSideEffects`, as an inventory's contents drop. The block adds `StatusPanel.BLOCKED` and the multipart red
+  light as in "Status panel (#26)". A machine whose output is not items (a full tank) can report the same state with
+  `setBlocked(StatusReason.OUTPUT_FULL)` / `setBlocked(StatusReason.NONE)`; the refinery keeps its 4.2.2 flag.
+- **Reason line.** `OUTPUT_FULL` ("Output blocked") when something next to the machine could take items but is full
+  or saturated; `NO_DESTINATION` ("No destination") when nothing around takes items at all. A neighbour that refuses
+  says which through `IOutputRefusal.whyRefused(resource)`; a plain inventory without it counts as full. Item pipes
+  implement it (`PipeItemHandler`): a simulated push that finds a destination but no budget, or a walk that finds no
+  destination while the network still has an item endpoint other than the pushing block (a full chest the walk
+  backed out of), is "Output blocked"; a pipe line that reaches no item handler is "No destination". This refines
+  TRANSPORT.md 6.3, where a walk's `NO_DESTINATION` alone would have shown "No destination" for a pipe to a full
+  chest, against the section 14 test that expects "Output blocked".
+- **For #67 (quarry) and the other P4 machines.** Replace 4.2.2's `mineStack` sequence (`addToRandomInventoryAround`,
+  `addToRandomPipeAround`, `dropItem`) with `output.add(stack)`; push every tick; skip the next work step while
+  `output.hasPending()`. The mining well, auto workbench and assembly table can do the same.
+- **Tests.** GameTests `blocked_output_pipe_to_full_chest` (TRANSPORT.md 14: machine, two gold pipes, a full chest:
+  red light, State Blocked, Reason "Output blocked", Machine trigger blocked and Work Done false, one item pending and
+  no more made; the pending item survives a save and load; emptying a slot clears all three within three ticks and
+  cobblestone arrives), `blocked_output_full_chest` (a full chest beside the machine) and
+  `blocked_output_no_destination` (nothing around, then a pipe leading nowhere: "No destination"; a chest at the end
+  unblocks it). They use the test-only machine `gametest_output_block` (`OutputTestBlocks`, dev runs only), which
+  makes one cobblestone whenever its output is empty. Every test ends with no item entity in its area. The red light's
+  look needs a client and is not checked.
+
+## Fluid routing (#51)
+
+New code from `docs/TRANSPORT.md` 7.2 and 7.3, package `buildcraftreforged.transport.route`; the 4.2.2
+`PipeTransportFluids`, `PipeFluidsWood` and `PipeFluidsVoid` were read for behaviour only. Recorded 2026-10-31.
+
+- **Router.** `FluidRouting.ROUTER` is a `ResourceRouter<FluidResource>` with cost 1 (1 mB per budget unit), refill
+  the tier's `fluidPerTick`, handlers from the endpoint caches (`Capabilities.Fluid.BLOCK`). Same walk, budgets,
+  transaction and reasons as items (#50): one transfer goes whole to one destination, picked by the random walk (Q2),
+  so a junction alternates between its outlets from transfer to transfer rather than splitting each tick.
+  `ResourceRouter.push` has a new overload with a `Predicate<PipeNode> canEnter` (the walk's `Rules.canEnter`); the old
+  one passes "any pipe".
+- **Lock (7.3).** `FluidPipeState` (per pipe, journaled, not saved): the fluid that last passed and when, the entry and
+  exit sides of that transfer and the mB passed this tick. The lock is that last flow: a pipe refuses another fluid
+  while `now - lastFlowTick < transport.fluidLockTicks` (new config key, 1–1200, default 20; `FluidRouting.lockTicks()`).
+  `FluidRouting.route` walks with `canEnter = state.canPass(fluid)`, so a locked start pipe gives `NO_DESTINATION`, a
+  locked pipe further on is walked around (or backed out of), and a Void pipe locked to another fluid is not entered
+  (the lock is checked before the sink test). After a real transfer every pipe of the path records it, in the same
+  transaction: a simulation neither locks nor records. Pipes on a branch the walk backed out of are not locked. Every
+  transfer renews the lock, so a fluid flowing every tick holds its pipes for as long as it flows.
+- **Intake.** Fluid pipes register `Capabilities.Fluid.BLOCK` (`TransportRegistry`, `TilePipe::getFluidHandler`):
+  `PipeFluidHandler`, one always-empty tank of capacity `fluidPerTick`; `insert` routes at once (`FluidRouting.push`)
+  and returns what reached a destination; `extract` gives nothing (4.2.2 `drain` returned null). It refuses on a
+  plugged side and on a side facing another fluid pipe, decided at call time, as the item and energy handlers.
+- **Extractor (8.2).** `ModuleExtractor.tickSource` on a fluid pipe calls `FluidRouting.extract(level, network, node,
+  facing, source)`: offers `min(simulated drain, budget of the source pipe)` from the first slot of the facing handler
+  whose fluid has a destination (Q13 applied to fluids; a slot that drains nothing, such as a refinery input, is
+  skipped), at most one successful transfer a tick, drain and fill in one root transaction. The facing and the
+  `woodenPipe.liquid.exclusion` list are #55's (`PipeManager.canExtractFluids`). The Director and the Void module work
+  on fluid pipes through the walk's defaults.
+- **Empty tanks are destinations.** A tank an Extractor has emptied takes any fluid routed past it, including another
+  fluid from the same network; the Extractor then pulls that out again. This is the same rule as items (only the
+  source block of a transfer is excluded), recorded here because the mixing GameTest runs into it.
+- **Pipe Contents (#60).** A fluid pipe's `gateHolder.flow` is a `FluidPipeFlow`: `isFlowing` = fluid passed in the
+  last 20 ticks, `fluidContent` = that fluid. The 4.2.2 Contains Fluids trigger with a filled container as parameter
+  works through it.
+- **Tests.** Unit: `FluidPipeStateTest` (no lock on a new pipe; water refuses lava up to the last locked tick and accepts
+  it after; renewal; an aborted transaction neither locks nor records; mB per tick and the side bits) and two
+  `PipeRoutingTest` cases (a refused pipe is walked around; a refused start pipe gives `NO_DESTINATION`). GameTests
+  (`FluidRoutingTests`, padded area, test blocks `gametest_fluid_source`, an endless source of one fluid, and
+  `gametest_fluid_sink`, which takes any fluid without limit): tank to tank (4 000 mB through an Extractor and gold
+  pipes, pipes hold nothing and give nothing back, Pipe Contents reads water); splitting at a junction with two tanks
+  (100 transfers, each tank at least a quarter, nothing lost); pushes into a wood line (cap 400 mB, simulated push
+  changes nothing, refill after 20 ticks) and a Void module deleting lava; mixing refusal (water and lava share a
+  trunk: the trunk stays locked to water and the lava tank untouched until all the water is through, lava moves
+  exactly `fluidLockTicks` after the last water); and the caps test for all ten tiers (ticks 21–120 deliver
+  `100 × fluidPerTick` mB, ± one tick).
+- **Not checked without a client:** nothing in #51 draws anything; fluid in pipes becomes visible with #59.
+
+### For #59 (flow records) and #57 (Isolator)
+
+- **#59.** Every real fluid transfer ends at `SEAM(#59)` in `FluidRouting.record`, inside the transfer's transaction,
+  after each path pipe's `FluidPipeState.recordPassed`. Per pipe: `lastFluid()` (the record's content),
+  `entrySide()` / `exitSide()` (0–5 in side order, `FluidPipeState.CENTRE` = 6 for a transfer that starts inside the
+  pipe or ends at a Void sink: the 9.1 `sides` byte is `entry | exit << 3`), `passed(now)` (mB this tick) and
+  `lastFlowTick()`. The rate is mB/t; width uses the tier's `fluidPerTick`. #59 may replace `FluidPipeFlow.isFlowing`
+  with its record's `rate > 0`.
+- **#57.** The Isolator needs nothing from fluid routing: it is a connection rule (#48), so an Isolator never has a
+  tank endpoint.
+
+## Redstone and Stirling engines (#37, #38)
+
+Ported: `energy/TileEngineWood`, `TileEngineStone`, `gui/ContainerEngine`, `gui/GuiEngine`, `gui/GuiStoneEngine`.
+Registered as `engine_wood` and `engine_stone` through `EnergyRegistry.engine(...)`, with blockstates and item models
+from the #39 texture table, loot tables, `minecraft:mineable/pickaxe` and the 4.2.2 recipes (`"plankWood"` →
+`#minecraft:planks`, `"cobblestone"` → `#c:cobblestones`, the rest exact items). Recorded 2026-10-31.
+
+- **Redstone engine units.** Every MJ value × 10: `OUTPUT` 0.5 FE/t (4.2.2 0.05 MJ/t, shown only), 10 FE added every
+  16 ticks while powered (4.2.2 `addEnergy(1)`), 1 000 FE store, 500 FE intake, 10 FE pulses (4.2.2 1.01 MJ, see
+  "For the engines (#36)" under Power). Its own `computeEnergyStage` (energy, never `OVERHEAT`) and `getPistonSpeed`
+  (0.08 × heat level on the server) are kept, so a cold engine pulses slowly and a warm one about every 16 ticks:
+  at its working temperature it delivers about 0.625 FE/t.
+- **Redstone engine and pipes.** 4.2.2's `TileEngineWood.overridePipeConnection` returned `DISCONNECT` for every pipe,
+  yet its pulse still reached a wooden kinesis pipe beside it, which looked unconnected. Plan section 7 has the
+  redstone engine power any accepting block, and #52's power pipes take pushes from any neighbour, so power pipes now
+  get `DEFAULT` (they connect); item and fluid pipes still get `DISCONNECT` on every side.
+- **Stirling engine units.** `MAX_OUTPUT` is 10 FE/t (4.2.2 1 MJ/t); `MIN_OUTPUT`, `eLimit` follow from it and
+  `TARGET_OUTPUT` (0.375 of the store), `kp`, `ki` are unitless, so the PID aims at 3 750 FE of a 10 000 FE store and
+  outputs between 10 / 3 and 10 FE/t, 10 × 4.2.2 at every point. Upstream's own RF port (7.1) ended with the same
+  constants. Intake 2 000 FE (minimum the `TileEngine` default of 20), pulses up to 1 000 FE.
+- **Burn times.** 1.6.4 `TileEntityFurnace.getItemBurnTime` is now the item's `minecraft:cooking_fuel` component,
+  resolved as the vanilla furnace does (`ResolvableInt.getFromItem` with a `CONTAINER_PROCESS` loot context built like
+  `BaseContainerBlockEntity.getLootContext`), so data packs that change furnace fuel change the engine too. The vanilla
+  values match 1.6.4 for coal (1 600), blaze rods (2 400), sticks (100), coal blocks (16 000) and lava buckets
+  (20 000). `Utils.consumeItem` leaves the crafting remainder, so a lava bucket leaves an empty bucket, as 4.2.2.
+- **GUI data.** `TileEngine.guiData` now has `getGUINetworkDataCount()` slots (default 4); the Stirling engine adds
+  `burnTime` and `totalBurnTime` as ids 4 and 5 (4.2.2 15 and 16), read back as unsigned 16-bit values (burn times
+  up to 65 535 ticks, 4.2.2 sent shorts too).
+- **Menu.** `ContainerEngine(MenuType, containerId, Inventory, TileEngineWithInventory)` keeps 4.2.2's slots (fuel at
+  80, 41 for the Stirling engine, 52, 41 otherwise; inventory from 8, 84; hotbar at 142), adds `tile.guiData` and a
+  `StatusWidget`. One `MenuType` per engine, registered in `EnergyRegistry` (`engineStoneMenu`, id `engine_stone`) with
+  a client constructor that reads the block position (`ContainerEngine.clientTile`). `TileEngineStone` is the
+  `MenuProvider` and opens it from `onBlockActivated` with `player.openMenu(this, worldPosition)`. The screen is paired
+  in `energy/gui/EnergyScreens`.
+- **Screens.** `GuiEngine` (abstract, `GuiBuildCraft<ContainerEngine>`) keeps 4.2.2's `EngineLedger` (orange, 94 high)
+  with FE/t, FE and °C instead of MJ/t and MJ, its icon the `icons/energy` GUI sprite; the status ledger is added after
+  it. `GuiStoneEngine` draws `textures/gui/steam_engine_gui.png` (copied unchanged) and the 4.2.2 flame.
+- **Status panel.** The Stirling engine reports `OUT_OF_FUEL` when it is powered with nothing burning and nothing
+  burnable in its slot. The redstone engine opens the status panel on use (#36's default).
+- **Not here.** The inventory triggers 4.2.2's `TileEngineStone.getTriggers` added (`SEAM(#41)`), the overheat timer
+  (#40) and comparator output.
+- **Tests.** GameTests `engine_wood_redstone_output` (nothing without a signal; with one, 10 FE per 16 ticks all in the
+  receptor or the engine, 10 FE pulses, about 0.625 FE/t from a warm engine; pipe overrides), `engine_stone_burns_fuel`
+  (coal taken only when powered, 1 600 ticks, 10 FE per tick burnt below the target, lava bucket, other fuels,
+  OUT_OF_FUEL, save tags, GUI values), `engine_stone_output_control` (PID limits), `engine_stone_menu` (slots,
+  shift-click, status widget, GUI texture, both recipes) and `engine_delivery_through_kinesis_pipe` (both engines
+  through three wood power pipes into a `PowerHandler` machine, pipes empty every tick). Not checked without a client:
+  the GUI drawing, flame and ledgers, the engines in the world and in the hand.
+
+### For the combustion engine (#44)
+
+- One line in `EnergyRegistry` below `engineStone`
+  (`engine("engineIron", "engine_iron", TileEngineIron::new)`) and a menu beside `engineStoneMenu`:
+  `REGISTERS.menus.register("engine_iron", () -> IMenuTypeExtension.create((id, inv, buf) -> new ContainerEngine(
+  EnergyRegistry.engineIronMenu.get(), id, inv, ContainerEngine.clientTile(inv, buf.readBlockPos(), EnergyRegistry.engineIron))))`.
+  Pair it with `GuiCombustionEngine::new` in `EnergyScreens`.
+- `ContainerEngine` already puts slot 0 at 52, 41 for any engine that is not a `TileEngineStone`. `GuiCombustionEngine`
+  extends `GuiEngine` (ledgers come with it); the fluid gauges and tanks are #24's.
+- Extra GUI values go after id 3: override `getGUINetworkDataCount()` and extend `sendGUINetworkData(int)` /
+  `getGUINetworkData(int, int)` as `TileEngineStone` does (4.2.2's iron ids 15 to 19 become 4 onwards).
+- Implement `MenuProvider` and override `onBlockActivated` like `TileEngineStone`, and `getStatusState` for
+  `OUT_OF_FUEL`.
+- Copy `combustion_engine_gui.png` from `reference/buildcraft_resources/assets/buildcraft/textures/gui`. Add the two
+  #39 files, loot table, pickaxe tag and recipe (`Item.ingotIron` exact, `ironGearItem`, glass, piston).
+
+## Mining well (#66)
+
+Ported: `factory/BlockMiningWell`, `TileMiningWell`, `BlockPlainPipe`, and `Utils.addToRandomPipeAround`. Changed
+(additive): `FactoryRegistry`, `BlockPipeItems.isEndpoint`, `BlockUtil.canChangeBlock`.
+
+- **Power.** `configure(100m, 100m, 64m, 1000m)` MJ becomes `configure(1000m, 1000m, 640m, 10000m)` FE, with
+  `m = mining.cost.multipler`; perdition 1 MJ/t → `configurePowerPerdition(10, 1)`. 64 MJ per block is
+  `TileMiningWell.MINING_ENERGY_COST_PER_BLOCK` = 640 FE. The multiplier and `mining.depth` are read through helpers that
+  fall back to the defaults before the common config is loaded. As in 4.2.2 the stored energy is not saved.
+- **Digging as the owner.** `doWork` follows 4.2.2: use 640 FE, skip the pipes below, stop (`isDigging = false`) below
+  `mining.depth`, at the world bottom (`getMinY() + 1` for 1.6.4's `depth < 1`) or where `canChangeBlock` refuses
+  (unbreakable blocks, lava and, now that #42 is in, oil). Then, new: `BuildCraftPlayer.canBreak` with the owner's fake
+  player. A refusal sets `isBlocked`, leaves the block and returns; the next cycle asks again, so the well carries on
+  when the claim lifts (docs/BUGFIXES.md, BuildCraft#2162). Otherwise the drops come from `getItemStackFromBlock(...,
+  owner)` and the block becomes a Mining Pipe through `setBlockAndUpdate`, as 4.2.2's `setBlock` did.
+- **Blocked state (seam for #63).** `isBlocked()` overrides `IMachine.isBlocked`, so the Machine trigger and the default
+  State line see it; the State line is BLOCKED, the Reason line `PROTECTED_BLOCK`, and the block has
+  `StatusPanel.BLOCKED` with the multipart red light. #63 was not merged when this was written; if it adds a shared
+  blocked-output API, the well's flag is the one place to hook it. Output itself is never blocked: as in 4.2.2, what
+  neither an inventory nor a pipe takes is thrown out above the well.
+- **Output.** Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
+  (4.2.2 `ForgeDirection.UNKNOWN`), then thrown up with the configured `itemLifespan`. `addToRandomPipeAround` hands the
+  stack to `IPipeTile.injectItem`, which routes it at once (#50). For the pipe to connect at all, item pipes now also
+  connect to an `IMachine` whose `manageSolids()` is true, 4.2.2's rule in `PipeTransportItems.canPipeConnect`; the
+  network sees such a block as an endpoint without a handler, so nothing is routed into it.
+- **Removal.** 4.2.2 removed the pipe column in both `BlockMiningWell.breakBlock` and `TileMiningWell.invalidate`. They
+  are `affectNeighborsAfterRemoval` and `preRemoveSideEffects` here; both run on removal and the second finds nothing
+  left. A state change (facing, the red light) runs neither.
+- **Block.** Material.ground → dirt map colour, no tool needed; hardness 5, `setResistance(10F)` → explosion resistance
+  6; stone sound. No GUI: using the block opens the status panel. The model is a cube with `miningwell_front` on the
+  facing side, `miningwell_back` opposite and below, `miningwell_top` above (4.2.2 `getIcon`); 4.2.2 had no
+  `rotateBlock`, so the wrench does not turn it. The Mining Pipe is `instabreak`, glass sound, no loot table, shape
+  0.25-0.75 across and full height; its texture is `block/plain_pipe` (4.2.2 `blockPlainPipe`).
+- **Not done.** `mining.enabled` (4.2.2 `allowMining`) does not remove the recipe yet: there is no config recipe
+  condition in the mod. The quarry (#67) needs the same condition. `BlockPlainPipe` does not implement
+  `IFramePipeConnection` until #67 ports it.
+- **Tests.** GameTests `mining_well_digs` (no work without power; stone, dirt, gravel down to a bedrock floor, the
+  drops thrown out, done at bedrock; a second well stops at lava; removing the well removes its pipes; the owner is
+  recorded), `mining_well_output` (drops into a chest beside the well, and through an item pipe beside it into a chest;
+  nothing thrown out) and `mining_well_protected` (a stand-in claim refuses the owner at the third block: two pipes,
+  the block stays, blocked State, Reason and red light, the claim saw the owner's UUID; when it lifts the well digs on
+  to bedrock). The block and pipe models, the red light on the well and the status panel screen need a client and
+  were not checked.
 
 ## Pump and flood gate (#65)
 

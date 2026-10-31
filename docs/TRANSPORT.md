@@ -402,6 +402,11 @@ Every transfer returns `TransferResult(moved, reason)` with `reason` one of `MOV
   `dropItem`); that is the deliberate change.
 - Nothing is ever spawned in the world. Only the Void module destroys, on purpose.
 
+As built (#63, 2026-10-31): machines use `core/status/MachineOutput`. "No destination" means nothing connected takes
+items at all; a pipe line whose only destinations are full (the walk backs out of them, so the walk itself returns
+`NO_DESTINATION`) reports "Output blocked", as the #63 test in section 14 expects. See `docs/PORTING-NOTES.md`,
+"Blocked output (#63)".
+
 ### 6.4 Executing a transfer
 
 Items: (1) simulate extract `n` from the source slot; (2) real extract; (3) real insert into the destination; (4) if
@@ -468,6 +473,10 @@ A fluid pipe stores no fluid, so the 4.2.2 rule becomes a lock:
 
 So two fluids can share a network as long as their paths do not overlap within the lock window, which matches 4.2.2
 where each pipe could hold a different fluid. The GameTest "mixing refusal" (section 14, #51) relies on this.
+
+As built (#51, 2026-10-31): the lock and the flow record's content are one per-pipe state, `FluidPipeState`; every
+transfer renews it, a pipe on a branch the walk backed out of is not locked, and a simulated transfer locks nothing.
+See `docs/PORTING-NOTES.md`, "Fluid routing (#51)".
 
 ### 7.4 Power: the 4.2.2 request/send phases
 
