@@ -44,7 +44,7 @@ public final class PipeEnergyHandler implements EnergyHandler {
     public int insert(int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonNegative(amount);
         if (amount == 0 || !(pipe.getLevel() instanceof ServerLevel level) || pipe.isRemoved()
-                || pipe.kind != PipeType.POWER || PipeConnections.hasSide(pipe.getPluggedMask(), side))
+                || pipe.kind != PipeType.POWER || PipeConnections.hasSide(pipe.getBlockedMask(), side))
             return 0;
         BlockPos neighbour = pipe.getBlockPos().relative(side);
         if (!level.isLoaded(neighbour)

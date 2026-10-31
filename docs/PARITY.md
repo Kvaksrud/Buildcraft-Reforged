@@ -197,8 +197,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `autarchic_gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
 | Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `autarchic_gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
 | Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). |
-| Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61 | [ ] | [ ] | [ ] |  |
+| Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61 | [x] | [ ] | [ ] | Captured `BlockState` in the `buildcraftreforged:facade` data component (section 6). Assembly recipe waits for #54/#74. GameTests `facade_*`. |
+| Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61 | [x] | [ ] | [ ] | Assembly recipe waits for #54/#74. GameTests `plug_blocks_connection`, `facade_plug_save_sync_and_drops`. |
 | Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [ ] | [ ] | [ ] |  |
 
 ### Pipes (transport, `BuildCraftTransport.buildPipe`, superseded by section 8)

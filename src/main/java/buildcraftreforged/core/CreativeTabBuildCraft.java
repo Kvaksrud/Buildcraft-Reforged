@@ -1,19 +1,21 @@
 /*
  * Ported from BuildCraft 4.2.2, buildcraft/core/CreativeTabBuildCraft.java (no header in the original).
  * Modified by Buildcraft Reforged, 2026: creative tabs are registry entries built with CreativeModeTab.Builder;
- * items join a tab through add() instead of Item.setCreativeTab.
+ * items join a tab through add() instead of Item.setCreativeTab, and lists of stacks (the facades) through addStacks().
  */
 package buildcraftreforged.core;
 
+import buildcraftreforged.transport.ItemFacade;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -22,6 +24,7 @@ public enum CreativeTabBuildCraft {
     MACHINES,
     FACADES;
     private final List<Supplier<? extends ItemLike>> items = new ArrayList<>();
+    private final List<Supplier<? extends Collection<ItemStack>>> stacks = new ArrayList<>();
     private DeferredHolder<CreativeModeTab, CreativeModeTab> tab;
 
     /**
@@ -34,7 +37,10 @@ public enum CreativeTabBuildCraft {
             CreativeModeTab.Builder builder = CreativeModeTab.builder()
                     .title(value.translate())
                     .icon(value::getItem)
-                    .displayItems((parameters, output) -> value.items.forEach(item -> output.accept(item.get())));
+                    .displayItems((parameters, output) -> {
+                        value.items.forEach(item -> output.accept(item.get()));
+                        value.stacks.forEach(list -> output.acceptAll(list.get()));
+                    });
             if (previous != null) {
                 builder.withTabsBefore(previous.tab.getId());
             }
@@ -52,6 +58,11 @@ public enum CreativeTabBuildCraft {
         items.add(item);
     }
 
+    /** Puts stacks in this tab after the items, such as one facade per block (4.2.2 ItemFacade.getSubItems). */
+    public void addStacks(Supplier<? extends Collection<ItemStack>> list) {
+        stacks.add(list);
+    }
+
     private String getLabel() {
         return name().toLowerCase(Locale.ENGLISH);
     }
@@ -63,8 +74,7 @@ public enum CreativeTabBuildCraft {
     private ItemStack getItem() {
         switch (this) {
         case FACADES:
-            // TODO: ItemFacade.getStack(stone bricks, 0) once facades are ported
-            return new ItemStack(Items.STONE_BRICKS);
+            return ItemFacade.getStack(Blocks.STONE_BRICKS.defaultBlockState());
         default:
             return new ItemStack(CoreRegistry.diamondGearItem.get());
         }
