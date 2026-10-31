@@ -391,9 +391,10 @@ final class EngineTests {
             return 10;
         }
 
+        /** 0: the overheat still removes the engine, but the blast cannot reach the tests next to this one. */
         @Override
         public float explosionRange() {
-            return 1;
+            return 0;
         }
 
         @Override

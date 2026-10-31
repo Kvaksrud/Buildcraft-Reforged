@@ -1248,7 +1248,8 @@ Not ported: `TileEngineLegacy` (converts pre-4.0 saves, which cannot reach 26.x)
   `IPowerReceptor`, FE refused on the output side and 95 % kept from the back, status lines),
   `engine_pushes_into_fe_and_engines` (a 25 FE Forge Energy block filled by 10 + 10 + 5, a chain at 9.5 FE per
   pulse, engines facing each other idle) and `engine_orientation` (placement, wrench, solid back, pipe overrides,
-  explosion when full). They use the test-only `gametest_engine` (10 FE pulses, 1 000 FE, 500 FE intake) and two
+  explosion when full). They use the test-only `gametest_engine` (10 FE pulses, 1 000 FE, 500 FE intake, explosion
+  range 0 so the blast cannot reach neighbouring tests) and two
   receivers in `EngineTests`. Rendering, particles and the right-click in a client are not tested.
 
 ## Owner tracking and the owner-profile fake player (#27)
