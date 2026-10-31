@@ -18,9 +18,7 @@ public enum StatusReason {
     /** A builder or table is waiting for materials. */
     MISSING_MATERIALS,
     /** A running engine faces nothing that takes power. */
-    NO_POWER_TARGET,
-    /** The machine an engine faces wants bigger pulses than the engine can send (a redstone engine on a quarry). */
-    PULSE_TOO_SMALL;
+    NO_POWER_TARGET;
 
     public String getTranslationKey() {
         return "gui.status.reason." + name().toLowerCase(java.util.Locale.ROOT);
