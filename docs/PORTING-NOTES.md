@@ -2065,3 +2065,47 @@ from the #39 texture table, loot tables, `minecraft:mineable/pickaxe` and the 4.
   `OUT_OF_FUEL`.
 - Copy `combustion_engine_gui.png` from `reference/buildcraft_resources/assets/buildcraft/textures/gui`. Add the two
   #39 files, loot table, pickaxe tag and recipe (`Item.ingotIron` exact, `ironGearItem`, glass, piston).
+
+## Mining well (#66)
+
+Ported: `factory/BlockMiningWell`, `TileMiningWell`, `BlockPlainPipe`, and `Utils.addToRandomPipeAround`. Changed
+(additive): `FactoryRegistry`, `BlockPipeItems.isEndpoint`, `BlockUtil.canChangeBlock`.
+
+- **Power.** `configure(100m, 100m, 64m, 1000m)` MJ becomes `configure(1000m, 1000m, 640m, 10000m)` FE, with
+  `m = mining.cost.multipler`; perdition 1 MJ/t → `configurePowerPerdition(10, 1)`. 64 MJ per block is
+  `TileMiningWell.MINING_ENERGY_COST_PER_BLOCK` = 640 FE. The multiplier and `mining.depth` are read through helpers that
+  fall back to the defaults before the common config is loaded. As in 4.2.2 the stored energy is not saved.
+- **Digging as the owner.** `doWork` follows 4.2.2: use 640 FE, skip the pipes below, stop (`isDigging = false`) below
+  `mining.depth`, at the world bottom (`getMinY() + 1` for 1.6.4's `depth < 1`) or where `canChangeBlock` refuses
+  (unbreakable blocks, lava and, now that #42 is in, oil). Then, new: `BuildCraftPlayer.canBreak` with the owner's fake
+  player. A refusal sets `isBlocked`, leaves the block and returns; the next cycle asks again, so the well carries on
+  when the claim lifts (docs/BUGFIXES.md, BuildCraft#2162). Otherwise the drops come from `getItemStackFromBlock(...,
+  owner)` and the block becomes a Mining Pipe through `setBlockAndUpdate`, as 4.2.2's `setBlock` did.
+- **Blocked state (seam for #63).** `isBlocked()` overrides `IMachine.isBlocked`, so the Machine trigger and the default
+  State line see it; the State line is BLOCKED, the Reason line `PROTECTED_BLOCK`, and the block has
+  `StatusPanel.BLOCKED` with the multipart red light. #63 was not merged when this was written; if it adds a shared
+  blocked-output API, the well's flag is the one place to hook it. Output itself is never blocked: as in 4.2.2, what
+  neither an inventory nor a pipe takes is thrown out above the well.
+- **Output.** Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
+  (4.2.2 `ForgeDirection.UNKNOWN`), then thrown up with the configured `itemLifespan`. `addToRandomPipeAround` hands the
+  stack to `IPipeTile.injectItem`, which routes it at once (#50). For the pipe to connect at all, item pipes now also
+  connect to an `IMachine` whose `manageSolids()` is true, 4.2.2's rule in `PipeTransportItems.canPipeConnect`; the
+  network sees such a block as an endpoint without a handler, so nothing is routed into it.
+- **Removal.** 4.2.2 removed the pipe column in both `BlockMiningWell.breakBlock` and `TileMiningWell.invalidate`. They
+  are `affectNeighborsAfterRemoval` and `preRemoveSideEffects` here; both run on removal and the second finds nothing
+  left. A state change (facing, the red light) runs neither.
+- **Block.** Material.ground → dirt map colour, no tool needed; hardness 5, `setResistance(10F)` → explosion resistance
+  6; stone sound. No GUI: using the block opens the status panel. The model is a cube with `miningwell_front` on the
+  facing side, `miningwell_back` opposite and below, `miningwell_top` above (4.2.2 `getIcon`); 4.2.2 had no
+  `rotateBlock`, so the wrench does not turn it. The Mining Pipe is `instabreak`, glass sound, no loot table, shape
+  0.25-0.75 across and full height; its texture is `block/plain_pipe` (4.2.2 `blockPlainPipe`).
+- **Not done.** `mining.enabled` (4.2.2 `allowMining`) does not remove the recipe yet: there is no config recipe
+  condition in the mod. The quarry (#67) needs the same condition. `BlockPlainPipe` does not implement
+  `IFramePipeConnection` until #67 ports it.
+- **Tests.** GameTests `mining_well_digs` (no work without power; stone, dirt, gravel down to a bedrock floor, the
+  drops thrown out, done at bedrock; a second well stops at lava; removing the well removes its pipes; the owner is
+  recorded), `mining_well_output` (drops into a chest beside the well, and through an item pipe beside it into a chest;
+  nothing thrown out) and `mining_well_protected` (a stand-in claim refuses the owner at the third block: two pipes,
+  the block stays, blocked State, Reason and red light, the claim saw the owner's UUID; when it lifts the well digs on
+  to bedrock). The block and pipe models, the red light on the well and the status panel screen need a client and
+  were not checked.

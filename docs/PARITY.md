@@ -130,8 +130,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Mining Well (`miningWellBlock`) | `BlockMiningWell, TileMiningWell` | `mining_well_block` | #66 | [ ] | [ ] | [ ] |  |
-| Mining Pipe (`plainPipeBlock`) | `BlockPlainPipe` | `plain_pipe_block` | #66 | [ ] | [ ] | [ ] |  |
+| Mining Well (`miningWellBlock`) | `BlockMiningWell, TileMiningWell` | `mining_well_block` | #66 | [x] | [ ] | [ ] | Digs as the owner; a refused break blocks it (status panel, red light). GameTests `mining_well_digs`, `mining_well_output`, `mining_well_protected`; model not checked in game. |
+| Mining Pipe (`plainPipeBlock`) | `BlockPlainPipe` | `plain_pipe_block` | #66 | [x] | [ ] | [ ] | `IFramePipeConnection` waits for #67. Model not checked in game. |
 | Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [ ] | [ ] | [ ] |  |
 | Frame (`frameBlock`) | `BlockFrame` | `frame_block` | #67 | [ ] | [ ] | [ ] | Waterloggable; removed with its quarry (section 19.3). |
 | Quarry (`machineBlock`) | `BlockQuarry, TileQuarry` | `machine_block` | #67 | [ ] | [ ] | [ ] | Rule gives `machine_block`; section 6's example says `quarry`. #67 picks one and updates this row. |

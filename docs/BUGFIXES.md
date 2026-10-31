@@ -180,6 +180,42 @@ section 7 decision recorded in `docs/PORTING-NOTES.md`.
 | Decision | Pending: reproduce in 1.6.4 during #67 (quarry) and #66 (mining well). With the fake player of section 6, breaking goes through `BlockEvent.BreakEvent` and the block's normal removal, which may settle it on its own; the inventory contents must end up in the quarry output either way. |
 | Applied in | — |
 
+The mining well (#66, read on 31 Oct 2026, not reproduced in 1.6.4) keeps 4.2.2's behaviour: 1.6.4's `setBlock` ran the
+chest's `breakBlock`, which spilled the contents at the dug position, and 26.x's `setBlock` runs the chest's
+`preRemoveSideEffects`, which does the same. The contents land in the hole and do not go to the well's output. The
+decision for the quarry stays with #67.
+
+#### Mining well does not record its owner (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`78091876ade1bb55b721e081bf2d05f2c6d676f0`](https://github.com/BuildCraft/BuildCraft/commit/78091876ade1bb55b721e081bf2d05f2c6d676f0) ("fix mining well not calling super when placed down", 16 Sep 2014, 6.1 line) |
+| Upstream issue | none |
+| Class | `factory/BlockMiningWell` (`onBlockPlacedBy`) |
+| Symptom | `onBlockPlacedBy` sets the orientation without calling `BlockBuildCraft.onBlockPlacedBy`, so the tile's `owner` is never set. Here the owner is the profile the well digs as (#27), so the well would always act as the ownerless `[BuildCraft]` player. |
+| Decision | Accepted: `setPlacedBy` calls super first. GameTest `mining_well_digs` checks the profile. |
+| Applied in | #66 |
+
+#### BuildCraft#2162: mining well breaks blocks without a break event
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`a3064c12cd559c2a677ae72b19cf254d51f35473`](https://github.com/BuildCraft/BuildCraft/commit/a3064c12cd559c2a677ae72b19cf254d51f35473) ("quarries and mining wells emit blockbreakevents now (for #2162)", 7 Nov 2014, 6.2 line) |
+| Upstream issue | [BuildCraft#2162](https://github.com/BuildCraft/BuildCraft/issues/2162) |
+| Class | `factory/TileMiningWell` (`doWork`) |
+| Symptom | The well replaced blocks with pipe without asking protection mods. |
+| Decision | Accepted through the plan's fake-player decision (section 6, #27): `doWork` asks `BuildCraftPlayer.canBreak` with the owner's player. Upstream then set `isDigging = false` for good; here a refusal sets a separate blocked flag (status panel, Machine trigger) and the well tries again on its next work cycle, so it carries on when the claim lifts. The energy for that cycle is used, as upstream and 4.2.2 used it before every check. |
+| Applied in | #66 |
+
+#### BuildCraft#2140 and BuildCraft#2998: mining well pipe connections and the 6.x miner (not applicable)
+
+`4ea4bb9eae061db2a7e2c5c410807e7c69479375` (BuildCraft#2140, 2 Nov 2014) changes the 6.x `overridePipeConnection` of
+the mining well from DISCONNECT to DEFAULT for non-item pipes, and `15c008b1d4e4933b043e0ca90c063e57a9b79750`
+(BuildCraft#2998, 30 Sep 2015) fixes the 6.x `BlockMiner` state machine. Neither code path exists in 4.2.2: there the
+item pipe connects through `IMachine.manageSolids` (ported in `BlockPipeItems.isEndpoint`) and digging is one call.
+The rest of `git log 4.2.2..origin/7.1.x` over the three classes is the 6.x/7.x rewrite (RF battery, dynamic break
+energy, the 6.2 "unnerf", tiles API), the 1.7 port, achievements and style: no other fix.
+
 ### silicon
 
 Triage for #72 (`silicon/TileAssemblyTable`, `BlockLaserTable`, `gui/GuiAssemblyTable`, `gui/ContainerAssemblyTable`,

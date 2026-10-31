@@ -14,6 +14,8 @@ package buildcraftreforged.core.utils;
 import buildcraftreforged.api.core.IAreaProvider;
 import buildcraftreforged.api.core.LaserKind;
 import buildcraftreforged.api.core.Position;
+import buildcraftreforged.api.transport.IPipeTile;
+import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.core.EntityBlock;
 import buildcraftreforged.core.inventory.ITransactor;
 import buildcraftreforged.core.inventory.Transactor;
@@ -43,7 +45,8 @@ import org.jspecify.annotations.Nullable;
 /*
  * Not ported yet, waiting for the classes they call:
  * - addToRandomInventoryAround: ported (#72); its TileEngine exclusion waits for #36.
- * - addToRandomPipeAround, checkPipesConnections: IPipeTile (#34, #48).
+ * - addToRandomPipeAround: ported (#66).
+ * - checkPipesConnections: IPipeTile (#34, #48).
  * - checkLegacyPipesConnections: IFramePipeConnection (#67).
  * - preDestroyBlock: TileBuildCraft (#21), IDropControlInventory and InvUtils (#23).
  * Dropped: getItemData, the stack's NBT compound; item data lives in data components (docs/PLAN.md section 6).
@@ -83,6 +86,56 @@ public class Utils {
         }
         return 0;
 
+    }
+
+    /**
+     * Look around the tile given in parameter in all 6 position, tries to add
+     * the items to a random pipe entry around. Will make sure that the location
+     * from which the items are coming from (identified by the from parameter)
+     * isn't used again so that entities doesn't go backwards. Returns true if
+     * successful, false otherwise.
+     *
+     * <p>Ported in #66: 4.2.2's ForgeDirection.UNKNOWN is a null from. The pipe routes the stack at once
+     * (docs/TRANSPORT.md 6.2); the return value is the number of items it took.
+     */
+    public static int addToRandomPipeAround(Level world, int x, int y, int z, @Nullable Direction from, ItemStack stack) {
+        List<IPipeTile> possiblePipes = new ArrayList<IPipeTile>();
+        List<Direction> pipeDirections = new ArrayList<Direction>();
+
+        for (Direction side : Direction.values()) {
+            if (from != null && from.getOpposite() == side)
+                continue;
+
+            Position pos = new Position(x, y, z, side);
+
+            pos.moveForwards(1.0);
+
+            BlockPos blockPos = new BlockPos((int) pos.x, (int) pos.y, (int) pos.z);
+            // 1.6.4's getBlockTileEntity did not load chunks; 26.x's getBlockEntity would.
+            if (!world.isLoaded(blockPos))
+                continue;
+            BlockEntity tile = world.getBlockEntity(blockPos);
+
+            if (tile instanceof IPipeTile) {
+                IPipeTile pipe = (IPipeTile) tile;
+                if (pipe.getPipeType() != PipeType.ITEM)
+                    continue;
+                if (!pipe.isPipeConnected(side.getOpposite()))
+                    continue;
+
+                possiblePipes.add(pipe);
+                pipeDirections.add(side.getOpposite());
+            }
+        }
+
+        if (possiblePipes.size() > 0) {
+            int choice = RANDOM.nextInt(possiblePipes.size());
+
+            IPipeTile pipeEntry = possiblePipes.get(choice);
+
+            return pipeEntry.injectItem(stack, true, pipeDirections.get(choice));
+        }
+        return 0;
     }
 
     public static Direction get2dOrientation(Position pos1, Position pos2) {
