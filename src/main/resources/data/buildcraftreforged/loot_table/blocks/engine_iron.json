@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "buildcraftreforged:engine_iron"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "buildcraftreforged:blocks/engine_iron"
+}

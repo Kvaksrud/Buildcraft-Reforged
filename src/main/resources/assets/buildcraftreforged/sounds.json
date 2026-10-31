@@ -1,0 +1,10 @@
+{
+  "engine_whine": {
+    "subtitle": "subtitles.buildcraftreforged.engine_whine",
+    "sounds": [
+      {
+        "name": "minecraft:block/beacon/ambient"
+      }
+    ]
+  }
+}
