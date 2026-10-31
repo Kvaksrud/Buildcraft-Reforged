@@ -2850,6 +2850,123 @@ Loading and saving need a `HolderLookup.Provider` (the level's or server's `regi
   chest data intact; the server library path lies under the world folder; the read copy, turned once, placed beside the
   original gives east-facing stairs and chest, the chest holding the diamonds.
 
+## Schematic handlers (#76)
+
+Ported the 18 `api/bptblocks` schematics, `api/blueprints/BptBlockUtils`, `energy/BptBlockEngine`,
+`factory/BptBlockTank`, `BptBlockRefinery`, `BptBlockFrame` and `transport/blueprints/BptBlockPipe`. New:
+`core/blueprints/BptBlockMachine`, `builders/BuildersSchematics` (the registrations). Changed: `BlueprintManager`
+(families), `BptBlock.buildBlock` (saves and syncs the loaded block entity), `BptBlueprint.readFromWorld` (drops the
+owner). Not ported: `factory/BptBlockAutoWorkbench` (no auto workbench yet, #69: register `BptBlockInventory`, which
+does what it did) and the `transport/blueprints/BptItemPipe*` classes and `core/blueprints/BptItem` (folded into
+`BptBlockPipe`, below). Decided 2026-11-01.
+
+### The schematic API, for #78 and other mods
+
+- **Lookup.** `BlueprintManager.getBptBlock(block)` returns the block's schematic; `BptSlot` already sends every call
+  there. Order: a schematic constructed for that block (`new BptBlockX(block)`, 4.2.2's way, the last one wins), else
+  the latest registered family that accepts the block, else a plain `BptBlock`. The result is kept in
+  `blockBptProps`.
+- **Registering.** `BlueprintManager.registerFamily(Predicate<Block>, Function<Block, BptBlock>)` serves every block
+  the predicate accepts, such as `DoorBlock.class::isInstance`; `registerSchematic(Supplier<Block>, factory)` serves
+  one block known through a `DeferredBlock`. Families are asked lazily, so they can be registered during mod
+  construction. Another mod overrides ours for one block by constructing a schematic for it (any time before use, in
+  common setup for example), or for a whole class with a later family.
+- **The calls, as 4.2.2.** On a `BptSlotInfo` whose `x, y, z` are the world position (the builder sets them):
+  `addRequirements` (items to take before building), `useItem` (take from one stack; the caller turns an emptied
+  bucket into its crafting remainder), `isValid` (the world already holds this), `ignoreBuilding` (never place, never
+  ask items: the upper door half, the bed head, flowing fluid, snow), `buildBlock`, and `postProcessing` once every
+  block is placed. Capture calls `initializeFromWorld(slot, context, x, y, z)` with the world position while the
+  slot's own `x, y, z` are still relative to the box: a schematic reads the world at `(x, y, z)`, not `slot.pos()`.
+  Turning and mirroring (`rotateLeft`, `mirror`) may run without a world (`context.world()` null).
+- **Defaults.** The base `BptBlock` turns and mirrors the block state, keeps the block entity's full save in `cpt`,
+  asks for the block's drops at capture (4.2.2's `getBlockDropped`) or its item when there were none, and `isValid`
+  wants the exact state. `buildBlock` places the state, loads `cpt` into the new block entity, then (new) marks it
+  changed and sends it to clients.
+- **For #78.** Build in layers from the bottom, skipping `ignoreBuilding` slots: a door is placed from its lower half
+  and a bed from its foot, each placing its other half. Call `postProcessing` on every built slot at the end; the pipe
+  schematic needs it. Take `addRequirements` from the builder's inventory before `buildBlock`; for chests and other
+  inventories that includes their contents (below). A built BuildCraft machine has no owner yet: set the builder's
+  owner on it (`TileBuildCraft` placed-by data) after `buildBlock`.
+
+### What each block does
+
+Every 4.2.2 metadata table turned clockwise seen from above, which is `BlockState.rotate(CLOCKWISE_90)`, so the
+subclasses keep only their requirement, validity and build rules. `BptBlockRotateMeta` no longer takes the rotation
+table. Registrations (`BuildersSchematics`) go by block class where 4.2.2's one id became a family:
+
+| Schematic | Blocks | Rule |
+|---|---|---|
+| `BptBlockDoor` | every `DoorBlock` | Lower half costs the door, upper half is ignored; building the lower half places the upper half with the same hinge and open state. |
+| `BptBlockBed` | every `AbstractBedBlock` | Foot costs the bed; head ignored; building the foot places the head towards its facing. |
+| `BptBlockStairs`, `BptBlockPumpkin`, `BptBlockIgnoreMeta`, `BptBlockRotateMeta` | every `StairBlock`; `CarvedPumpkinBlock` (jack o'lantern, carved pumpkin); rails, glass pane; ladder, vine, every `FenceGateBlock` and `TrapDoorBlock`, the laser | One of the block's item; any state of the same block counts as built (the shape follows neighbours). |
+| `BptBlockWallSide`, `BptBlockLever` | every `BaseTorchBlock` (wall torches cost a torch), markers, path markers; every `ButtonBlock` and `LeverBlock` | One of the item; face, facing and powered are separate properties, rotation turns the facing only. |
+| `BptBlockRedstoneRepeater` | `RepeaterBlock` | One repeater; the delay stays. |
+| `BptBlockSign` | every `SignBlock` (standing, wall, hanging) | One sign of that wood; the text is block entity data; wall signs now turn (docs/BUGFIXES.md). |
+| `BptBlockPiston` | `PistonBaseBlock` | Never built extended. Piston heads and moving pistons are `BptBlockIgnore`. |
+| `BptBlockFluid` | every `LiquidBlock` (water, lava, oil, fuel) | Sources only, each from the fluid's bucket; flowing fluid ignored and never turned. |
+| `BptBlockDirt` | dirt, grass, farmland, dirt path | Built as dirt from dirt; any of the four counts as built. |
+| `BptBlockIgnore` | snow layer, short grass, fern, dead bush, ice, piston head, moving piston | Never built, never cleared, no cost. |
+| `BptBlockCustomStack` | stone, redstone wire, cake, wheat, the four stems, glowstone | A fixed stack (stone, dust, cake, seeds, glowstone) instead of the drop. |
+| `BptBlockRotateInventory`, `BptBlockInventory` | every `ChestBlock`, `AbstractFurnaceBlock`, `DispenserBlock`; `BrewingStandBlock`, `HopperBlock`, `BarrelBlock`, the assembly table | The block plus its contents (below). |
+| `BptBlockDelegate` | none registered | Costs, checks and turns as another block; kept for other mods. |
+| `BptBlockEngine`, `BptBlockTank`, `BptBlockRefinery`, `BptBlockMachine` | engines; tank; refinery; quarry, mining well, pump, flood gate, filler | Built empty from the block's item: no energy, fluid, items or working box captured (docs/BUGFIXES.md, BuildCraft#1790/#1791). |
+| `BptBlockFrame` | quarry frame | Costs nothing. |
+| `BptBlockPipe` | every `BlockPipe` | Below. |
+| `BptBlock` | everything else, any mod | The defaults. |
+
+Dropped from 4.2.2's list: `lockedChest` (gone from the game) and the Delegate lines for the burning furnace, unlit
+redstone torch and moving piston (lit is a property; a moving piston is ignored as its head is). The architect table,
+builder and library register theirs with their blocks: #77 and #78 `BptBlockRotateInventory`, #80
+`BptBlockInventory`, as 4.2.2 did.
+
+### Inventories carry their contents
+
+4.2.2's `BptBlockInventory` and `BptBlockRotateInventory` built the block from its tile data and then emptied every
+slot. Plan section 13.4 decided they carry their contents as requirements instead, as 4.2.2's auto workbench did: at
+capture `BptBlockUtils.initializeInventoryContents` records the `Container`'s slots in `cpt` under `inv` (one compound
+per slot, the vanilla `ItemStack` codec, empty compound for an empty slot), `addRequirements` asks for the block and
+every recorded stack, and `buildBlock` puts them back slot for slot. The builder pays for each item, so nothing is
+duplicated. A container with no schematic of these (another mod's machine) still copies its contents for free, as 4.2.2
+did; that mod can register `BptBlockInventory`.
+
+### Pipes
+
+One block per kind and tier, so the block is 4.2.2's pipe id. `BptBlockPipe` keeps the pipe's whole block entity
+(module and settings, gate with triggers and actions, wires, facades, plugs; 4.2.2 kept wires and the gate kind only)
+and replaces the `BptItemPipe*` classes:
+
+- `rotateLeft` and `mirror` turn the block state and then `BptBlockPipe.turnSides(cpt, turn)`: the `plugs` and
+  `disconnected` side masks, `facade[i]`, the module's `facing` (Extractor, Director and their subclasses: 4.2.2's
+  wooden and iron pipe meta), the Sorter's filter rows (4.2.2's `BptItemPipeDiamond`) and gate actions that point a
+  Director at a side (`action_pipe_direction_*`).
+- `postProcessing` loads the module settings again, since neighbours placed after the pipe make an Extractor or
+  Director look for another side (4.2.2's `BptItemPipeWooden`/`Iron` reset their meta there).
+- Requirements are read from the pipe at capture into `storedRequirements`: the pipe item, the module item, gate item
+  (kind and autarchic; its settings come from the blueprint), wires, facades and plugs.
+- `isValid` wants the same pipe block.
+
+### Owner
+
+`BptBlueprint.readFromWorld` removes `owner` and `ownerId` from the data of any `TileBuildCraft`, so a built machine
+never acts as the player who placed the original (plan section 6: machines act as their owner's fake player).
+
+### Tests
+
+- Unit (`BptBlocksTest`): doors (four turns, both halves, hinge mirrored, one door from the lower half), stairs (half
+  kept), beds (one bed from the foot, head ignored), chests, levers (face and powered kept), repeaters (delay kept),
+  standing and wall signs, fluids (bucket for a source, flowing ignored), custom stacks and ignored blocks, the
+  delegate's property copy, the registry order (constructed beats family, family kept, default fallback), and the
+  pipe's side data turned and mirrored.
+- GameTest `schematics_capture_and_rebuild_turned` (`SchematicTests`): a 5 x 3 x 3 structure (stone floor, stairs, a
+  door, a chest with diamonds, redstone wire, a wood pipe with an Extractor facing the chest and a plug, a wall lever,
+  a repeater, a bed, a tank with water under a redstone engine, a laser placed by a player) captured; the requirements
+  are counted exactly; the tank's data and the laser's owner are not captured; the blueprint turned once is built
+  beside it layer by layer with post-processing, and every block faces its turned way, the door and bed are whole,
+  the chest holds the diamonds, the tank is empty, the laser has no owner, and the Extractor faces the chest's new
+  side two ticks later.
+- `blueprint_capture_and_reread` (#75) still passes: the chest is now `BptBlockRotateInventory`, which puts the
+  diamonds back from its `inv` record.
+
 ## Filler and patterns (#79)
 
 Ported `builders/BlockFiller`, `TileFiller`, `filler/FillerRegistry`, the seven `filler/pattern/Pattern*` classes and

@@ -15,6 +15,7 @@ package buildcraftreforged.core.blueprints;
 
 import buildcraftreforged.api.blueprints.IBptContext;
 import buildcraftreforged.core.IBptContributor;
+import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.utils.BCLog;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,6 +87,14 @@ public class BptBlueprint extends BptBase {
 
         try {
             slot.initializeFromWorld(context, x, y, z);
+
+            // New (#76): a BuildCraft machine belongs to whoever has the builder that builds it, not to the player who
+            // placed the original (plan section 6, fake player with the owner's profile).
+            if (world.getBlockEntity(pos) instanceof TileBuildCraft) {
+                slot.cpt.remove("owner");
+                slot.cpt.remove("ownerId");
+            }
+
             contents[slot.x][slot.y][slot.z] = slot;
         } catch (Throwable t) {
             // Defensive code against errors in implementers

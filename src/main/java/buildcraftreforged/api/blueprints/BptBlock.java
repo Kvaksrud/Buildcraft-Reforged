@@ -160,6 +160,9 @@ public class BptBlock {
 
             if (tile != null) {
                 tile.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, world.registryAccess(), slot.cpt));
+                // New (#76): 4.2.2 tiles synced themselves; a loaded block entity is saved and sent to clients here.
+                tile.setChanged();
+                world.sendBlockUpdated(pos, slot.state, slot.state, 3);
             }
         }
     }

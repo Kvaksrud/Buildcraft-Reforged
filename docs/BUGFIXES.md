@@ -137,7 +137,7 @@ PLAN.md section 3 accepted in advance are below.
 | Upstream issue | [BuildCraft#1771](https://github.com/BuildCraft/BuildCraft/issues/1771) |
 | Class | `energy/BptBlockEngine` (`rotateLeft`; `SchematicEngine` upstream) |
 | Symptom | Rotating a blueprint turned engines around the DOWN axis, the wrong way, so built engines faced the wrong side. |
-| Decision | Accepted (PLAN.md section 3): the orientation is `BlockEngine.FACING`, and `BlockEngine.rotate`/`mirror` turn it with the structure as vanilla blocks do, which is what the P6 schematic layer uses (`BlockState.rotate`). `BptBlockEngine` is not ported. |
+| Decision | Accepted (PLAN.md section 3): the orientation is `BlockEngine.FACING`, and `BlockEngine.rotate`/`mirror` turn it with the structure as vanilla blocks do, which is what the P6 schematic layer uses (`BlockState.rotate`). `BptBlockEngine` is ported in #76 without its `rotateLeft`: it captures nothing and builds the engine empty, as 4.2.2 did. |
 | Applied in | #36 |
 
 Triage for #37 and #38 (`energy/TileEngineWood`, `TileEngineStone`, `gui/ContainerEngine`, `gui/GuiEngine`,
@@ -427,3 +427,39 @@ have (not applicable). The two below were applied.
 | Symptom | `fill` and `flatten` pick the first soft spot and use the item on it. When that places nothing (an item that is not a block, or a soft block such as snow, which is broken and placed again), the spot stays soft and every later step picks it again: the filler spends power for ever and never finishes. 4.2.2 broke and placed without asking anyone, so a refusal could not happen there; with the owner's fake player (#27) a claim refusing one break or placement would stall the whole pattern the same way. |
 | Decision | Accepted (31 Oct 2026, #79): a spot the owner may not break, or where using the item left it soft, is skipped until the pattern starts over (new pattern, Loop, reload). A spot blocked by an entity standing in it is still retried, as 4.2.2 waited for the entity to move. Unbreakable blocks keep 4.2.2's rule (`canChangeBlock` false ends the step). GameTests `filler_protected_break`, `filler_protected_place`. |
 | Applied in | #79 |
+
+#### BuildCraft#1790, BuildCraft#1791: blueprints copy machine contents (residual liquid)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — (accepted in advance, PLAN.md section 3; upstream fixed it in the 6.x schematics, `SchematicPump` and `SchematicRefinery`) |
+| Upstream issue | [BuildCraft#1790](https://github.com/BuildCraft/BuildCraft/issues/1790), [BuildCraft#1791](https://github.com/BuildCraft/BuildCraft/issues/1791) |
+| Class | `api/blueprints/BptBlock` (`initializeFromWorld`, `buildBlock`) for machines without a schematic; `factory/BptBlockTank`, `BptBlockRefinery`, `energy/BptBlockEngine` |
+| Symptom | A block with no schematic of its own had its whole tile written into the blueprint and loaded back when built. For BuildCraft machines that copied the pump's and flood gate's fluid, the filler's building blocks (built for free) and the quarry's and filler's working box, which is in world coordinates, so a built quarry kept digging the original's hole. 4.2.2's own schematics for the tank, refinery and engines already captured nothing. |
+| Decision | Accepted (1 Nov 2026, #76): the quarry, mining well, pump, flood gate and filler get `core/blueprints/BptBlockMachine`, which captures nothing and builds the block as a new one from its item, as `BptBlockTank` does. The tank, refinery and engines keep 4.2.2's schematics, which already behave so. The laser and assembly table keep 4.2.2's (`BptBlockRotateMeta`, `BptBlockInventory`); see PORTING-NOTES "Schematic handlers (#76)". GameTest `schematics_capture_and_rebuild_turned` (the tank's water is not captured or built). |
+| Applied in | #76 |
+
+#### Delegate schematic changes the original slot (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — (5.0 replaced the `bptblocks` schematics) |
+| Upstream issue | none |
+| Class | `api/bptblocks/BptBlockDelegate` |
+| Symptom | Each method clones the slot and then sets `slot.blockId = delegateTo` on the original instead of the clone, so the first requirement check turns the slot into the delegate block for good (a burning furnace is built as an idle one), the delegate is asked about the clone with the old id, and `rotateLeft` turns the clone and throws it away. |
+| Decision | Accepted (1 Nov 2026, #76): the clone takes the delegate block's state and the turned properties are copied back onto the slot. No vanilla block needs a delegate any more (lit furnaces and torches are a property, a moving piston is ignored), so the class is kept for other mods. |
+| Applied in | #76 |
+
+#### Wall signs keep their side when a blueprint is turned (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | none |
+| Class | `api/bptblocks/BptBlockSign` (`rotateLeft`) |
+| Symptom | The wall case of `rotateLeft` is commented out, so a turned blueprint puts a wall sign against the wrong side, usually in the air. |
+| Decision | Accepted (1 Nov 2026, #76): the default rotation turns the wall sign's facing, as it does a standing sign's 16 steps. Unit test `BptBlocksTest.leverRepeaterAndSignsTurnTheirFacingOnly`. |
+| Applied in | #76 |
+
+Upstream `git log 4.2.2..origin/7.1.x` over `api/bptblocks` and the module `BptBlock*` classes was not reviewed in #76:
+5.0 replaced them with the `Schematic*` classes, so the per-class triage of P7 (#81) covers them.
