@@ -71,6 +71,9 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_QUEUE_AND_TAGS = function("assembly_queue_and_tags");
     private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_SELECTION_SAVE_AND_SYNC =
             function("assembly_selection_save_and_sync");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_RECORDED_AND_SAVED = function("owner_recorded_and_saved");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
 
     private BuildcraftGameTests() {
     }
@@ -116,6 +119,9 @@ public final class BuildcraftGameTests {
             registry.register(ASSEMBLY_LASER_CRAFTING, AssemblyTableTests::laserCrafting);
             registry.register(ASSEMBLY_QUEUE_AND_TAGS, AssemblyTableTests::queueAndTags);
             registry.register(ASSEMBLY_SELECTION_SAVE_AND_SYNC, AssemblyTableTests::selectionSaveAndSync);
+            registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
+            registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
+            registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -198,6 +204,10 @@ public final class BuildcraftGameTests {
                 ASSEMBLY_SELECTION_SAVE_AND_SYNC)) {
             event.registerTest(assembly.identifier(), new FunctionGameTestInstance(assembly,
                     new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> owner : List.of(OWNER_RECORDED_AND_SAVED, OWNER_BREAK, OWNER_PLACE)) {
+            event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
         }
     }
 
