@@ -214,6 +214,8 @@
   "gui.status.reason.no_destination": "No destination",
   "gui.status.reason.protected_block": "Protected block",
   "gui.status.reason.missing_materials": "Missing materials",
+  "gui.status.reason.no_power_target": "Not facing a power receiver",
+  "gui.status.reason.pulse_too_small": "Engine too weak for this machine",
   "gui.status.flow.items": "%s/s in, %s/s out",
   "gui.status.flow.fluid": "%s in, %s out mB/t",
   "gui.status.power.drawn": "%s FE/t drawn",
