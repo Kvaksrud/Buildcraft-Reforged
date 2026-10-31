@@ -7,6 +7,8 @@ package buildcraftreforged.core.utils;
 import buildcraftreforged.core.TileBuildCraft;
 import com.mojang.authlib.GameProfile;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -89,6 +91,49 @@ public final class BuildCraftPlayer {
             snapshot.restore(snapshot.getFlags() | Block.UPDATE_CLIENTS);
             level.restoringBlockSnapshots = false;
             return false;
+        }
+        return true;
+    }
+
+    /**
+     * Runs place, which sets one or more blocks directly (a schematic's buildBlock), as player: the blocks it sets are
+     * captured as NeoForge's item placement does, EntityPlaceEvent (or EntityMultiPlaceEvent for a door or bed) is
+     * fired, and a cancelled event restores every captured block. Otherwise the deferred onPlace and neighbour updates
+     * run. True when the blocks stay. Added for the builder (#78).
+     */
+    public static boolean placeAs(Player player, ServerLevel level, Runnable place) {
+        level.captureBlockSnapshots = true;
+        try {
+            place.run();
+        } finally {
+            level.captureBlockSnapshots = false;
+        }
+
+        List<BlockSnapshot> snapshots = new ArrayList<>(level.capturedBlockSnapshots);
+        level.capturedBlockSnapshots.clear();
+
+        boolean refused = false;
+        if (snapshots.size() > 1) {
+            refused = EventHooks.onMultiBlockPlace(player, snapshots, Direction.UP);
+        } else if (snapshots.size() == 1) {
+            refused = EventHooks.onBlockPlace(player, snapshots.get(0), Direction.UP);
+        }
+
+        if (refused) {
+            for (BlockSnapshot snapshot : snapshots.reversed()) {
+                level.restoringBlockSnapshots = true;
+                snapshot.restore(snapshot.getFlags() | Block.UPDATE_CLIENTS);
+                level.restoringBlockSnapshots = false;
+            }
+            return false;
+        }
+
+        for (BlockSnapshot snapshot : snapshots) {
+            BlockState oldState = snapshot.getState();
+            BlockState newState = level.getBlockState(snapshot.getPos());
+            newState.onPlace(level, snapshot.getPos(), oldState, false);
+            level.markAndNotifyBlock(snapshot.getPos(), level.getChunkAt(snapshot.getPos()), oldState, newState,
+                    snapshot.getFlags(), 512);
         }
         return true;
     }

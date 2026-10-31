@@ -27,6 +27,11 @@ public class BptSlot extends BptSlotInfo {
 
     public Mode mode = Mode.Build;
     public @Nullable ItemStack stackToUse;
+    /**
+     * Not in 4.2.2: what BptBuilderBlueprint.useRequirements took for this slot, so the builder can give it back
+     * when the owner may not build here. Builder state only, not cloned or saved.
+     */
+    public LinkedList<ItemStack> usedItems = new LinkedList<ItemStack>();
 
     private BptBlock bptBlock() {
         return BlueprintManager.getBptBlock(state.getBlock());

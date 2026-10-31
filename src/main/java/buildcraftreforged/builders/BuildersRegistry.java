@@ -22,6 +22,7 @@ import buildcraftreforged.builders.filler.pattern.PatternFlatten;
 import buildcraftreforged.builders.filler.pattern.PatternHorizon;
 import buildcraftreforged.builders.filler.pattern.PatternPyramid;
 import buildcraftreforged.builders.filler.pattern.PatternStairs;
+import buildcraftreforged.builders.gui.ContainerBuilder;
 import buildcraftreforged.builders.gui.ContainerFiller;
 import buildcraftreforged.builders.gui.ContainerTemplate;
 import buildcraftreforged.builders.triggers.BuildersActionProvider;
@@ -96,6 +97,21 @@ public final class BuildersRegistry {
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerTemplate>> architectMenu =
             REGISTERS.menus.register("architect_block", () -> IMenuTypeExtension.create(ContainerTemplate::new));
 
+    /** BlockBuilder's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(5F). */
+    public static final DeferredBlock<BlockBuilder> builderBlock = REGISTERS.blocks.registerBlock(RegistryNames.of("builderBlock"),
+            BlockBuilder::new, properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.builderBlock")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    /** 4.2.2 left the builder out of the creative tab and had no recipe for it; it is in the tab so it can be had. */
+    public static final DeferredItem<ItemBlockBuildCraft> builderBlockItem = blockItem("builderBlock", builderBlock);
+
+    /** 4.2.2 GameRegistry.registerTileEntity(TileBuilder.class, "net.minecraft.src.builders.TileBuilder"). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileBuilder>> builderTile =
+            REGISTERS.blockEntityTypes.register("builder", () -> new BlockEntityType<>(TileBuilder::new, builderBlock.get()));
+
+    /** 4.2.2 GuiIds.BUILDER. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerBuilder>> builderMenu =
+            REGISTERS.menus.register("builder_block", () -> IMenuTypeExtension.create(ContainerBuilder::new));
+
     /** 4.2.2's item damage and "BptName" tag on blueprint and template items (plan section 6). */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<BptItemData>> bptData =
             REGISTERS.dataComponents.registerComponentType("blueprint",
@@ -151,6 +167,9 @@ public final class BuildersRegistry {
         PowerEnergyHandler.registerEnergyHandler(event, fillerTile.get());
         // 4.2.2's TileArchitect was an IInventory; canPlaceItem keeps everything out, as isItemValidForSlot did.
         TileBuildCraft.registerItemHandler(event, architectTile.get());
+        // 4.2.2's TileBuilder was an IInventory and an IPowerReceptor.
+        TileBuildCraft.registerItemHandler(event, builderTile.get());
+        PowerEnergyHandler.registerEnergyHandler(event, builderTile.get());
     }
 
     public static void register(IEventBus modBus) {

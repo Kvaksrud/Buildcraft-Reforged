@@ -320,7 +320,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Land Mark (`markerBlock`) | `BlockMarker, TileMarker` | `marker_block` | #29 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Path Mark (`pathMarkerBlock`) | `BlockPathMarker, TilePathMarker` | `path_marker_block` | #30 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderFiller`; breaks and places as the owner and skips a refused spot; status panel (missing materials, red light). GameTests `filler_*`; models, lasers and GUI not checked in game. |
-| Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [ ] | [ ] | [ ] |  |
+| Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [x] | [ ] | [ ] | Reads a blueprint or template item from the server's library, turns it to its facing, clears then builds in 4.2.2's order through the #76 schematics (`core/blueprints/BptBuilderBlueprint`, `BptBuilderTemplate`); the robot (`core/EntityRobot`) is render data with its laser, drawn by `RenderBuilder` with the stripes box and path lasers. Materials from its slots and the inventories beside it; clears and places as the owner, skipping and refunding a refused block; FE; status panel (missing materials, red light). GameTests `builder_*`; model, lasers, robot and GUI not checked in game. |
 | Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderArchitect`; 200-tick scan into the world's library; facing turns the capture; status panel. GameTests `architect_*`; model, lasers and GUI not checked in game. |
 | Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [ ] | [ ] | [ ] |  |
 
@@ -341,7 +341,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [x] | [ ] | [ ] | 4.2.2 slots, progress arrow and name field; one PacketGuiReturn per typed character; status ledger added. Name packet checked by GameTest `architect_scan_blueprint`; screen and typing not checked in game. |
-| Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [ ] | [ ] | [ ] |  |
+| Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [x] | [ ] | [ ] | 4.2.2 slots and both backgrounds; the needed list (7 x 4) comes with the builder's network payload; status ledger added. Menu slots checked by GameTest `builder_blueprint_with_materials`; screen not checked in game. |
 | Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [x] | [ ] | [ ] | 4.2.2 slots, pattern widget and arrows; status ledger added. GUI return checked by GameTest `filler_actions_gui_and_save`; screen not checked in game. |
 | Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [ ] | [ ] | [ ] |  |
 

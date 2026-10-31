@@ -3,6 +3,7 @@ package buildcraftreforged.gametest;
 import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.transport.PipeMaterial;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -222,6 +223,7 @@ public final class BuildcraftGameTests {
             StructurePipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BasicExtractorTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             PlugFacadeRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            BuilderTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -477,6 +479,16 @@ public final class BuildcraftGameTests {
         for (String name : PlugFacadeRecipeTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, PlugFacadeRecipeTests.MAX_TICKS)));
+        }
+        // #78 builder: blueprints and templates built beside the builder, in the padded area. 4.2.2's builder takes no
+        // materials in a creative world, and the GameTest world is one, so these run in a batch of their own whose
+        // functions switch the world's game type to survival and back.
+        Holder<TestEnvironmentDefinition<?>> survival = event.registerEnvironment(id("builder_survival"),
+                new TestEnvironmentDefinition.Functions(Optional.of(id("builder_survival_setup")),
+                        Optional.of(id("builder_survival_teardown"))));
+        for (String name : BuilderTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(survival, Level.OVERWORLD, BuilderTests.MAX_TICKS)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {
