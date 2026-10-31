@@ -103,20 +103,16 @@ class PowerHandlerTest {
     }
 
     @Test
-    void pulseBelowMinEnergyReceivedIsRefused() {
-        // 4.2.2 receiveEnergy: source ENGINE and used < minEnergyReceived -> return 0, nothing stored.
-        // Redstone engine into the refinery: 1 MJ < 50 MJ. Into the wooden power pipe: 1 MJ < 2 MJ.
+    void pulseBelowMinEnergyReceivedIsTaken() {
+        // 4.2.2 refused an engine pulse below minEnergyReceived; engines now keep that minimum themselves, so a
+        // receiver takes a small pulse (decided 1 Nov 2026). Redstone engine into the refinery: 1 MJ, minimum 50 MJ.
         Receptor refinery = refinery();
-        assertEquals(0, refinery.handler.getPowerReceiver().receiveEnergy(Type.ENGINE, 10, Direction.UP));
-        assertEquals(0, refinery.handler.getEnergyStored());
-        assertFalse(refinery.handler.isPowerSource(Direction.UP));
+        assertEquals(10, refinery.handler.getPowerReceiver().receiveEnergy(Type.ENGINE, 10, Direction.UP));
+        assertEquals(10, refinery.handler.getEnergyStored());
+        assertTrue(refinery.handler.isPowerSource(Direction.UP));
 
         Receptor pipe = woodenPowerPipe();
-        assertEquals(0, pipe.handler.getPowerReceiver().receiveEnergy(Type.ENGINE, 10, Direction.UP));
-
-        // Exactly the minimum passes: 49.9 MJ refused, 50 MJ accepted.
-        assertEquals(0, refinery.handler.getPowerReceiver().receiveEnergy(Type.ENGINE, 499, Direction.UP));
-        assertEquals(500, refinery.handler.getPowerReceiver().receiveEnergy(Type.ENGINE, 500, Direction.UP));
+        assertEquals(10, pipe.handler.getPowerReceiver().receiveEnergy(Type.ENGINE, 10, Direction.UP));
     }
 
     @Test
@@ -261,7 +257,7 @@ class PowerHandlerTest {
     void defaultPerditionIsTenFePerTick() {
         // 1 MJ/t: 100 MJ -> 99 after one tick -> 89 after ten more.
         Receptor r = new Receptor(Type.MACHINE);
-        r.handler.configure(0, 1000, 100000, 10000);
+        r.handler.configure(0, 1000, 0, 10000);
         r.handler.setEnergy(1000);
         r.tickTo(0); // first mark: durationOfLastDelay is 0, nothing lost
         assertEquals(1000, r.handler.getEnergyStored());
@@ -349,7 +345,7 @@ class PowerHandlerTest {
         assertEquals(980, laser.handler.getEnergyStored());
 
         Receptor quarry = new Receptor(Type.MACHINE);
-        quarry.handler.configure(500, 1000, 10000, 100000);
+        quarry.handler.configure(500, 1000, 250, 100000);
         quarry.handler.setPerdition(new PerditionCalculator(20F));
         quarry.handler.setEnergy(1000);
         quarry.tickTo(0);
@@ -358,11 +354,27 @@ class PowerHandlerTest {
     }
 
     @Test
+    void perditionStopsAtTheActivationEnergy() {
+        // Decided 1 Nov 2026: perdition never takes a machine below the energy one operation needs, so a trickle can
+        // build up to it. The quarry (activation 250 FE, 20 FE/t): 300 FE decays to 250 FE and stays there.
+        Receptor quarry = new Receptor(Type.MACHINE);
+        quarry.handler.configure(0, 1000, 250, 100000);
+        quarry.handler.setPerdition(new PerditionCalculator(20F));
+        quarry.handler.setEnergy(300);
+        quarry.tickTo(0);
+        quarry.tickTo(10);
+        assertEquals(250, quarry.handler.getEnergyStored());
+        quarry.handler.setEnergy(100);
+        quarry.tickTo(20);
+        assertEquals(100, quarry.handler.getEnergyStored(), "below the activation energy nothing is lost");
+    }
+
+    @Test
     void perditionThatLosesNothingFallsBackToDefault() {
         // 4.2.2 applyPerdition: if the calculator neither empties nor reduces the store, DEFAULT_PERDITION (1 MJ/t)
         // is applied instead: "It is not possible to create a Zero perdition algorithm."
         Receptor r = new Receptor(Type.MACHINE);
-        r.handler.configure(0, 1000, 100000, 10000);
+        r.handler.configure(0, 1000, 0, 10000);
         r.handler.setPerdition(new PerditionCalculator() {
             @Override
             public double applyPerdition(PowerHandler powerHandler, double current, long ticksPassed) {
@@ -380,7 +392,7 @@ class PowerHandlerTest {
         // current -= powerLoss * ticksPassed; if (current < 0) current = 0. 0.5 MJ with 1 MJ/t is empty after one
         // tick, and the fraction left from a fractional rate is cleared with it.
         Receptor r = new Receptor(Type.MACHINE);
-        r.handler.configure(0, 1000, 100000, 10000);
+        r.handler.configure(0, 1000, 0, 10000);
         r.handler.setEnergy(5);
         r.tickTo(0);
         r.tickTo(1);
