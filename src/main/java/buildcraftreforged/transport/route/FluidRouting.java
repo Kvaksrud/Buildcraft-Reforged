@@ -2,6 +2,7 @@ package buildcraftreforged.transport.route;
 
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.transport.TilePipe;
+import buildcraftreforged.transport.flow.FlowAccumulator;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
 import net.minecraft.core.BlockPos;
@@ -35,6 +36,11 @@ public final class FluidRouting {
         @Override
         public long refill(PipeNode node) {
             return ((TilePipe) node.pipe).getTierStats().fluidPerTick();
+        }
+
+        @Override
+        public FlowAccumulator flow(PipeNode node) {
+            return ((TilePipe) node.pipe).getFlowTracker().accumulator;
         }
     }, FluidRouting::handler);
 
@@ -148,7 +154,7 @@ public final class FluidRouting {
                 exit = route.isSink() ? null : network.endpoints[route.endpoint()].side();
             state(node).recordPassed(resource, moved, entry, exit, now, transaction);
         }
-        // SEAM(#59): the flow record's accumulator reads FluidPipeState (content, sides, mB passed this tick).
+        // The flow record (docs/TRANSPORT.md 9) was added by ResourceRouter.push, in the same transaction.
     }
 
     /** The side of {@code node} that leads to node index {@code other}, or null if none does. */

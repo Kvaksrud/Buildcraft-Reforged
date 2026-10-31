@@ -361,7 +361,9 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
 
 ## GameTests (#33)
 
-- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. `BuildcraftGameTests`
+- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. Since #130 the test-only
+  blocks, capabilities, data pack and tests register only when `buildcraftreforged.gametest` is true, which the
+  `gameTestServer` run sets (`BuildcraftGameTests.isGameTestRun()`); see "Seams and dev-run cleanup (#130)". `BuildcraftGameTests`
   registers test functions (`RegisterEvent` on `Registries.TEST_FUNCTION`) and instances (`RegisterGameTestsEvent`)
   in the `buildcraftreforged` namespace. Run them with `./gradlew runGameTestServer`; there is no CI until release.
 - The source set also adds an always-on data pack (`gametest_data`) that puts `minecraft:debug_stick` in
@@ -2170,7 +2172,8 @@ Ported: `factory/BlockMiningWell`, `TileMiningWell`, `BlockPlainPipe`, and `Util
   `StatusPanel.BLOCKED` with the multipart red light. #63 was not merged when this was written; if it adds a shared
   blocked-output API, the well's flag is the one place to hook it. Output itself is never blocked: as in 4.2.2, what
   neither an inventory nor a pipe takes is thrown out above the well.
-- **Output.** Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
+- **Output (superseded by #130: the drops go through a `MachineOutput`, see "Seams and dev-run cleanup (#130)").**
+  Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
   (4.2.2 `ForgeDirection.UNKNOWN`), then thrown up with the configured `itemLifespan`. `addToRandomPipeAround` hands the
   stack to `IPipeTile.injectItem`, which routes it at once (#50). For the pipe to connect at all, item pipes now also
   connect to an `IMachine` whose `manageSolids()` is true, 4.2.2's rule in `PipeTransportItems.canPipeConnect`; the
@@ -2253,3 +2256,134 @@ Ported `factory/BlockPump`, `TilePump`, `PumpDimensionList`, `BlockFloodGate`, `
 - **Not checked without a client:** the two block models and their textures, the tube's look (geometry, UVs,
   texture, light, the render box when it reaches far down), the status light on the pump, the status panel screens,
   and the recipes in the crafting grid.
+
+## Seams and dev-run cleanup (#130)
+
+Decided 2026-10-31. Wires the seams left by pieces built in parallel and cleans up what the first dev-client run logged.
+
+- **Assembly table → pipe (`SEAM(#50)`).** As 4.2.2: what `Utils.addToRandomInventoryAround` does not take goes to
+  `Utils.addToRandomPipeAround` with no `from`, and only the rest is dropped. The table keeps 4.2.2's drop rather than a
+  `MachineOutput`: it only makes something when a player planned it and a laser powered it.
+- **`Utils.addToRandomInventoryAround` skips engines (`SEAM(#36)`).** A `TileEngine` neighbour is passed by, as in
+  4.2.2, so machine output never ends up in a stone engine's fuel slot. `MachineOutput.push` already skipped
+  `IPowerEmitter` block entities.
+- **Mining well → `MachineOutput`.** The drops are `add`ed to `TileMiningWell.output` (counting `itemsOut` in the flow
+  meter) and pushed every server tick, so chests, item pipes and other inventories beside the well take them as before.
+  What nothing takes waits in the well (saved as `pendingOutput`, dropped when the well is broken) and the well digs no
+  further: State Blocked, Reason "No destination" or "Output blocked", red light. 4.2.2 threw such drops out above the
+  well; plan section 8.3 says nothing is spilled. A refused break still reports `PROTECTED_BLOCK` first.
+- **Pump → `MachineOutput`.** The pump's output is fluid, so it keeps a `MachineOutput` only for its state:
+  `setBlocked(OUTPUT_FULL)` when the next block's fluid does not fit in the tank, `NONE` on the next check that it does.
+  The State, Reason and red light read it as before.
+- **No `@OnlyIn`.** Removed from `RenderLaser`, `RenderLaserTile`, `RenderEnergyLaser`, `RenderEngine`, `RenderMarker`
+  and `RenderEntityBlock`. They are only reached from `@EventBusSubscriber(value = Dist.CLIENT)` classes
+  (`*Renderers`, `EnergyProxyClient`) and from other renderers, so a dedicated server never loads them.
+- **GameTest-only registrations.** The `gameTestServer` run sets the system property `buildcraftreforged.gametest`;
+  `BuildcraftGameTests.isGameTestRun()` reads it. `BuildcraftGameTests` (test functions, test blocks, capabilities,
+  tests, the `gametest_data` pack), `OutputTestBlocks` and `TriggerTestBlocks` return early without it, so the client
+  and server dev runs register no `gametest_*`/`test_tank` blocks and log no missing models. The sample blocks for
+  manual checks (`sample_gui`, `sample_status`) have models and stay in every dev run. A new test-only block that
+  subscribes to `RegisterEvent` itself must check `isGameTestRun()` too. A separate test mod id was rejected: every
+  test class's `@EventBusSubscriber(modid = ...)` and test id would change while other sessions add tests.
+- **Tests.** GameTests `seam_assembly_table_to_pipe` (diamonds reach a chest through a stone pipe, nothing dropped),
+  `seam_inventory_skips_engine` (coal is not put into a stone engine; a chest beside it gets it),
+  `seam_mining_well_blocked_output` (one block dug, dirt pending and saved, Blocked, "No destination", red light,
+  nothing thrown; a chest beside it unblocks it and the well digs on) and `seam_pump_blocked_output` (a full tank:
+  Blocked, "Output blocked", red light, water left; emptying the tank clears it). `mining_well_digs` and
+  `mining_well_protected` now have a chest beside each well.
+
+## Flow records and flow rendering (#59)
+
+New code under `transport/flow` (docs/TRANSPORT.md 9); 4.2.2 `PipeRendererTESR.renderSolids/renderFluids/renderPower`
+were read for the look only. Every `SEAM(#59)` is filled. Recorded 31 Oct 2026.
+
+### Record format
+
+`FlowRecord(PipeType kind, Holder<?> content, byte colour, byte sides, float rate, boolean overload)`, one per pipe:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `ITEM`, `FLUID` or `POWER` (the pipe's kind). |
+| `content` | `Holder<Item>` (item pipes) or `Holder<Fluid>` (fluid pipes) of the last transfer; null for power and when nothing flows. Item components are not carried. |
+| `colour` | The walk colour as a `DyeColor` id 0–15, `FlowRecord.NO_COLOUR` = 16 for none. Every item is 16 until the Colour Tag (#57) colours walks. |
+| `sides` | Bits 0–2 entry side, bits 3–5 exit side, each 0–5 in side order or `FlowRecord.CENTRE` = 6 (a transfer that starts inside the pipe, a Void sink, or a power root whose source is not beside it). |
+| `rate` | Items per second (items) or mB / FE per tick (fluid, power), over the 20 ticks before the boundary. |
+| `overload` | Power only: `PowerPipeState.isOverloaded` at the boundary, kept only while power flows. |
+
+`FlowRecord.none(kind)` is "nothing flows". Stream codec (`FlowRecord.STREAM_CODEC`, `RegistryFriendlyByteBuf`): kind
+byte; for items and fluids a presence boolean and the registry id (`ByteBufCodecs.holderRegistry`, VarInt); colour
+byte; sides byte; rate float; overload boolean. 12 bytes at most. Decoding refuses an unknown kind, colour > 16, a side
+> 6, a negative, NaN or infinite rate.
+
+`FlowRecordsPayload(ChunkPos chunk, int[] localPos, List<FlowRecord> records)`, client-bound, type
+`buildcraftreforged:flow_records`: the chunk, a VarInt count, then per pipe a VarInt position and the record. The
+position packs x and z in the chunk (4 bits each) and `y + 2048` above them. TRANSPORT.md 9.3 said `short[]`; a build
+height of 384 does not fit 16 bits with x and z, so it is a VarInt of at most 3 bytes. At most `MAX_RECORDS` entries.
+
+### Measuring and sending
+
+- **Recording.** `ResourceRouter.push` (items and fluids) and `PowerRouter.run` add to each path pipe's
+  `FlowAccumulator` in the transfer's transaction, so simulations record nothing. `ResourceRouter.Pipes.flow` and
+  `PowerRouter.Pipes.flow` are new default methods (null: no record), overridden by `ItemRouting`, `FluidRouting` and
+  `PowerRouting`. Items and fluids record the walk's entry and exit sides (the endpoint side at the end). Power records
+  the side towards the tree parent (the root: the side facing the pushing block) and, as exit, the outlet that took the
+  most, first in side order on a tie, since a record holds one exit.
+- **Buckets.** 10 ticks, aligned to `floor(gameTime / 10)`, rolled lazily. At a boundary `T` (`T % 10 == 0`,
+  `LevelTickEvent.Post`) the record reads the buckets of `[T - 20, T)`.
+- **Active set.** `FlowSync` keeps, per server level, the pipes something passed; only those are measured at a
+  boundary. A pipe leaves once its record and the clients' record are both zero. `FlowTracker` (on `TilePipe`, not
+  saved) holds the accumulator, the last measured record, the last sent one and the client's.
+- **Send rule.** `FlowRecord.differsFrom`: content, colour, sides or overload changed, the rate crossed zero, or it
+  changed by more than 12.5 % of the larger rate. Changed records go out per chunk, to tracking players whose
+  connection has the payload (as `TileBuildCraft.sendNetworkUpdate`; GameTest mock players have none).
+- **Update tag.** `TilePipe.writePacketPayload` appends the sent record, so a player who starts tracking the chunk (and
+  every `sendNetworkUpdate`) gets the running flow.
+- **Payload registration** is in `FlowSync` (server) and `TransportClient` (client handler), not in `PacketHandler`,
+  under the same protocol version.
+
+### Pipe Contents trigger
+
+`TilePipe` sets `gateHolder.flow` for every kind: `ItemPipeFlow` (new), `FluidPipeFlow` and `PowerPipeFlow` read
+`isFlowing` = the measured record's `rate > 0` and the content from the record; Requests Energy and Too Much Energy still
+come from `PowerRouting`. The record is measured every 10 ticks, so the trigger follows the flow with up to 10 ticks'
+delay (the old 20-tick `lastFlowTick` window is gone; `PowerPipeFlow.FLOW_TICKS` was removed).
+
+### Rendering (`PipeRendererTESR`)
+
+The renderer copies the client record into its state and draws nothing for it when `rate == 0`; no item is simulated.
+
+- **Items.** Icon `j` enters at `clientSince + j × max(20 / rate, 2)` ticks, crosses in 10 ticks (entry face, centre,
+  exit face), at most 8 drawn. `ItemDisplayContext.GROUND`, scale 0.7 as 4.2.2 `doRenderItem`, lowered 0.15 to the
+  pipe's axis. A colour below 16 draws 4.2.2's ItemBox (`textures/pipe/item_box.png`, from `itemBox.png`) around the
+  icon, tinted with the dye's colour.
+- **Fluids.** Arms on the entry and exit sides and a centre, `2 + 6 × clamp(rate / fluidPerTick)` pixels of the 8-pixel
+  inner pipe: horizontal arms fill from the bottom (4.2.2 `sideHorizontal`), vertical arms are a centred square
+  (`sideVertical`); arms use the flowing sprite, the centre the still one, with the fluid's tint, translucent on the
+  block atlas. The texture scrolls by the sprite's own animation; TRANSPORT.md 9.4's "scroll speed proportional to the
+  ratio" is not done.
+- **Power.** A cube at the centre and arms to the entry and exit faces, `1 + 7 × clamp(rate / powerPerTick)` pixels
+  wide, full bright, in 4.2.2 Power_Normal (`textures/pipe/texture_cyan.png`, from `texture_cyan.png`); when
+  `overload`, it alternates with Power_Overload (`texture_red_lit.png`) every 4 ticks.
+- The renderer now takes the `BlockEntityRendererProvider.Context` (for the item model resolver).
+
+### Tests
+
+- JUnit `FlowRecordTest`: bucket measurement for each kind, an aborted transaction records nothing, the send rule, a
+  steady 1 item/s line sends once and a stopped one sends one zero, codec round trips under 16 bytes, bad records
+  refused, payload positions at the lowest and highest y, item icon spacing.
+- GameTests `FlowRecordTests` (padded area): `flow_records_item_line` (wood Extractor line: 1 item/s of cobblestone
+  north to south on every pipe, sent once in 280 ticks, payload and update tag carry the record, Pipe Contents reads
+  it), `flow_records_stop` (pushes at 4 items/s, then nothing: one zero record is sent and the trigger reads Empty),
+  `flow_records_fluid_and_power` (a wood fluid line records 20 mB/t of water; a saturated gold power line records
+  1 280 FE/t and overload).
+- **Not checked without a client:** everything drawn. The item icons' height on the pipe axis and their size, the
+  ItemBox marker, the fluid arms' geometry, tint, UVs and translucency, the power glow's textures and the overload
+  flicker, that the client handler applies payloads to the right pipes, and the look against 4.2.2.
+
+### For #56, #57 and #58
+
+- **#57.** Pass the walk colour to `FlowAccumulator.add` in `ResourceRouter.recordFlow` (now `NO_COLOUR`); the renderer
+  already draws the ItemBox for colours 0–15 (`DyeColor` ids).
+- **#56.** The Pickup particle (TRANSPORT.md 8.6) is not in the record yet; add it as a field or a separate payload.
+- **#58.** The Basic Extractor keeps its own `FlowTracker` (kind `ITEM`) and calls `FlowSync.markActive`; `FlowSync`
+  takes `TilePipe` today, so generalise it to an interface with `getFlowTracker`, `getBlockPos`, `isFlowOverloaded`.

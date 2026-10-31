@@ -2,6 +2,7 @@ package buildcraftreforged.transport.route;
 
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.transport.TilePipe;
+import buildcraftreforged.transport.flow.FlowAccumulator;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
 import net.minecraft.core.BlockPos;
@@ -33,6 +34,11 @@ public final class ItemRouting {
         @Override
         public long refill(PipeNode node) {
             return ((TilePipe) node.pipe).getTierStats().itemsPerSecond();
+        }
+
+        @Override
+        public FlowAccumulator flow(PipeNode node) {
+            return ((TilePipe) node.pipe).getFlowTracker().accumulator;
         }
     }, ItemRouting::handler);
 

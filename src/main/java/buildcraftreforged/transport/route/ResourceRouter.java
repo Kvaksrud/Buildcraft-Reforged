@@ -1,9 +1,12 @@
 package buildcraftreforged.transport.route;
 
+import buildcraftreforged.transport.flow.FlowAccumulator;
+import buildcraftreforged.transport.flow.FlowRecord;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
 import java.util.function.Predicate;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.util.RandomSource;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.ResourceHandlerUtil;
@@ -24,11 +27,18 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ResourceRouter<R extends Resource> {
 
-    /** Per-pipe state the router reads: the budget and its refill per tick, in budget units. */
+    /**
+     * Per-pipe state the router reads and writes: the budget and its refill per tick, in budget units, and the flow
+     * record's accumulator (docs/TRANSPORT.md 9.2), null where none is kept.
+     */
     public interface Pipes {
         PipeBudget budget(PipeNode node);
 
         long refill(PipeNode node);
+
+        default @Nullable FlowAccumulator flow(PipeNode node) {
+            return null;
+        }
     }
 
     /** The live handler of an endpoint, or null when the block no longer has one. */
@@ -132,9 +142,34 @@ public final class ResourceRouter<R extends Resource> {
         for (int node : route.path()) {
             pipes.budget(network.nodes[node]).spend((long) moved * costPerUnit, transaction);
         }
-        // SEAM(#59): record the flow on every pipe of route.path(), as part of this transaction.
+        recordFlow(network, route, in, resource, moved, now, transaction);
         return new TransferResult(moved, moved == amount ? TransferResult.Reason.MOVED : TransferResult.Reason.PARTIAL,
                 route);
+    }
+
+    /**
+     * Adds {@code moved} units of {@code resource} to the flow record of every pipe of {@code route}, with the side each
+     * pipe was entered and left by (docs/TRANSPORT.md 9.2), in {@code transaction}. The first pipe was entered on
+     * {@code in}; the last leaves towards the endpoint, or into its centre at a sink.
+     */
+    private void recordFlow(PipeNetwork network, PipeWalk.Route route, @Nullable Direction in, R resource, int moved,
+            long now, TransactionContext transaction) {
+        Holder<?> content = FlowRecord.contentOf(resource);
+        int[] path = route.path();
+        for (int i = 0; i < path.length; i++) {
+            PipeNode node = network.nodes[path[i]];
+            FlowAccumulator flow = pipes.flow(node);
+            if (flow == null)
+                continue;
+            Direction entry = i == 0 ? in : FluidRouting.sideTowards(node, path[i - 1]);
+            Direction exit;
+            if (i < path.length - 1)
+                exit = FluidRouting.sideTowards(node, path[i + 1]);
+            else
+                exit = route.isSink() ? null : network.endpoints[route.endpoint()].side();
+            // The walk colour is the Colour Tag's (#57); until it exists every item is uncoloured.
+            flow.add(moved, content, FlowRecord.NO_COLOUR, entry, exit, now, transaction);
+        }
     }
 
     /** What {@code handler} would take, in a nested transaction that is rolled back. */

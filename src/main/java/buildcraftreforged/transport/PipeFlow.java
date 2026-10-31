@@ -7,8 +7,8 @@ import net.neoforged.neoforge.fluids.FluidStack;
  * What the Pipe Contents trigger reads from a pipe (docs/TRANSPORT.md 12). Pipes hold nothing any more, so "contents"
  * means the flow through the pipe: the flow record of section 9 for items and fluids, and the power phases of 7.4.
  *
- * <p>The flow record is #59 and the power phases are #52; until they set {@link PipeGateHolder#flow}, every pipe reports
- * {@link #NONE} (empty).
+ * <p>{@code TilePipe} sets {@link PipeGateHolder#flow} from the flow record (#59) and the power phases (#52); a pipe
+ * without one reports {@link #NONE} (empty).
  */
 public interface PipeFlow {
 

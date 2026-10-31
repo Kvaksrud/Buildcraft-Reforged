@@ -52,8 +52,8 @@ public class PipeGateHolder implements IPipe {
     public boolean redstonePowered = false;
 
     /**
-     * What the Pipe Contents trigger reads. SEAM(#59): the flow record; SEAM(#52): the power request and overload
-     * state. {@link PipeFlow#NONE} until they set it.
+     * What the Pipe Contents trigger reads: the pipe's flow record (docs/TRANSPORT.md 9), and on power pipes the power
+     * request and overload state (7.4). {@code TilePipe} sets it for each kind; {@link PipeFlow#NONE} otherwise.
      */
     public PipeFlow flow = PipeFlow.NONE;
 
