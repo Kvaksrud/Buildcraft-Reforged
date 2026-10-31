@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.network.chat.Component;
@@ -53,6 +54,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
@@ -89,6 +91,34 @@ public final class TransportRegistry {
         }
     }
 
+    /** 4.2.2 {@code pipeStructureCobblestone} (#54): outside the tier table, carries nothing. */
+    public static final DeferredBlock<BlockPipeStructure> pipeStructureCobblestone = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("PipeStructureCobblestone"), BlockPipeStructure::new,
+            properties -> BlockPipe.pipeProperties(properties).overrideDescription("item.PipeStructureCobblestone"));
+    public static final DeferredItem<ItemBlockBuildCraft> pipeStructureCobblestoneItem = REGISTERS.items.registerItem(
+            RegistryNames.of("PipeStructureCobblestone"),
+            properties -> new ItemBlockBuildCraft(pipeStructureCobblestone.get(), properties),
+            properties -> properties.overrideDescription("item.PipeStructureCobblestone"));
+
+    static {
+        CreativeTabBuildCraft.MACHINES.add(pipeStructureCobblestoneItem);
+    }
+
+    /** The Basic Extractor (#58, docs/TRANSPORT.md 10): new, no 4.2.2 block; a wooden pipe's look and hardness. */
+    public static final DeferredBlock<BlockBasicExtractor> basicExtractor = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("basicExtractor"), BlockBasicExtractor::new,
+            properties -> BlockPipe.pipeProperties(properties).sound(SoundType.WOOD).overrideDescription("tile.basicExtractor"));
+    public static final DeferredItem<ItemBlockBuildCraft> basicExtractorItem = REGISTERS.items.registerItem(
+            RegistryNames.of("basicExtractor"), properties -> new ItemBlockBuildCraft(basicExtractor.get(), properties),
+            properties -> properties.overrideDescription("tile.basicExtractor"));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileBasicExtractor>> basicExtractorTile =
+            REGISTERS.blockEntityTypes.register("basic_extractor",
+                    () -> new BlockEntityType<>(TileBasicExtractor::new, basicExtractor.get()));
+
+    static {
+        CreativeTabBuildCraft.MACHINES.add(basicExtractorItem);
+    }
+
     private static final Map<PipeModuleType, DeferredItem<ItemPipeModule>> MODULE_ITEMS = new EnumMap<>(PipeModuleType.class);
 
     /** The module items (docs/TRANSPORT.md 8.1). #56 and #57 add theirs with {@link #module}. */
@@ -123,8 +153,9 @@ public final class TransportRegistry {
 
     /** 4.2.2 registered TileGenericPipe as one tile class for every pipe; here one type is valid for every pipe block. */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TilePipe>> pipeTile = REGISTERS.blockEntityTypes
-            .register("pipe", () -> new BlockEntityType<>(TilePipe::new,
-                    PIPE_BLOCKS.values().stream().map(DeferredBlock::get).collect(Collectors.toUnmodifiableSet())));
+            .register("pipe", () -> new BlockEntityType<>(TilePipe::new, Stream.concat(
+                    PIPE_BLOCKS.values().stream().map(DeferredBlock::get), Stream.of(pipeStructureCobblestone.get()))
+                    .collect(Collectors.toUnmodifiableSet())));
 
     // Gates and pipe wire (#60), 4.2.2 BuildCraftTransport: items, the gate's data component, the gate menu, and the
     // pipe triggers and actions, named after their 4.2.2 fields.
@@ -176,6 +207,9 @@ public final class TransportRegistry {
     /** 4.2.2 {@code FacadeRecipe}, the facade turning helper for logs. */
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<ItemFacade.FacadeRecipe>> facadeRecipeSerializer =
             REGISTERS.recipeSerializers.register("facade_rotation", () -> ItemFacade.FacadeRecipe.SERIALIZER);
+    /** The Assembly Table's facade recipes (#144): one JSON file, one recipe per facade. */
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<FacadeAssemblyRecipe>> facadeAssemblyRecipeSerializer =
+            REGISTERS.recipeSerializers.register("assembly_facades", () -> FacadeAssemblyRecipe.SERIALIZER);
 
     public static final DeferredHolder<ITrigger, BCTrigger> triggerPipeEmpty =
             trigger("triggerPipeEmpty", () -> new TriggerPipeContents(TriggerPipeContents.Kind.Empty));
@@ -375,5 +409,7 @@ public final class TransportRegistry {
         event.registerBlockEntity(Capabilities.Energy.BLOCK, pipeTile.get(), TilePipe::getEnergyHandler);
         // docs/TRANSPORT.md 6.2, 7.2: fluid pipes take pushes through the fluid capability.
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, pipeTile.get(), TilePipe::getFluidHandler);
+        // docs/TRANSPORT.md 10: the Basic Extractor takes engine pulses on its four side faces.
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, basicExtractorTile.get(), TileBasicExtractor::getEnergyHandler);
     }
 }

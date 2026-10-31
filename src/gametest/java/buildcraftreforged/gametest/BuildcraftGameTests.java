@@ -212,10 +212,16 @@ public final class BuildcraftGameTests {
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            AdvancedCraftingTableTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SchematicTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            WorkbenchHopperTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            StructurePipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            BasicExtractorTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            PlugFacadeRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -413,6 +419,11 @@ public final class BuildcraftGameTests {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, SiliconRecipeTests.MAX_TICKS)));
         }
+        // #73 advanced crafting table: a laser under the table and a chest beside it, in the padded area.
+        for (String name : AdvancedCraftingTableTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, AdvancedCraftingTableTests.MAX_TICKS)));
+        }
         // #59 flow records: running lines watched for 300 ticks, in the padded area like item routing.
         for (String name : FlowRecordTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
@@ -438,10 +449,34 @@ public final class BuildcraftGameTests {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, FillerTests.MAX_TICKS)));
         }
+        // #77 architect: a 3 x 3 x 3 marked area beside the table, scanned into the server's library.
+        for (String name : ArchitectTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, ArchitectTests.MAX_TICKS)));
+        }
+        // #69 auto workbench and #70 hopper: hoppers, chests, pipes and an engine around them, in the padded area.
+        for (String name : WorkbenchHopperTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, WorkbenchHopperTests.MAX_TICKS)));
+        }
         // #45 oil fields: wells, lakes and spouts up to 20 blocks out, in a wider padded area.
         for (String name : OilFieldTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name), new TestData<>(environment, Level.OVERWORLD,
                     EMPTY_STRUCTURE, OilFieldTests.MAX_TICKS, 0, true, Rotation.NONE, false, 1, 1, false, OilFieldTests.PADDING)));
+        }
+        // #54 Structure Pipe, #58 Basic Extractor (engines, chests and pipe lines) and #144 plug and facade recipes
+        // (lasers under a table), in the padded area.
+        for (String name : StructurePipeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, StructurePipeTests.MAX_TICKS)));
+        }
+        for (String name : BasicExtractorTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, BasicExtractorTests.MAX_TICKS)));
+        }
+        for (String name : PlugFacadeRecipeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, PlugFacadeRecipeTests.MAX_TICKS)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {

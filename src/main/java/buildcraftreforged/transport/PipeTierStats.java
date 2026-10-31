@@ -6,6 +6,9 @@ package buildcraftreforged.transport;
  */
 public record PipeTierStats(int itemsPerSecond, int fluidPerTick, int powerPerTick) {
 
+    /** The caps of a pipe that carries nothing (the Structure Pipe). */
+    public static final PipeTierStats NONE = new PipeTierStats(0, 0, 0);
+
     static final int TIER_1_ITEMS_PER_SECOND = 1;
     static final int TIER_1_FLUID_PER_TICK = 20;
     static final int TIER_1_POWER_PER_TICK = 80;

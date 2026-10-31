@@ -3113,3 +3113,247 @@ pickaxe and `needs_diamond_tool` block tags, `BuildcraftGameTests`. Decided 2026
 - **Not checked without a client or a generated world:** fields in newly generated deserts and oceans (frequency,
   look, lag), the spring's bedrock texture and its item in the creative tab, and that no "far chunk" warning appears
   while chunks generate.
+
+## Advanced Crafting Table (#73)
+
+Ported: `silicon/TileAdvancedCraftingTable`, `silicon/gui/ContainerAdvancedCraftingTable`,
+`silicon/gui/GuiAdvancedCraftingTable`. Changed (additive): `SiliconRegistry`, `SiliconScreens`, the JEI plugin (the
+table is a catalyst of the crafting category), the pickaxe tag. Recorded 1 Nov 2026.
+
+- **Block.** `assembly_workbench_block` (4.2.2 `BlockLaserTable` meta 1, `tile.assemblyWorkbenchBlock`), block entity
+  type `advanced_crafting_table`, menu `assembly_workbench_block`. Built as the assembly table: `new
+  BlockLaserTable(properties, TileAdvancedCraftingTable::new)`, same material, hardness, sound, shape and model, with
+  4.2.2's `advworkbenchtable_top/bottom/side` textures. Crafting recipe `OWO/OCO/ORO` (obsidian, crafting table, chest,
+  Redstone Chipset) as 4.2.2.
+- **Energy is FE** (`long`): 5000 FE a craft (4.2.2's 500 MJ). As in 4.2.2 the table is an `ILaserTarget` that asks
+  for energy while it shows a result and has stored less than ten crafts' worth; while it cannot craft (missing
+  ingredients, full output) the store goes to 0 every tick. The ledger shows FE and FE/t.
+- **Inventory.** 24 storage slots (15 input, 9 output) as a `WorldlyContainer`: inserts only into 0–14, extraction only
+  from 15–23, from every side, as 4.2.2's `ISidedInventory`. The template (9 phantom slots, stack size 1) and the result
+  slot are not part of it and are not dropped when the block breaks. Saved as `StorageSlots`, `items` (the template) and
+  `StoredEnergy` (FE). The On/Off gate actions are not saved, as in 4.2.2.
+- **Crafting.** `InventoryCrafting` becomes a `CraftingInput` built each time from the template (to find the recipe) or
+  from the bound stacks (to match and craft), so the binding logic (`bindings`, `tempStacks`, `hitCount`) is
+  unchanged. `IRecipe` is `RecipeHolder<CraftingRecipe>`, found through `CraftingHelper.findMatchingRecipe` (the server
+  recipe manager). `SlotCrafting.onPickupFromSlot` with the `InternalPlayer` becomes: `onCraftedBySystem` on the result
+  (what vanilla's crafter calls where no player crafts), one of each bound stack used, and the recipe's remaining items
+  (empty buckets and the like) added to the outputs, where 4.2.2's internal player inventory put them. Outputs go to the
+  output slots, then a random neighbouring inventory, then are dropped above the table, as 4.2.2. 4.2.2 does not push
+  into pipes; a wooden pipe pulls from the output slots.
+- **Ore Dictionary → item tags.** The template's 4.2.2 Ore Dictionary id is its ore tag: a `c` tag with a slash
+  (`StackHelper.isOreTag`), the first by tag id when an item has more than one. An input matches a template slot when it
+  is the same item (components ignored, as 4.2.2 ignored NBT here) or carries that tag. Pulling from neighbours uses
+  `CraftingFilter` (any shared ore tag). Vanilla tags such as `minecraft:planks` are not ore tags, so an oak plank
+  template does not take birch planks (the Ore Dictionary row of the decisions at the top). Neighbours searched: below and
+  the four sides, `Container` tiles only, as 4.2.2's `IInventory`.
+- **Network.** The template changes through the menu's phantom slots on the server; 4.2.2's
+  `ADVANCED_WORKBENCH_SETSLOT` packet (never sent by the 4.2.2 GUI) is gone, and `updateCraftingMatrix` remains as a
+  server method. The result slot syncs as a menu slot; stored energy and rate travel as data slots (4.2.2 ids 1, 3, 4,
+  5; FE as whole numbers, the rate × 100).
+- **Tests.** GameTests (`AdvancedCraftingTableTests`, padded area): `advanced_crafting_laser` (two planks on the
+  template make four sticks from a charged laser; result display, 5000 FE, slot rules, menu slots, GUI numbers),
+  `advanced_crafting_tag_matching` (test tag `c:gametest/advanced_crafting` and test recipe
+  `gametest_advanced_crafting_tag`: amethyst shards on the template, prismarine crystals pulled from a chest and
+  crafted; cobblestone stays), `advanced_crafting_container_items` (a cake gives three empty buckets back) and
+  `advanced_crafting_save_actions_recipe` (save and load, breaking drops the inputs only, Off and On actions, the
+  `OWO/OCO/ORO` recipe).
+- **Not checked without a client:** the screen (layout, phantom slot clicks, progress arrow, ledger), the block model
+  and textures, the creative tab entry and the JEI catalyst.
+
+## Architect table and blueprint items (#77)
+
+Ported `builders/BlockArchitect`, `TileArchitect`, `ItemBptBase`, `ItemBptTemplate`, `ItemBptBluePrint`,
+`gui/ContainerTemplate` and `gui/GuiTemplate`, and the library half of `BuildCraftBuilders` (`getBptRootIndex`,
+`getPlayerIndex`, `getBptItemStack`, `MAX_BLUEPRINTS_NAME_SIZE`) as `builders/BuildCraftBuilders`. New:
+`builders/BptItemData`, `builders/render/RenderArchitect`. Changed (additive): `BuildersRegistry`, `BuildersScreens`,
+`BuildersRenderers`, `EventHandlerBuilders` (the library is dropped when the server stops), the pickaxe tag. #76 has not
+landed: capture goes through #75's `BptBlueprint.readFromWorld`, which already asks `BlueprintManager` for each block's
+schematic, so #76's registry is used without a change here. Decided 2026-11-01.
+
+- **Names.** Block `architect_block` (4.2.2 `architectBlock`), block entity `architect`, menu `architect_block`, items
+  `template_item` and `blueprint_item`, data component `buildcraftreforged:blueprint`. Lang keys are 4.2.2's.
+- **Block.** `Material.iron`, hardness 5, metal sound, pickaxe, drops itself. The metadata front becomes `FACING`
+  (horizontal); placing turns the front to the player, as 4.2.2. 4.2.2's metadata 0 (down) turned a capture like west,
+  so the default state faces west. The model is `architect_front` on the front, `architect_top` on top and
+  `architect_sides` elsewhere (4.2.2's `getIcon`); `architect_top_pos`/`_neg` were registered but never shown and are not
+  copied. Any wrench in `c:tools/wrench` turns it with 4.2.2's cycle (west, south, east, north) on a plain click; ours
+  goes through `IRotatableBlock`. A plain click opens the GUI, sneaking passes.
+- **Creative tab and recipes.** 4.2.2 had no recipe for the table, the template or the blueprint (all commented out)
+  and left the table out of the creative tab. The table and the template are in the machines tab so they can be had;
+  the blueprint item is not (4.2.2 `setCreativeTab(null)`); there are still no recipes.
+- **Area and lasers.** As 4.2.2: on its first tick the table takes the marker area next to it
+  (`Utils.getNearbyAreaProvider`), removes the markers and puts up the stripes box, drawn by `RenderArchitect` as
+  `RenderFiller` draws the filler's.
+- **Scanning.** As 4.2.2: a Blueprint or Template item in the left slot with the right slot empty starts a 200-tick
+  count (`TileArchitect.COMPUTING_TIME`); then the whole box is captured at once: a blueprint through
+  `BptBlueprint.readFromWorld` per position, a template as `setMask` (filled where `isEmptyBlock` is false; a redstone
+  signal at the table inverts it, 4.2.2's mask swap). The anchor is the table's position relative to the box minimum,
+  and the capture is turned to the table's front exactly as 4.2.2 (front west: none; north: one `rotateLeft`; east:
+  two; south: three). If the result `equals` the table's last library entry it is reused, else `storeBluePrint` adds a
+  new one; the right slot gets the item and the left slot is emptied.
+- **Library.** `BuildCraftBuilders.getBptRootIndex(server)` is one `BptRootIndex` in
+  `BlueprintPaths.serverLibrary(server)` (`<world>/buildcraft-reforged/blueprints/`) with the server's registries,
+  `loadIndex` and `importNewFiles` on first use as 4.2.2, dropped on `ServerStoppingEvent`. `getPlayerIndex(server,
+  uuid)` caches `BptPlayerIndex.forPlayer` per UUID. 4.2.2's `IBuilderHook` is not ported (no 4.2.2 module used it).
+- **Items.** 4.2.2 put the library number in the damage and the name in the "BptName" tag. Both now live in
+  `BptItemData(id, name, author)`, set by `BuildCraftBuilders.getBptItemStack(item, id, name, author)`; a clean item has
+  no component (4.2.2 damage 0), and the item model's `has_component` condition picks `*_clean` or `*_used`. Stack size
+  1. The tooltip shows the name; an unnamed blueprint's is "#" and its library number (4.2.2's `getName()`, which
+  `getBptItemStack` put on the item too). Using the item on the server reloads the entry and refreshes name and author, as 4.2.2's
+  `onItemRightClick` did. **Author** is new: the table's owner (the player who placed it, #27); empty for a table placed
+  without a player. It is also stored in the blueprint file.
+- **Name.** The GUI's name field takes letters, digits and spaces up to 14 characters, and Backspace, exactly as 4.2.2's
+  `handleClientInput`; anything else is ignored. Each key goes to the server as a `PacketGuiReturn` whose extra data is
+  the character (4.2.2 `ARCHITECT_NAME`); the server refuses a payload that is not exactly one character. The name is
+  synced to the client with the box (4.2.2's two `@TileNetworkData` fields) and capped at 14 when loaded. The file name
+  is sanitised by `storeBluePrint` (#75).
+- **Inventory.** Two slots, stack limit 1. 4.2.2's `isItemValidForSlot` was false, so the item capability lets nothing
+  in (pipes, hoppers); the GUI slots take anything, as 1.6.4's `Slot` did. Tags as 4.2.2: `lastTemplateId`,
+  `computingTime`, `isComputing`, `box`, `Items`, `name`. The progress arrow is a `DataSlot` for `computingTime`.
+- **Status panel.** State "No work area" without a box, "Working" while scanning, "Done" while the right slot holds the
+  result, else "Idle". No power line (the table takes none, as 4.2.2).
+- **Not ported:** `GuiIds.ARCHITECT_TABLE` routing (the menu type replaces it), `addCreativeItems`, and the
+  `BptBlockRotateInventory` registration of the table itself (#76 registers schematics).
+
+### For #78 (builder) and #80 (library)
+
+- An item is a blueprint or template when `stack.getItem() instanceof ItemBptBase`; `ItemBptBase.getBptId(stack)` is
+  4.2.2's `getItemDamage()` (0 for a clean item) and `getBptData(stack)` gives name and author. `ItemBptTemplate` versus
+  `ItemBptBluePrint` tells the kind; the loaded `BptBase` is a `BptTemplate` or `BptBlueprint` to match.
+- Load on the server with `BuildCraftBuilders.getBptRootIndex(level.getServer()).getBluePrint(id)` (null when the file
+  is gone or unreadable). The architect has already turned the capture to its own front, so the builder turns it to its
+  own as 4.2.2's `TileBuilder` did.
+- Make items with `BuildCraftBuilders.getBptItemStack(BuildersRegistry.blueprintItem.get() / templateItem.get(), id,
+  bpt.getName(), bpt.author)`; #80's upload and download should keep the component's author.
+- #80 should use `getPlayerIndex(server, uuid)` for the per-player lists and add its client library with
+  `BlueprintPaths.clientLibrary()`; ids in items are always the server's library numbers.
+
+### Tests
+
+GameTests (`ArchitectTests`, padded area, the filler's marker layout: a 3 × 3 × 3 box with the table west of it):
+`architect_scan_blueprint` (the markers go and the box comes up; a name typed through the GUI return path with a
+Backspace and an ignored '/'; Working while scanning, nothing before 200 ticks, then the blueprint item with id, name and
+the owner as author, Done; the file in the world's library reads back equal, with size 3 × 3 × 3, anchor (-1, 0, 0),
+stone, cobblestone, north stairs, the chest with its diamonds, the marker spots as air; a second scan of the same
+structure reuses the entry), `architect_scan_template` (the template mask matches the four blocks; named "#" and its number, as 4.2.2, no author;
+with a redstone block beside the table the mask is inverted and a new entry is made) and
+`architect_facing_turns_capture` (the wrench cycle; a table facing south turns the capture once: cobblestone, chest and
+stairs, now east, where `rotateLeft` puts them).
+
+**Not checked without a client:** the block model and its facing, the item icons (clean and used) and tooltip, the
+stripes box rendering, the GUI (layout, progress arrow, clicking the name field, typing, the blinking cursor, the status
+ledger), and a wrench from another mod.
+
+## Auto workbench and hopper (#69, #70)
+
+Ported `factory/BlockAutoWorkbench`, `TileAutoWorkbench`, `gui/ContainerAutoWorkbench`, `gui/GuiAutoCrafting`,
+`core/gui/slots/SlotWorkbench`, `factory/BlockHopper`, `TileHopper`, `gui/ContainerHopper` and `gui/GuiHopper`.
+Changed (additive): `FactoryRegistry`, `FactoryScreens`, the pickaxe tag; new axe tag. Decided 2026-11-01.
+
+- **The workbench pulls nothing.** 4.2.2's auto workbench (the 4.x design) never reads its neighbours: its
+  3 x 3 grid is a template, and other blocks fill it through its sides. An item goes in only onto a grid slot that
+  already holds it (`canPlaceItem`: never the result slot, never an empty slot, never a non-stackable item or one with
+  a crafting remainder); only the result slot comes out. Pipes, the vanilla hopper, the BuildCraft hopper and other
+  mods' blocks all reach it through the item capability (every face, `WorldlyContainer` rules). The pulling auto
+  workbench of 3.x and the 7.x buffer are not 4.2.2 and are not ported.
+- **Cadence as 4.2.2.** Every server tick `balanceSlots` moves one item between grid slots holding the same item; every
+  16th tick (`UPDATE_TIME`, from a random start) `updateCrafting` adds 16 to `progress` while a recipe matches and the
+  grid is not down to its last item per slot (`isLast`), so a craft takes 256 ticks (`CRAFT_TIME`). Nothing happens
+  while the result slot holds anything. Clicking the GUI's preview slot sets `useLast`, which lets the next craft use
+  the last items.
+- **Crafting.** The grid is a `TransientCraftingContainer` whose dummy menu marks the tile changed. The recipe comes
+  from the server's recipe manager (`CraftingHelper.findMatchingRecipe`); the client has none. The craft goes through a
+  vanilla `ResultSlot` held by the owner's fake player (#27, BuildCraft#1786): `onQuickCraft` for the whole stack and
+  then `onTake`, so `onCraftedBy` and NeoForge's crafting event fire once for the stack, as 1.6.4's
+  `onPickupFromSlot` fired the crafting handlers, and container items are put back in the grid (or into the fake
+  player's inventory, which is then emptied above the workbench, as 4.2.2 did).
+- **Menu.** Slots at 4.2.2's positions: preview (93, 27, a `SlotUntouchable` on a `ResultContainer`), result
+  (124, 35), grid from (30, 17), inventory from (8, 84), hotbar (8, 142). `progress` is a vanilla `DataSlot`
+  (4.2.2 `sendProgressBarUpdate` id 0). Only the server computes the preview (`slotsChanged`) and sends it as a slot;
+  the client adds the yellow "-Click to Craft-" lore when the grid is on its last items. As in 4.2.2 the preview is
+  recomputed every tick while the menu is open. `GuiAutoCrafting` draws 4.2.2's title, "Inventory" and progress arrow
+  on `autobench.png`, plus the status ledger.
+- **Hopper ("Chute" in 4.2.2's language file).** Four slots, every face (4.2.2 `IInventory`). Every second game tick it
+  offers one item to the item capability of the block below on its top face, slot by slot, and moves the first one
+  taken. 4.2.2 asked `Transactor.getTransactorFor` for the tile entity below, so it fed only inventories (4.2.2 pipes
+  were not one); now item pipes, machines and other mods' blocks take part the same way, through `TransactorHandler`.
+  It still pulls nothing from above. Hardness 5 (`BlockBuildCraft`'s default), iron, not opaque.
+- **Hopper model.** 4.2.2 drew the chute with `RenderHopper` (a 16 x 7 x 16 top, a frustum from 8 x 8 to 16 x 16 and a
+  6 x 3 x 6 spout, from the box texture `hopper.png`). It is a static JSON model now: the top box, the frustum as three
+  steps, and the spout, textured with `hopperTop`, `hopperSide` and `hopperBottom` (4.2.2's block icon). The hitbox
+  stays a full block, as in 4.2.2.
+- **Pipes in hand.** Both blocks pass a click with a pipe in hand, so the pipe is placed (4.2.2's `IItemPipe` check);
+  sneaking passes too; any other click opens the GUI.
+- **Status panel.** Workbench: Working while a craft is in progress, else Idle. Hopper: Idle when empty, Working while
+  it moves items, Blocked with "Output blocked" (the block below refuses; item pipes say which through
+  `IOutputRefusal`) or "No destination" (nothing below takes items), with the red light; Flow line counts items out.
+  `GuiHopper` is a `GuiBuildCraft` (4.2.2: a plain `GuiContainer`) so it can carry the ledger; it draws no title, as in
+  4.2.2.
+- **Save.** Workbench: result slot as `items`, grid as `matrix` (4.2.2's tags; the pre-4.x `stackList` is not read).
+  Hopper: `inventory` compound with `items`.
+- **Names.** Blocks `auto_workbench_block` and `block_hopper`; block entities `auto_workbench` and `hopper`; menus
+  `auto_workbench_block` and `block_hopper`. Recipes as 4.2.2: crafting table in a ring of four wooden gears; iron
+  ingots, a chest and a stone gear (`ICI/IGI/ I `).
+- **Not ported:** `BptBlockAutoWorkbench` (deprecated in 4.2.2; the builder, #78, decides), `RenderHopper` (see above),
+  1.6.4's `addCreativeItems`.
+- **Tests.** GameTests (`WorkbenchHopperTests`, padded area): `auto_workbench_crafts_from_chest` (chest → vanilla
+  hopper → workbench with a planks template → vanilla hopper → chest: 8 sticks arrive and one plank stays per slot),
+  `auto_workbench_rules_menu_and_save` (template-only insert, result-only extract, refusals, menu slots and preview,
+  the preview click crafting the last planks, save and load, recipe), `hopper_feeds_pipe` (hopper over two gold pipes
+  to a chest), `hopper_feeds_machine` (coal into a Stirling engine, planks into a workbench template, one item per two
+  ticks) and `hopper_blocked_menu_and_recipe` (Blocked over a full chest and over air, red light on and off, menu
+  slots, shift-click, recipe).
+- **Not checked without a client:** both block models and the item models, the red light on the hopper, both GUIs
+  (layout, progress arrow, the yellow tool tip, the status ledger), the recipes in the crafting grid, and clicks
+  through the real network path (the tests open the menus on the server).
+
+## Structure Pipe, Basic Extractor, plug and facade recipes (#54, #58, #144)
+
+New code from `docs/TRANSPORT.md` 10, 11 and Q17; the 4.2.2 `PipeStructureCobblestone`, `PipeItemsWood`,
+`PipeLogicWood`, `BuildCraftTransport.postInit` and `ItemFacade.addFacade` were read for behaviour only. Recorded
+2026-11-01.
+
+- **Structure Pipe (#54).** `BlockPipeStructure` (kind `STRUCTURE`) is a `BlockPipe` with no material:
+  `BlockPipe.material` is nullable, `getTier()` is 0 and `getTierStats()` is `PipeTierStats.NONE`. It is registered
+  beside the tier table (`TransportRegistry.pipeStructureCobblestone`, item `pipeStructureCobblestoneItem`, key
+  `item.PipeStructureCobblestone`) and is valid for the shared `pipe` block entity type. The connection rule, the
+  network manager, gates, wire (`isWireConnectedTo`), facades and plugs already handled `STRUCTURE`; nothing else
+  changed. Model: the `buildcraftreforged:pipe` block-state model with #61's `pipe_structure_cobblestone` texture.
+  Recipe (Q17): gravel + Stone Transport Pipe, shapeless, 1.
+- **Basic Extractor (#58).** `BlockBasicExtractor` (`FACING` = the inventory face, set from the clicked face; wrench:
+  `IRotatableBlock`, the next side in side order with a non-pipe item handler) and `TileBasicExtractor`. The pipe
+  face connects to item pipes only, through `IPipeConnection` (`CONNECT` for `ITEM` on the pipe face, `DISCONNECT`
+  otherwise); the block has no item handler, so it is a network endpoint that never receives. The four side faces have
+  a Forge Energy handler that stores nothing (capacity 641 so callers see it): `insert` is the pulse. Engines reach it
+  through their Forge Energy path (`TileEngine.sendPower` inserts in a root transaction and keeps what was refused),
+  so no `IPowerReceptor` is needed. The pulse is `ItemRouting.extract(..., maxItems, outer)`, a new overload that
+  runs inside the caller's transaction. The flow record is a `FlowAccumulator` measured on the extractor's own tick at
+  each 10-tick boundary and sent in its payload when `FlowRecord.differsFrom` says so.
+- **Suction animation.** `BasicExtractorRenderer` (client): the stripes (`textures/pipe/basic_extractor_stripes.png`,
+  32 × 16, a 4-pixel diagonal period) are drawn on the four sides of the three steps with u shifted by
+  `phase × 4 px`, so they stand still when idle; `phase` is 0 to 1 over the second half of the stroke of an engine on
+  a side face that faces the extractor (`TileEngine.progress` past 0.5), and only while the client record has a rate.
+  The record's item slides along the centre line from just inside the inventory face to the pipe face over the same
+  half-stroke. The static body is the block model `block/basic_extractor` (three boxes, wooden pipe sides, oak plank
+  ends).
+- **Not done.** Gates and wire on the Basic Extractor: `PipeGateHolder` is tied to `TilePipe` (its container), so
+  the extractor needs a holder of its own before `GateVanilla.addEnergyPulser` can pulse it. The status panel on
+  right-click (PLAN section 10) is not added either.
+- **Plug and facade assembly recipes (#144).** `assembly/pipe_plug.json` is a plain `buildcraftreforged:assembly`
+  recipe (1 Structure Pipe, 10 000 FE, 8 plugs). Facades are one file, `assembly/pipe_facade.json`, of the new
+  serializer `buildcraftreforged:assembly_facades` (`transport/FacadeAssemblyRecipe`, a subclass of
+  `AssemblyTableRecipe` with the same fields and recipe type): energy 80 000, inputs 3 Structure Pipes, result 6
+  facades. `AssemblyTableRecipe.toAssemblyRecipes()` (one recipe by default) is what `AssemblyRecipeManager` now
+  flattens; the facade type returns one 4.2.2 recipe per `ItemFacade.getAllFacades()` state with an item, adding the
+  block's item to the inputs and the state to the output. As in 4.2.2, the sideways log states get no recipe (the
+  turning recipe makes them). The list is built on the side that reads it, after the registries are frozen, so modded
+  facade blocks get recipes too. `SiliconRecipeTests` now expects the plug among the plain recipes and counts plain
+  `AssemblyTableRecipe`s only. JEI lists them through the Assembly Table category as before; the plugin registers a
+  subtype interpreter on the `facade` component (`registerFromDataComponentTypes`) so each facade is its own entry.
+- **Tests.** GameTests `structure_pipe_connects_only_to_structure`, `structure_pipe_holds_pluggables`,
+  `basic_extractor_engine_pulses` (a powered redstone engine on top moves one item per pulse through iron pipes),
+  `basic_extractor_pulse_rules` (pulse arithmetic, energy only on the side faces, pipe-face-only connection, empty and
+  full budgets, an aborted pulse, the wrench, the recipe), `basic_extractor_no_engine`, `plug_facade_recipes_listed`
+  and `plug_facade_laser_crafting` (8 plugs and 6 stone facades made under lasers).
+- **Not checked without a client:** the Structure Pipe and Basic Extractor models and items, the stripes and the
+  item slide, the JEI entries for plugs and facades (one per facade, the recipe pages).

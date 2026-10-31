@@ -5,6 +5,7 @@ import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
 import buildcraftreforged.transport.flow.FlowRecordsPayload;
 import buildcraftreforged.transport.gui.GuiGateInterface;
+import buildcraftreforged.transport.render.BasicExtractorRenderer;
 import buildcraftreforged.transport.render.FacadeItemRenderer;
 import buildcraftreforged.transport.render.PipeRendererTESR;
 import net.minecraft.core.BlockPos;
@@ -36,6 +37,8 @@ public final class TransportClient {
     @SubscribeEvent
     static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(TransportRegistry.pipeTile.get(), PipeRendererTESR::new);
+        // The Basic Extractor's stripes and suction (#58).
+        event.registerBlockEntityRenderer(TransportRegistry.basicExtractorTile.get(), BasicExtractorRenderer::new);
     }
 
     /** Flow records from the server (docs/TRANSPORT.md 9.3): each pipe of the payload takes its record. */

@@ -19,6 +19,9 @@ import buildcraftreforged.core.CreativeTabBuildCraft;
 import buildcraftreforged.core.ItemBlockBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
+import buildcraftreforged.core.TileBuildCraft;
+import buildcraftreforged.factory.gui.ContainerAutoWorkbench;
+import buildcraftreforged.factory.gui.ContainerHopper;
 import buildcraftreforged.factory.gui.ContainerRefinery;
 import java.util.function.Supplier;
 import net.minecraft.resources.Identifier;
@@ -155,6 +158,38 @@ public final class FactoryRegistry {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileQuarry>> quarryTile =
             REGISTERS.blockEntityTypes.register("quarry", () -> new BlockEntityType<>(TileQuarry::new, quarryBlock.get()));
 
+    /**
+     * BlockAutoWorkbench's constructor: Material.wood (wood colour, sound and instrument, axe, burns), setHardness(3.0F)
+     * (through 1.6.4's hardness * 5 rule, explosion resistance 3).
+     */
+    public static final DeferredBlock<BlockAutoWorkbench> autoWorkbenchBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("autoWorkbenchBlock"), BlockAutoWorkbench::new,
+            properties -> properties.overrideDescription("tile.autoWorkbenchBlock").mapColor(MapColor.WOOD)
+                    .instrument(NoteBlockInstrument.BASS).strength(3.0F).sound(SoundType.WOOD).ignitedByLava());
+    public static final DeferredItem<ItemBlockBuildCraft> autoWorkbenchBlockItem = blockItem("autoWorkbenchBlock", autoWorkbenchBlock);
+
+    /** 4.2.2 registered TileAutoWorkbench as "AutoWorkbench". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileAutoWorkbench>> autoWorkbenchTile =
+            REGISTERS.blockEntityTypes.register("auto_workbench", () -> new BlockEntityType<>(TileAutoWorkbench::new, autoWorkbenchBlock.get()));
+
+    /** 4.2.2 GuiIds.AUTO_CRAFTING_TABLE. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerAutoWorkbench>> autoWorkbenchMenu =
+            REGISTERS.menus.register("auto_workbench_block", () -> IMenuTypeExtension.create(ContainerAutoWorkbench::new));
+
+    /** BlockHopper's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(5F); not opaque. */
+    public static final DeferredBlock<BlockHopper> hopperBlock = REGISTERS.blocks.registerBlock(RegistryNames.of("blockHopper"),
+            BlockHopper::new, properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.blockHopper")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()));
+    public static final DeferredItem<ItemBlockBuildCraft> hopperBlockItem = blockItem("blockHopper", hopperBlock);
+
+    /** 4.2.2 registered TileHopper as "net.minecraft.src.buildcraft.factory.TileHopper". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileHopper>> hopperTile =
+            REGISTERS.blockEntityTypes.register("hopper", () -> new BlockEntityType<>(TileHopper::new, hopperBlock.get()));
+
+    /** 4.2.2 GuiIds.HOPPER. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerHopper>> hopperMenu =
+            REGISTERS.menus.register("block_hopper", () -> IMenuTypeExtension.create(ContainerHopper::new));
+
     /** 4.2.2's ForgeChunkManager ticket callback (QuarryChunkloadCallback), for quarry.loadsChunks. */
     public static final TicketController quarryChunkLoader = new TicketController(
             Identifier.fromNamespaceAndPath(BuildcraftReforged.MOD_ID, "quarry"), TileQuarry::validateTickets);
@@ -180,6 +215,9 @@ public final class FactoryRegistry {
         PowerEnergyHandler.registerEnergyHandler(event, pumpTile.get());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, floodGateTile.get(), (tile, side) -> tile);
         PowerEnergyHandler.registerEnergyHandler(event, quarryTile.get());
+        // 4.2.2's TileAutoWorkbench was an ISidedInventory and TileHopper an IInventory.
+        TileBuildCraft.registerItemHandler(event, autoWorkbenchTile.get());
+        TileBuildCraft.registerItemHandler(event, hopperTile.get());
     }
 
     public static void register(IEventBus modBus) {

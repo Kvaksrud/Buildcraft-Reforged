@@ -132,7 +132,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Mining Well (`miningWellBlock`) | `BlockMiningWell, TileMiningWell` | `mining_well_block` | #66 | [x] | [ ] | [ ] | Digs as the owner; a refused break blocks it (status panel, red light). GameTests `mining_well_digs`, `mining_well_output`, `mining_well_protected`; model not checked in game. |
 | Mining Pipe (`plainPipeBlock`) | `BlockPlainPipe` | `plain_pipe_block` | #66 | [x] | [ ] | [ ] | `IFramePipeConnection` (never connects) since #67. Model not checked in game. |
-| Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [ ] | [ ] | [ ] |  |
+| Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [x] | [ ] | [ ] | Template grid filled through its sides (pipes, hoppers), one craft per 256 ticks, the last item of each slot kept unless the preview is clicked; crafts as the owner's fake player; status panel added. GameTests `auto_workbench_crafts_from_chest`, `auto_workbench_rules_menu_and_save`; model not checked in game. `BptBlockAutoWorkbench` waits for the builder (#78). |
 | Frame (`frameBlock`) | `BlockFrame` | `frame_block` | #67 | [x] | [ ] | [ ] | Waterloggable; six connection properties and a multipart model for 4.2.2's legacy pipe model; removed at once with its quarry instead of decaying (section 19.3). Built and connected in GameTest `quarry_digs_9x9`; model not checked in game. |
 | Quarry (`machineBlock`) | `BlockQuarry, TileQuarry` | `machine_block` | #67 | [x] | [ ] | [ ] | Registry name `machine_block` by the naming rule (decided in #67). Frame built by `QuarryFrameBuilder` (the quarry's part of `BptBuilderBlueprint` and `EntityRobot`); arm (`EntityMechanicalArm`) is render data drawn by `RenderQuarry`. Digs as the owner and stops at a refused block; output through `MachineOutput` (blocked, red light); chunk loading only with `quarry.loadsChunks`; Done state, no power taken when done. GameTests `quarry_digs_9x9`, `quarry_marker_area`, `quarry_blocked_output`, `quarry_protected_block`; model, arm, lasers and status screen not checked in game. |
 | Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
@@ -145,9 +145,9 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Automatic Crafting Table (`GuiIds.AUTO_CRAFTING_TABLE` 30) | `GuiAutoCrafting / ContainerAutoWorkbench` | `auto_workbench_block` menu | #69 | [ ] | [ ] | [ ] |  |
+| Automatic Crafting Table (`GuiIds.AUTO_CRAFTING_TABLE` 30) | `GuiAutoCrafting / ContainerAutoWorkbench` | `auto_workbench_block` menu | #69 | [x] | [ ] | [ ] | Slots, preview, "click to craft" and the progress `DataSlot` covered by GameTest `auto_workbench_rules_menu_and_save`; status ledger added; drawing and the yellow tool tip not checked in game. |
 | Refinery (`GuiIds.REFINERY` 31) | `GuiRefinery / ContainerRefinery` | `refinery_block` menu | #68 | [x] | [ ] | [ ] | Filter sync and return covered by GameTest `refinery_filters_and_blocked`; drawing and clicks not checked in game. |
-| Hopper (`GuiIds.HOPPER` 32) | `GuiHopper / ContainerHopper` | `block_hopper` menu | #70 | [ ] | [ ] | [ ] |  |
+| Hopper (`GuiIds.HOPPER` 32) | `GuiHopper / ContainerHopper` | `block_hopper` menu | #70 | [x] | [ ] | [ ] | Slots and shift-click covered by GameTest `hopper_blocked_menu_and_recipe`; now a `GuiBuildCraft` so it carries the status ledger; drawing not checked in game. |
 
 ## silicon (`BuildCraftSilicon`)
 
@@ -156,7 +156,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
-| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client. The 4.2.2 chipset, gate and pipe wire recipes and the module recipes ship (#74, `assembly/`); plugs and facades wait for #61. JEI category (#74). GameTests `assembly_*`, `silicon_*`. |
+| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client. The 4.2.2 chipset, gate and pipe wire recipes and the module recipes ship (#74, `assembly/`); plugs and facades (`assembly/pipe_plug`, `assembly/pipe_facade`, #144). JEI category (#74). GameTests `assembly_*`, `silicon_*`. |
 | Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_red_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_red_chipset`. GameTests `silicon_*`. |
 | Redstone Iron Chipset (`redstoneChipset.1`) | `ItemRedstoneChipset (meta 1)` | `redstone_iron_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_iron_chipset`. GameTests `silicon_*`. |
@@ -169,7 +169,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Assembly Table (GUI id 0, block meta) | `GuiAssemblyTable / ContainerAssemblyTable` | `assembly_table_block` menu | #72 | [x] | [ ] | [ ] | Menu, data slots and the selection GUI return tested by GameTests `assembly_*`; the screen not yet seen in a client. |
-| Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [ ] | [ ] | [ ] |  |
+| Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [x] | [ ] | [ ] | Menu slots and data slots tested by GameTest `advanced_crafting_laser`; the screen not yet seen in a client. |
 
 ## transport (`BuildCraftTransport`)
 
@@ -197,8 +197,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `autarchic_gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
 | Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `autarchic_gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
 | Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
-| Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). |
-| Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61 | [ ] | [ ] | [ ] |  |
+| Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61, #144 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). Assembly recipe per facade (`assembly/pipe_facade`, type `buildcraftreforged:assembly_facades`, #144); JEI subtype per state. GameTests `plug_facade_*`. |
+| Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61, #144 | [ ] | [ ] | [ ] | Assembly recipe `assembly/pipe_plug` (#144). GameTests `plug_facade_*`. |
 | Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [ ] | [ ] | [ ] |  |
 
 ### Pipes (transport, `BuildCraftTransport.buildPipe`, superseded by section 8)
@@ -234,7 +234,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Iron Kinesis Pipe (`PipePowerIron`) | `PipePowerIron (ItemPipe)` | Director module on a power tier pipe, as the Power Limiter (TRANSPORT Q7), with the Power Limiter action | #52, #53, #55, #60 | [ ] | [ ] | [ ] | #55 keeps the limit and the wrench; #52 applies it, #60 adds the action. |
 | Golden Kinesis Pipe (`PipePowerGold`) | `PipePowerGold (ItemPipe)` | plain power tier pipe, tier 5 (gold) | #52, #53 | [ ] | [ ] | [ ] |  |
 | Diamond Kinesis Pipe (`PipePowerDiamond`) | `PipePowerDiamond (ItemPipe)` | plain power tier pipe, tier 7 (diamond) | #52, #53 | [ ] | [ ] | [ ] |  |
-| Cobblestone Structure Pipe (`PipeStructureCobblestone`) | `PipeStructureCobblestone (ItemPipe)` | `pipe_structure_cobblestone` | #54 | [ ] | [ ] | [ ] |  |
+| Cobblestone Structure Pipe (`PipeStructureCobblestone`) | `PipeStructureCobblestone (ItemPipe)` | `pipe_structure_cobblestone` | #54 | [x] | [ ] | [ ] | Recipe gravel + Stone Transport Pipe (Q17). GameTests `structure_pipe_*`. Not yet seen in a client. |
 
 ### Triggers (transport, `PipeTriggerProvider` and `GateVanilla`)
 
@@ -321,7 +321,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Path Mark (`pathMarkerBlock`) | `BlockPathMarker, TilePathMarker` | `path_marker_block` | #30 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderFiller`; breaks and places as the owner and skips a refused spot; status panel (missing materials, red light). GameTests `filler_*`; models, lasers and GUI not checked in game. |
 | Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [ ] | [ ] | [ ] |  |
-| Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [ ] | [ ] | [ ] |  |
+| Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderArchitect`; 200-tick scan into the world's library; facing turns the capture; status panel. GameTests `architect_*`; model, lasers and GUI not checked in game. |
 | Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [ ] | [ ] | [ ] |  |
 
 ### Actions (builders, `BuildersActionProvider`: one per filler pattern)
@@ -340,7 +340,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [ ] | [ ] | [ ] |  |
+| Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [x] | [ ] | [ ] | 4.2.2 slots, progress arrow and name field; one PacketGuiReturn per typed character; status ledger added. Name packet checked by GameTest `architect_scan_blueprint`; screen and typing not checked in game. |
 | Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [ ] | [ ] | [ ] |  |
 | Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [x] | [ ] | [ ] | 4.2.2 slots, pattern widget and arrows; status ledger added. GUI return checked by GameTest `filler_actions_gui_and_save`; screen not checked in game. |
 | Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [ ] | [ ] | [ ] |  |
@@ -403,7 +403,7 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
+| Basic Extractor | — | `basic_extractor` | #58 | [x] | [ ] | [ ] | Section 8.2. Engine pulses, recipe planks / glass / planks in a column. No gates or wire yet. GameTests `basic_extractor_*`. Model and suction not yet seen in a client. |
 | Recipe viewer: Assembly Table and Refinery categories | NEI plugins (external) | `platform/jei` | #32, #74 | [x] | [ ] | [ ] | Section 6. Optional JEI plugin; gate AND/OR swaps show in JEI's crafting category. Not yet seen in a client. |
 | Overheat timer, shut-down mode and `engines.*` config | — | `TileEngine.updateOverheatTimer`, sound `engine_whine` | #40 | [x] | [ ] | [x] | Section 9. Red starts the timer, explode or shut down (wrench restarts) when it runs out; "Red, N s" in the status panel. GameTests `engine_iron_overheat`, `engine_overheat_config`, `engine_orientation`. The whine plays vanilla's beacon hum until a sound of its own exists; not heard in a client. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |

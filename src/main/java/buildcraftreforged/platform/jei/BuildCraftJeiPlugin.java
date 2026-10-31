@@ -6,14 +6,17 @@ import buildcraftreforged.factory.FactoryRegistry;
 import buildcraftreforged.factory.RefineryRecipeManager;
 import buildcraftreforged.silicon.AssemblyRecipeManager;
 import buildcraftreforged.silicon.SiliconRegistry;
+import buildcraftreforged.transport.TransportRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
+import mezz.jei.api.registration.ISubtypeRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
@@ -35,6 +38,12 @@ public class BuildCraftJeiPlugin implements IModPlugin {
         return UID;
     }
 
+    /** Facades differ only by the block state they carry (#61): one JEI entry per facade, so each has its recipe (#144). */
+    @Override
+    public void registerItemSubtypes(ISubtypeRegistration registration) {
+        registration.registerFromDataComponentTypes(TransportRegistry.facadeItem.get(), TransportRegistry.facadeState.get());
+    }
+
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
         IGuiHelper guiHelper = registration.getJeiHelpers().getGuiHelper();
@@ -54,5 +63,6 @@ public class BuildCraftJeiPlugin implements IModPlugin {
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addCraftingStation(AssemblyRecipeCategory.TYPE, SiliconRegistry.assemblyTableBlockItem.get());
         registration.addCraftingStation(RefineryRecipeCategory.TYPE, FactoryRegistry.refineryBlockItem.get());
+        registration.addCraftingStation(RecipeTypes.CRAFTING, SiliconRegistry.advancedCraftingTableBlockItem.get());
     }
 }
