@@ -45,7 +45,7 @@ public class ModuleDirector extends PipeModule {
         return facing;
     }
 
-    /** The Power Limiter's cap in FE/t. SEAM(#52): power routing reads it on a power pipe. */
+    /** The Power Limiter's cap in FE/t; a power pipe's routing reads it through {@link TilePipe#getPowerLimit()}. */
     public int getPowerLimit() {
         return powerMode.maxPower;
     }

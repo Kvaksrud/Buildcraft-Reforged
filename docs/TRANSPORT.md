@@ -515,6 +515,11 @@ loop 4.2.2 could pass power back and forth; the tree cannot).
 its per-tick refill increments `overload`, otherwise decrements it (floor 0, ceiling 60); it is overloaded at 60.
 Constants from `PipeTransportPower` (`OVERLOAD_TICKS`, `maxPower * 0.95`).
 
+As built (#52, 2026-10-31): the phases run in the pusher's transaction, so a simulated push is an aborted transaction
+(step 5 delivers into it and rolls back) rather than a separate code path. Each receiving block counts once, through
+the first of its faces the tree reaches, and the pushing block is excluded on every face. See
+`docs/PORTING-NOTES.md`, "Power (kinesis) routing".
+
 **Power Limiter** (4.2.2 `PipePowerIron.PowerMode`: 2, 4, 8, 16, 32, 64, 128 MJ/t, set by wrench or the Power Limiter
 gate action): becomes a per-pipe refill override of 20, 40, 80, 160, 320, 640, 1 280 FE/t, capped by the tier. The
 Director module on a power pipe carries it (Q7, decided).
