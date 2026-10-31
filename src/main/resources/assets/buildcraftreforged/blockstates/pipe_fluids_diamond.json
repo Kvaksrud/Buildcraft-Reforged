@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "type": "buildcraftreforged:pipe", "texture": "buildcraftreforged:block/pipe_fluids_diamond" }
+  }
+}

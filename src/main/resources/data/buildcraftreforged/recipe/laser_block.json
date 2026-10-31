@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "O": "minecraft:obsidian",
+    "R": "minecraft:redstone",
+    "D": "minecraft:diamond"
+  },
+  "pattern": [
+    "ORR",
+    "DDR",
+    "ORR"
+  ],
+  "result": {
+    "id": "buildcraftreforged:laser_block"
+  }
+}

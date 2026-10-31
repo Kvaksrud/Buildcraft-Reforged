@@ -10,7 +10,7 @@
  * preRemoveSideEffects; the active-machine light goes through the auxiliary light manager; the reflection packet
  * wrappers become writePacketPayload/readPacketPayload, sent as the vanilla update tag and as state 0 of a
  * PacketTileState. The inventory drop uses InvUtils (#23); getItemHandler and registerItemHandler expose the item
- * capability per side.
+ * capability per side. An IStatusProvider keeps its block's StatusPanel.BLOCKED property (the red light) current.
  */
 package buildcraftreforged.core;
 
@@ -22,6 +22,8 @@ import buildcraftreforged.core.network.IClientState;
 import buildcraftreforged.core.network.ISyncedTile;
 import buildcraftreforged.core.network.PacketData;
 import buildcraftreforged.core.network.PacketTileState;
+import buildcraftreforged.core.status.IStatusProvider;
+import buildcraftreforged.core.status.StatusPanel;
 import com.mojang.serialization.Codec;
 import java.nio.ByteBuffer;
 import java.util.Optional;
@@ -106,6 +108,10 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
             PowerHandler.PowerReceiver receiver = receptor.getPowerReceiver(null);
             if (receiver != null)
                 receiver.update();
+        }
+
+        if (this instanceof IStatusProvider) {
+            StatusPanel.updateBlockedLight(this);
         }
     }
 
