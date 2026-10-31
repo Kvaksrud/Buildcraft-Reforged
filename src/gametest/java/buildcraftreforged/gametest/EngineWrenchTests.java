@@ -27,7 +27,8 @@ import net.neoforged.neoforge.capabilities.Capabilities;
  */
 final class EngineWrenchTests {
     static final Map<String, Consumer<GameTestHelper>> TESTS = new LinkedHashMap<>();
-    static final int MAX_TICKS = 60;
+    /** A cold redstone engine pulses slowly; give it time to warm up and pulse into the quarry. */
+    static final int MAX_TICKS = 400;
 
     private static final BlockPos ENGINE = new BlockPos(2, 2, 2);
 
@@ -62,8 +63,8 @@ final class EngineWrenchTests {
     }
 
     /**
-     * A running redstone engine facing air reports No power receiver; facing a quarry, whose minimum intake is above a
-     * redstone engine's pulse (4.2.2), it reports Engine too weak.
+     * A running redstone engine facing air reports No power receiver; facing a quarry it reports nothing and feeds it,
+     * although its pulse is below the quarry's minimum intake (decided 1 Nov 2026).
      */
     static void statusReasons(GameTestHelper helper) {
         TileEngineWood engine = placeEngine(helper, ENGINE, Direction.EAST);
@@ -73,9 +74,15 @@ final class EngineWrenchTests {
             helper.setBlock(ENGINE.east(), FactoryRegistry.quarryBlock.get().defaultBlockState()
                     .setValue(BlockQuarry.FACING, Direction.WEST));
             // The engine's TileBuffer refreshes a neighbour within 20 ticks (4.2.2).
-            helper.runAfterDelay(22, () -> {
-                helper.assertValueEqual(engine.getStatusReason(), StatusReason.PULSE_TOO_SMALL, "reason facing a quarry");
-                helper.succeed();
+            // The engine's TileBuffer refreshes a neighbour within 20 ticks (4.2.2); then it pulses into the quarry.
+            helper.succeedWhen(() -> {
+                helper.assertValueEqual(engine.getStatusReason(), StatusReason.NONE, "reason facing a quarry");
+                helper.assertTrue(engine.getMeter().energyOutPerSecond() > 0,
+                        "the redstone engine delivered nothing to the quarry");
+                // Perdition does not eat the trickle below the quarry's activation energy: three pulses stay stored.
+                TileQuarry quarry = helper.getBlockEntity(ENGINE.east(), TileQuarry.class);
+                helper.assertTrue(quarry.getPowerReceiver(Direction.WEST).getEnergyStored() >= 30,
+                        "the quarry lost the redstone engine's pulses");
             });
         });
     }

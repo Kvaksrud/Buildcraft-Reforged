@@ -284,6 +284,9 @@ public final class PowerHandler {
             double newEnergy = getPerdition().applyPerdition(this, current, ticksPassed);
             if (!(newEnergy == 0 || newEnergy < current))
                 newEnergy = DEFAULT_PERDITION.applyPerdition(this, current, ticksPassed);
+            // Perdition never takes a machine below the energy one operation needs, so a weak engine's trickle can
+            // build up to it; energy above it still decays as in 4.2.2 (decided 1 Nov 2026).
+            newEnergy = Math.max(newEnergy, Math.min(current, activationEnergy));
             setExactEnergy(newEnergy);
             validateEnergy();
         }
@@ -427,12 +430,11 @@ public final class PowerHandler {
          */
         public long receiveEnergy(Type source, final long quantity, @Nullable Direction from) {
             long used = quantity;
-            if (source == Type.ENGINE) {
-                if (used < minEnergyReceived) {
-                    return 0;
-                } else if (used > maxEnergyReceived) {
-                    used = maxEnergyReceived;
-                }
+            // 4.2.2 refused an engine pulse below minEnergyReceived. Engines now keep the minimum on their side
+            // (TileEngine.getPowerToExtract): a strong engine still waits for it, a weak one sends its whole pulse,
+            // so a redstone engine can drive any machine slowly (decided 1 Nov 2026).
+            if (source == Type.ENGINE && used > maxEnergyReceived) {
+                used = maxEnergyReceived;
             }
 
             updateSources(from);
