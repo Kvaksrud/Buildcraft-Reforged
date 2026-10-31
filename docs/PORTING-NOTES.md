@@ -3357,3 +3357,36 @@ New code from `docs/TRANSPORT.md` 10, 11 and Q17; the 4.2.2 `PipeStructureCobble
   and `plug_facade_laser_crafting` (8 plugs and 6 stone facades made under lasers).
 - **Not checked without a client:** the Structure Pipe and Basic Extractor models and items, the stripes and the
   item slide, the JEI entries for plugs and facades (one per facade, the recipe pages).
+
+## Engine triggers and comparator output (#41)
+
+Ported `energy/TriggerEngineHeat` and the engines' `getTriggers` (`TileEngine`, `TileEngineStone`, `TileEngineIron`;
+the three `SEAM(#41)` comments are gone). New: `energy/TriggerEngineOverheating`, comparator output on `BlockEngine`.
+Changed (additive): `EnergyRegistry` (five trigger entries), `en_us.json` (`gate.engine.overheating`), four 4.2.2
+sprites and one new sprite under `textures/gui/sprites/triggers`. Decided 2026-11-01.
+
+- **Heat triggers.** As 4.2.2: tags `buildcraft.engine.stage.<colour>`, registry names from the 4.2.2 fields
+  (`trigger_blue_engine_heat` ...), true when `getEnergyStage()` is the trigger's stage, names from the 4.2.2
+  `gate.engine.*` keys. "Thresholds × 10" (plan section 7) needs no change: the stages are quarters of the heat range,
+  which does not depend on the energy unit. The sprites are named in the trigger class, as `TriggerPipeContents` does;
+  `ActionTriggerIconProvider` keeps its (unused) engine-heat indices as 4.2.2 did. An engine shut down by its overheat
+  timer is in stage `OVERHEAT`, so none of the four is true then.
+- **Engine Overheating.** Tag `buildcraft.engine.overheating`, name "Engine Overheating". True while the overheat timer
+  runs (plan section 9) and also while an engine the timer shut down (`engines.explode = false`) waits for the wrench,
+  so the alarm does not go quiet before anyone deals with it. `TileEngine.getTriggers` offers it only when
+  `canOverheat()`: the redstone engine offers the four heat triggers alone. Its sprite is a stand-in (the red heat
+  sprite with a yellow and orange ring) until new art exists.
+- **Stirling and combustion engines.** `getTriggers` adds the four inventory triggers (empty, contains, space, full)
+  and the four fluid triggers, as 4.2.2; they read the engines' item and fluid capabilities. Because `TileEngine`
+  implements `IOverrideDefaultTriggers`, the default inventory level triggers (below 25/50/75 %) are not offered, as
+  in 4.2.2.
+- **Comparator.** `TileEngine.calculateComparatorInputOverride`: 15 while the timer runs or the engine is shut down,
+  otherwise `floor(heat level × 15)` capped at 14 (0 at 20 °C, 7 at half heat, 11 late in yellow), so 15 always
+  means overheating. A redstone engine never overheats and tops out at 14. The server tick notifies comparators
+  (`updateNeighbourForOutputSignal`) when the value changes, as `TileTank` does.
+- **Tests.** GameTests `engine_heat_triggers` (each stage through a gate on a pipe beside the engine, the offered
+  list, tags, sprites and translations), `engine_overheating_trigger` (timer running, shut down, after the wrench
+  restart), `engine_comparator_output` (a vanilla comparator facing the engine at 0, 7, 11 and 15, shut down, after
+  the restart; a full redstone engine gives 14) and `engine_inventory_fluid_triggers` (the three engines' offered
+  lists, inventory and tank triggers through gates).
+- **Not checked without a client:** the five icons and names in the gate GUI.

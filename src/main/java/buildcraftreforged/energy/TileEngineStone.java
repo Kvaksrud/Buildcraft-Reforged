@@ -9,13 +9,16 @@
  * other constants follow from MAX_OUTPUT or are fractions); the GUI is a MenuProvider opened with openMenu;
  * TileEntityFurnace.getItemBurnTime becomes the item's cooking_fuel component, resolved as the vanilla furnace does;
  * the burn-time progress bars are guiData ids 4 and 5 (4.2.2: 15 and 16); NBT becomes ValueInput/ValueOutput; the
- * status panel shows OUT_OF_FUEL; getTriggers waits for the engine triggers (#41).
+ * status panel shows OUT_OF_FUEL; getTriggers reads the triggers from CoreRegistry.
  */
 package buildcraftreforged.energy;
 
+import buildcraftreforged.api.gates.ITrigger;
+import buildcraftreforged.core.CoreRegistry;
 import buildcraftreforged.core.status.MachineStatus;
 import buildcraftreforged.core.utils.Utils;
 import buildcraftreforged.energy.gui.ContainerEngine;
+import java.util.LinkedList;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -191,7 +194,16 @@ public class TileEngineStone extends TileEngineWithInventory implements MenuProv
         return Math.min(Math.max(e * kp + esum * ki, MIN_OUTPUT), MAX_OUTPUT);
     }
 
-    // SEAM(#41): getTriggers adds the four inventory triggers to the engine's heat triggers, as 4.2.2.
+    @Override
+    public LinkedList<ITrigger> getTriggers() {
+        LinkedList<ITrigger> triggers = super.getTriggers();
+        triggers.add(CoreRegistry.triggerEmptyInventory.get());
+        triggers.add(CoreRegistry.triggerContainsInventory.get());
+        triggers.add(CoreRegistry.triggerSpaceInventory.get());
+        triggers.add(CoreRegistry.triggerFullInventory.get());
+
+        return triggers;
+    }
 
     /** Powered with nothing burning and nothing in the slot that burns. */
     @Override

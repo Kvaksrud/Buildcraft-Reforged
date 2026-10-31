@@ -11,13 +11,16 @@
  * handler; an engine does not push into an engine that faces it (BUGFIXES); the @TileNetworkData fields go through
  * writePacketPayload; the GUI progress bars become the guiData ContainerData; NBT becomes ValueInput/ValueOutput;
  * validate/invalidate become clearRemoved/setRemoved; the status panel lines are added (plan section 10); getTriggers
- * waits for the heat triggers (#41); TileEngineLegacy's pre-4.0 conversion is not ported. The overheat timer (plan
+ * also offers the new Engine Overheating trigger on engines that can overheat, and the engine gives a comparator signal
+ * (plan section 9, #41); TileEngineLegacy's pre-4.0 conversion is not ported. The overheat timer (plan
  * section 9, #40) replaces the immediate explosion in addEnergy: an engine that can overheat starts a timer in its red
  * stage and explodes or shuts down (engines.explode) when it runs out; heat stops at MAX_HEAT meanwhile; the client
  * plays the rising whine.
  */
 package buildcraftreforged.energy;
 
+import buildcraftreforged.api.gates.IOverrideDefaultTriggers;
+import buildcraftreforged.api.gates.ITrigger;
 import buildcraftreforged.api.power.IPowerEmitter;
 import buildcraftreforged.api.power.IPowerReceptor;
 import buildcraftreforged.api.power.PowerHandler;
@@ -38,6 +41,7 @@ import buildcraftreforged.core.status.StatusReason;
 import buildcraftreforged.core.status.StatusPanel;
 import buildcraftreforged.core.status.StatusReport;
 import buildcraftreforged.energy.render.EngineWhineSound;
+import java.util.LinkedList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -56,7 +60,8 @@ import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
-public abstract class TileEngine extends TileBuildCraft implements IPowerReceptor, IPowerEmitter, IPipeConnection, IStatusProvider {
+public abstract class TileEngine extends TileBuildCraft implements IPowerReceptor, IPowerEmitter, IOverrideDefaultTriggers, IPipeConnection,
+        IStatusProvider {
 
     public static final Identifier WOOD_TEXTURE = texture("base_wood");
     public static final Identifier STONE_TEXTURE = texture("base_stone");
@@ -90,6 +95,8 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     public int overheatTimer = -1;
     /** The length the running overheat timer started with, in ticks; the whine's pitch follows overheatTimer / this. */
     public int overheatTimerTotal = 0;
+    /** The last comparator output, to notify comparators when it changes. Not in 4.2.2. */
+    private int cachedComparatorOverride = 0;
     /** The FE this engine hands out, for the status panel's Power line. */
     protected final FlowMeter meter = new FlowMeter(() -> level == null ? 0 : level.getGameTime());
     /** 4.2.2 getGUINetworkData/sendGUINetworkData, for the engine GUIs' menu (ContainerEngine, #38 and #44). */
@@ -243,6 +250,7 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
             updateHeatLevel();
             engineUpdate();
             setPumping(false);
+            updateComparator();
             return;
         }
 
@@ -256,7 +264,10 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         updateOverheatTimer();
 
         // An engine whose overheat timer ran out has exploded or shut down.
-        if (isRemoved() || energyStage == EnergyStage.OVERHEAT)
+        if (isRemoved())
+            return;
+        updateComparator();
+        if (energyStage == EnergyStage.OVERHEAT)
             return;
 
         Direction orientation = getOrientation();
@@ -400,6 +411,24 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         getEnergyStage();
         sendNetworkUpdate();
         return true;
+    }
+
+    /**
+     * Not in 4.2.2 (plan section 9): 15 while the overheat timer runs and while the engine is shut down by it, otherwise
+     * the heat level from 0 (20 °C) to 14, so 15 always means "overheating".
+     */
+    public int calculateComparatorInputOverride() {
+        if (overheatTimer >= 0 || energyStage == EnergyStage.OVERHEAT)
+            return 15;
+        return Math.min(Math.max((int) (getHeatLevel() * 15), 0), 14);
+    }
+
+    private void updateComparator() {
+        int comparator = calculateComparatorInputOverride();
+        if (comparator != cachedComparatorOverride && level != null) {
+            cachedComparatorOverride = comparator;
+            level.updateNeighbourForOutputSignal(worldPosition, getBlockState().getBlock());
+        }
     }
 
     /** False for an engine that never overheated in 4.2.2 (the redstone engine stops at its red stage). */
@@ -697,7 +726,21 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     /** FE per tick. */
     public abstract float getCurrentOutput();
 
-    // SEAM(#41): IOverrideDefaultTriggers.getTriggers, the four engine heat triggers.
+    @Override
+    public LinkedList<ITrigger> getTriggers() {
+        LinkedList<ITrigger> triggers = new LinkedList<ITrigger>();
+
+        triggers.add(EnergyRegistry.triggerBlueEngineHeat.get());
+        triggers.add(EnergyRegistry.triggerGreenEngineHeat.get());
+        triggers.add(EnergyRegistry.triggerYellowEngineHeat.get());
+        triggers.add(EnergyRegistry.triggerRedEngineHeat.get());
+        // Plan section 9: the alarm, on the engines that run an overheat timer.
+        if (canOverheat())
+            triggers.add(EnergyRegistry.triggerEngineOverheating.get());
+
+        return triggers;
+    }
+
 
     @Override
     public ConnectOverride overridePipeConnection(PipeType type, Direction with) {
