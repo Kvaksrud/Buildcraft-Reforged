@@ -2565,6 +2565,7 @@ Decided 2026-10-31.
   `maxEnergyExtracted()`. 4.2.2 balance is unchanged: a redstone engine (10 FE pulses) still cannot feed a quarry
   (500 FE minimum) or a mining well (1 000 FE).
 - **Quarry faces.** The quarry takes power on all six faces, the front included (GameTest `quarry_power_on_every_face`).
+
 ## Chipsets, silicon recipes and the JEI categories (#74)
 
 Ported `core/ItemRedstoneChipset` and the recipe half of `BuildCraftSilicon.loadRecipes` and
