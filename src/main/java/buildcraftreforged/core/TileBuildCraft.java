@@ -11,6 +11,7 @@
  * wrappers become writePacketPayload/readPacketPayload, sent as the vanilla update tag and as state 0 of a
  * PacketTileState. The inventory drop uses InvUtils (#23); getItemHandler and registerItemHandler expose the item
  * capability per side. An IStatusProvider keeps its block's StatusPanel.BLOCKED property (the red light) current.
+ * Placement records the placer's UUID next to the owner name, so machines act as the owner's fake player (#27).
  */
 package buildcraftreforged.core;
 
@@ -24,13 +25,16 @@ import buildcraftreforged.core.network.PacketData;
 import buildcraftreforged.core.network.PacketTileState;
 import buildcraftreforged.core.status.IStatusProvider;
 import buildcraftreforged.core.status.StatusPanel;
+import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.Codec;
 import java.nio.ByteBuffer;
 import java.util.Optional;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -65,6 +69,8 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
 
     private boolean init = false;
     private String owner = "[BuildCraft]";
+    /** The placer's UUID, recorded with owner; null when no player placed the block. */
+    private @Nullable UUID ownerId = null;
     private final IClientState networkState = new IClientState() {
         @Override
         public void writeData(RegistryFriendlyByteBuf data) {
@@ -83,6 +89,14 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
 
     public String getOwner() {
         return owner;
+    }
+
+    /**
+     * The game profile of the player who placed this block (UUID and name), or null when no player did, or the block
+     * was placed before #27. BuildCraftPlayer.get makes the fake player machines break and place blocks as.
+     */
+    public @Nullable GameProfile getOwnerProfile() {
+        return ownerId == null ? null : new GameProfile(ownerId, owner);
     }
 
     /**
@@ -167,8 +181,10 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
     }
 
     public void onBlockPlacedBy(@Nullable LivingEntity entity, ItemStack stack) {
-        if (entity instanceof Player)
+        if (entity instanceof Player) {
             owner = ((Player) entity).getGameProfile().name();
+            ownerId = ((Player) entity).getGameProfile().id();
+        }
     }
 
     /**
@@ -284,12 +300,14 @@ public abstract class TileBuildCraft extends BlockEntity implements ISyncedTile 
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.putString("owner", owner);
+        output.storeNullable("ownerId", UUIDUtil.CODEC, ownerId);
     }
 
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         owner = input.getStringOr("owner", owner);
+        ownerId = input.read("ownerId", UUIDUtil.CODEC).orElse(ownerId);
     }
 
     public boolean isInvNameLocalized() {

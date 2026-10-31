@@ -68,6 +68,9 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NETHER_IGNITION = function("oil_fuel_nether_ignition");
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER =
             function("oil_fuel_no_ignition_outside_nether");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_RECORDED_AND_SAVED = function("owner_recorded_and_saved");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
 
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_CHEST_TO_CHEST = function("item_routing_chest_to_chest");
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_HOPPER_PUSH = function("item_routing_hopper_push");
@@ -115,6 +118,9 @@ public final class BuildcraftGameTests {
             registry.register(OIL_FUEL_LIQUIDS, OilFuelTests::liquids);
             registry.register(OIL_FUEL_NETHER_IGNITION, OilFuelTests::netherIgnition);
             registry.register(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, OilFuelTests::noIgnitionOutsideNether);
+            registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
+            registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
+            registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
             registry.register(ITEM_ROUTING_CHEST_TO_CHEST, ItemRoutingTests::chestToChest);
             registry.register(ITEM_ROUTING_HOPPER_PUSH, ItemRoutingTests::hopperPush);
             registry.register(ITEM_ROUTING_BRANCHING, ItemRoutingTests::branching);
@@ -200,6 +206,10 @@ public final class BuildcraftGameTests {
                 padded(environment, Level.NETHER, 40)));
         event.registerTest(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER.identifier(), new FunctionGameTestInstance(
                 OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, padded(environment, Level.OVERWORLD, 40)));
+        for (ResourceKey<Consumer<GameTestHelper>> owner : List.of(OWNER_RECORDED_AND_SAVED, OWNER_BREAK, OWNER_PLACE)) {
+            event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        }
         // Item routing builds lines longer than the 5-block spacing between tests, so it uses the padded area too.
         for (ResourceKey<Consumer<GameTestHelper>> routing : List.of(ITEM_ROUTING_CHEST_TO_CHEST, ITEM_ROUTING_HOPPER_PUSH,
                 ITEM_ROUTING_BRANCHING, ITEM_ROUTING_BUDGETS)) {
