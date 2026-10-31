@@ -692,6 +692,13 @@ Connects only to pipes and ignores connection overrides (`canPipeConnect` return
 `ignoreConnectionOverrides` true). It never has endpoints, so walks pass through it but never deliver from it to a
 machine (PLAN 8.3 "Isolator excludes machines").
 
+As built (#56, #57, 2026-10-31): the walk's steps 5–6 and the colour are hooks on `PipeWalk.Rules` and the module
+(`orderCandidates`, `walkColour`); each walk frame keeps its own colour, so a colour picked up on a branch that is
+backed out of is dropped. A dye used on the pipe sets a Colour Tag's or Colour Sorter's colour, because the sneaking
+wrench that changed it in 4.2.2 now removes the module (Q18). The Pickup's touch is its own block's box. The
+Filtered Colour Tag steps its cursor only when its pipe has an item's budget. See `docs/PORTING-NOTES.md`, "Pipe
+modules: Sorter, Pickup, Void, Colour Tag, Colour Sorter, Filtered Colour Tag and Isolator".
+
 ---
 
 ## 9. Flow records and their sync (#59)
@@ -745,6 +752,11 @@ at once. There are no server-bound transport payloads (PLAN 19.2).
   when `overload` (4.2.2 `PipeRendererTESR` overload rendering).
 - Nothing on the client simulates individual items. The block-entity renderer returns at once when `rate == 0`, so
   only pipes with flow cost a draw. The static pipe body is the cached model per connection mask (#48).
+
+As built (#59, 31 Oct 2026): the payload's positions are VarInts, not `short[]` (x, z and y + 2048 do not fit 16 bits
+at a 384-block build height); the fluid column's horizontal arms fill from the bottom as 4.2.2 and its texture scrolls
+by the sprite's own animation, not at a speed set by the ratio; power records one exit, the outlet that took the most.
+Details in `docs/PORTING-NOTES.md`, "Flow records and flow rendering (#59)".
 
 ---
 

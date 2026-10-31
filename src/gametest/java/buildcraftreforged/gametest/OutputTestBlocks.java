@@ -45,6 +45,8 @@ final class OutputTestBlocks {
 
     @SubscribeEvent
     static void register(RegisterEvent event) {
+        if (!BuildcraftGameTests.isGameTestRun())
+            return;
         event.register(Registries.BLOCK, registry -> {
             outputTestBlock = new TestBlock(BlockBuildCraft.defaultProperties(
                     BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, ID))));

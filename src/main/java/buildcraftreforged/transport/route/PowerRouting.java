@@ -1,6 +1,7 @@
 package buildcraftreforged.transport.route;
 
 import buildcraftreforged.transport.TilePipe;
+import buildcraftreforged.transport.flow.FlowAccumulator;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeNode;
@@ -36,6 +37,11 @@ public final class PowerRouting {
         @Override
         public PowerPipeState state(PipeNode node) {
             return ((TilePipe) node.pipe).getPowerState();
+        }
+
+        @Override
+        public FlowAccumulator flow(PipeNode node) {
+            return ((TilePipe) node.pipe).getFlowTracker().accumulator;
         }
     }, PowerRouting::handler);
 

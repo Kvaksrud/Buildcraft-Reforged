@@ -70,7 +70,7 @@ public class ContainerFilteredExtractor extends BuildCraftContainer {
         });
     }
 
-    private static TilePipe clientPipe(Inventory playerInventory, BlockPos pos) {
+    static TilePipe clientPipe(Inventory playerInventory, BlockPos pos) {
         if (playerInventory.player.level().getBlockEntity(pos) instanceof TilePipe pipe)
             return pipe;
         // The pipe went away before the menu arrived; the menu closes on the next stillValid check.

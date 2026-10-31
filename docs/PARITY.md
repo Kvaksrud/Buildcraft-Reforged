@@ -212,21 +212,21 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Quartz Transport Pipe (`PipeItemsQuartz`) | `PipeItemsQuartz (ItemPipe)` | plain item tier pipe, tier 6 (quartz) | #53 | [ ] | [ ] | [ ] |  |
 | Iron Transport Pipe (`PipeItemsIron`) | `PipeItemsIron (ItemPipe)` | Director module on an item tier pipe | #53, #55 | [x] | [ ] | [ ] |  |
 | Golden Transport Pipe (`PipeItemsGold`) | `PipeItemsGold (ItemPipe)` | plain item tier pipe, tier 5 (gold) | #53 | [ ] | [ ] | [ ] | 4.2.2 speed-up replaced by the tier rate. |
-| Diamond Transport Pipe (`PipeItemsDiamond`) | `PipeItemsDiamond (ItemPipe)` | Sorter module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
-| Obsidian Transport Pipe (`PipeItemsObsidian`) | `PipeItemsObsidian (ItemPipe)` | Pickup module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
-| Lapis Transport Pipe (`PipeItemsLapis`) | `PipeItemsLapis (ItemPipe)` | Colour Tag module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
-| Daizuli Transport Pipe (`PipeItemsDaizuli`) | `PipeItemsDaizuli (ItemPipe)` | Colour Sorter module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
-| Sandstone Transport Pipe (`PipeItemsSandstone`) | `PipeItemsSandstone (ItemPipe)` | Isolator module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
-| Void Transport Pipe (`PipeItemsVoid`) | `PipeItemsVoid (ItemPipe)` | Void module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
-| Emzuli Transport Pipe (`PipeItemsEmzuli`) | `PipeItemsEmzuli (ItemPipe)` | Filtered Colour Tag module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
+| Diamond Transport Pipe (`PipeItemsDiamond`) | `PipeItemsDiamond (ItemPipe)` | Sorter module on an item tier pipe | #53, #56 | [x] | [ ] | [ ] | GameTest `module_sorter_separates_items`. |
+| Obsidian Transport Pipe (`PipeItemsObsidian`) | `PipeItemsObsidian (ItemPipe)` | Pickup module on an item tier pipe | #53, #56 | [x] | [ ] | [ ] | GameTest `module_pickup_range`. |
+| Lapis Transport Pipe (`PipeItemsLapis`) | `PipeItemsLapis (ItemPipe)` | Colour Tag module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_colour_tag_and_sorter`. |
+| Daizuli Transport Pipe (`PipeItemsDaizuli`) | `PipeItemsDaizuli (ItemPipe)` | Colour Sorter module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_colour_tag_and_sorter`. |
+| Sandstone Transport Pipe (`PipeItemsSandstone`) | `PipeItemsSandstone (ItemPipe)` | Isolator module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_isolator`. |
+| Void Transport Pipe (`PipeItemsVoid`) | `PipeItemsVoid (ItemPipe)` | Void module on an item tier pipe | #53, #56 | [x] | [ ] | [ ] | GameTest `module_void_items_and_fluids`. |
+| Emzuli Transport Pipe (`PipeItemsEmzuli`) | `PipeItemsEmzuli (ItemPipe)` | Filtered Colour Tag module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_filtered_colour_tag_presets`. |
 | Wooden Waterproof Pipe (`PipeFluidsWood`) | `PipeFluidsWood (ItemPipe)` | Extractor module on a fluid tier pipe | #51, #53, #55 | [ ] | [ ] | [ ] |  |
 | Cobblestone Waterproof Pipe (`PipeFluidsCobblestone`) | `PipeFluidsCobblestone (ItemPipe)` | plain fluid tier pipe, tier 2 (stone) | #51, #53 | [ ] | [ ] | [ ] | Judgement call, as for items. |
 | Stone Waterproof Pipe (`PipeFluidsStone`) | `PipeFluidsStone (ItemPipe)` | plain fluid tier pipe, tier 2 (stone) | #51, #53 | [ ] | [ ] | [ ] |  |
 | Iron Waterproof Pipe (`PipeFluidsIron`) | `PipeFluidsIron (ItemPipe)` | Director module on a fluid tier pipe | #51, #53, #55 | [ ] | [ ] | [ ] |  |
 | Golden Waterproof Pipe (`PipeFluidsGold`) | `PipeFluidsGold (ItemPipe)` | plain fluid tier pipe, tier 5 (gold) | #51, #53 | [ ] | [ ] | [ ] |  |
 | Emerald Waterproof Pipe (`PipeFluidsEmerald`) | `PipeFluidsEmerald (ItemPipe)` | Filtered Extractor module on a fluid tier pipe | #51, #53, #55 | [ ] | [ ] | [ ] | 4.2.2 opens no GUI for it. |
-| Sandstone Waterproof Pipe (`PipeFluidsSandstone`) | `PipeFluidsSandstone (ItemPipe)` | Isolator module on a fluid tier pipe | #51, #53, #57 | [ ] | [ ] | [ ] |  |
-| Void Waterproof Pipe (`PipeFluidsVoid`) | `PipeFluidsVoid (ItemPipe)` | Void module on a fluid tier pipe | #51, #53, #56 | [ ] | [ ] | [ ] |  |
+| Sandstone Waterproof Pipe (`PipeFluidsSandstone`) | `PipeFluidsSandstone (ItemPipe)` | Isolator module on a fluid tier pipe | #51, #53, #57 | [x] | [ ] | [ ] | GameTest `module_isolator`. |
+| Void Waterproof Pipe (`PipeFluidsVoid`) | `PipeFluidsVoid (ItemPipe)` | Void module on a fluid tier pipe | #51, #53, #56 | [x] | [ ] | [ ] | GameTest `module_void_items_and_fluids`. |
 | Wooden Kinesis Pipe (`PipePowerWood`) | `PipePowerWood (ItemPipe)` | plain power tier pipe, tier 1 (wood) | #52, #53 | [ ] | [ ] | [ ] | 4.2.2 engine input pipe; any power tier pipe accepts engines (section 7). |
 | Cobblestone Kinesis Pipe (`PipePowerCobblestone`) | `PipePowerCobblestone (ItemPipe)` | plain power tier pipe, tier 2 (stone) | #52, #53 | [ ] | [ ] | [ ] | Judgement call, as for items. |
 | Stone Kinesis Pipe (`PipePowerStone`) | `PipePowerStone (ItemPipe)` | plain power tier pipe, tier 2 (stone) | #52, #53 | [ ] | [ ] | [ ] |  |
@@ -303,10 +303,10 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Diamond pipe (`GuiIds.PIPE_DIAMOND` 50) | `GuiDiamondPipe / ContainerDiamondPipe` | Sorter module menu | #56 | [ ] | [ ] | [ ] |  |
+| Diamond pipe (`GuiIds.PIPE_DIAMOND` 50) | `GuiDiamondPipe / ContainerDiamondPipe` | Sorter module menu | #56 | [x] | [ ] | [ ] | GameTest `module_sorter_menu`. |
 | Gate interface (`GuiIds.GATES` 51) | `GuiGateInterface / ContainerGateInterface` | gate menu | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
 | Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [x] | [ ] | [ ] | GameTest `module_filtered_extractor_menu`. |
-| Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [ ] | [ ] | [ ] |  |
+| Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [x] | [ ] | [ ] | GameTest `module_filtered_colour_tag_menu`. |
 | Filtered Buffer (`GuiIds.FILTERED_BUFFER` 60) | `GuiFilteredBuffer / ContainerFilteredBuffer` | `filtered_buffer_block` menu | #62 | [ ] | [ ] | [ ] |  |
 
 ## builders (`BuildCraftBuilders`)
@@ -391,13 +391,13 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 | Extractor module | — | `module_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Filtered Extractor module | — | `module_filtered_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Director module | — | `module_director` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Sorter module | — | `module_sorter` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Pickup module | — | `module_pickup` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Void module | — | `module_void` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Colour Tag module | — | `module_colour_tag` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Colour Sorter module | — | `module_colour_sorter` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Filtered Colour Tag module | — | `module_filtered_colour_tag` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Isolator module | — | `module_isolator` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Sorter module | — | `module_sorter` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Pickup module | — | `module_pickup` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Void module | — | `module_void` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Colour Tag module | — | `module_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Colour Sorter module | — | `module_colour_sorter` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Filtered Colour Tag module | — | `module_filtered_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Isolator module | — | `module_isolator` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 
 ### Other additions
 

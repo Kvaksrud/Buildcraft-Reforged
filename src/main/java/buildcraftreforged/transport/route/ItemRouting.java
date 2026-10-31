@@ -2,6 +2,7 @@ package buildcraftreforged.transport.route;
 
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.transport.TilePipe;
+import buildcraftreforged.transport.flow.FlowAccumulator;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
 import net.minecraft.core.BlockPos;
@@ -33,6 +34,11 @@ public final class ItemRouting {
         @Override
         public long refill(PipeNode node) {
             return ((TilePipe) node.pipe).getTierStats().itemsPerSecond();
+        }
+
+        @Override
+        public FlowAccumulator flow(PipeNode node) {
+            return ((TilePipe) node.pipe).getFlowTracker().accumulator;
         }
     }, ItemRouting::handler);
 
@@ -80,6 +86,15 @@ public final class ItemRouting {
      */
     public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
             ResourceHandler<ItemResource> source, Predicate<ItemResource> filter) {
+        return extract(level, network, node, facing, source, filter, PipeWalk.NO_COLOUR);
+    }
+
+    /**
+     * {@link #extract(ServerLevel, PipeNetwork, int, Direction, ResourceHandler, Predicate)} with the items tagged
+     * {@code colour} for the walk (the Filtered Colour Tag, docs/TRANSPORT.md 8.10).
+     */
+    public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
+            ResourceHandler<ItemResource> source, Predicate<ItemResource> filter, int colour) {
         ResourceRouter.Settings settings = settings();
         long now = level.getGameTime();
         long items = ROUTER.available(network.nodes[node], now, settings) / ITEM_COST;
@@ -103,7 +118,7 @@ public final class ItemRouting {
                 if (offered <= 0)
                     continue;
                 TransferResult attempt = ROUTER.push(network, node, facing, sourcePos, resource, offered, now,
-                        level.getRandom(), settings, transaction);
+                        level.getRandom(), settings, pipe -> true, colour, transaction);
                 if (!attempt.movedAny()) {
                     if (attempt.reason() == TransferResult.Reason.NO_CAPACITY)
                         return attempt;

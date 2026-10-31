@@ -19,11 +19,8 @@ import com.mojang.math.Axis;
 import java.util.Arrays;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import org.jspecify.annotations.Nullable;
 
-@OnlyIn(Dist.CLIENT)
 public class RenderEntityBlock {
 
     public static RenderEntityBlock INSTANCE = new RenderEntityBlock();

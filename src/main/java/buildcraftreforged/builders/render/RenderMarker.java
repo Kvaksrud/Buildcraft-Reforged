@@ -29,11 +29,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import org.jspecify.annotations.Nullable;
 
-@OnlyIn(Dist.CLIENT)
 public class RenderMarker<T extends TileMarker> implements BlockEntityRenderer<T, RenderMarker.State> {
 
     /** 4.2.2 EntityPowerLaser texture 0, which TilePathMarker set. */

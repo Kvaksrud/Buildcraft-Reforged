@@ -361,7 +361,9 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
 
 ## GameTests (#33)
 
-- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. `BuildcraftGameTests`
+- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. Since #130 the test-only
+  blocks, capabilities, data pack and tests register only when `buildcraftreforged.gametest` is true, which the
+  `gameTestServer` run sets (`BuildcraftGameTests.isGameTestRun()`); see "Seams and dev-run cleanup (#130)". `BuildcraftGameTests`
   registers test functions (`RegisterEvent` on `Registries.TEST_FUNCTION`) and instances (`RegisterGameTestsEvent`)
   in the `buildcraftreforged` namespace. Run them with `./gradlew runGameTestServer`; there is no CI until release.
 - The source set also adds an always-on data pack (`gametest_data`) that puts `minecraft:debug_stick` in
@@ -1836,6 +1838,90 @@ New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transpo
   `allowsOutput`.
 - **#52:** read `ModuleDirector.getPowerLimit()` on a power pipe whose module is a Director.
 
+## Pipe modules: Sorter, Pickup, Void, Colour Tag, Colour Sorter, Filtered Colour Tag and Isolator (#56, #57)
+
+New code from `docs/TRANSPORT.md` 8.5–8.11, package `buildcraftreforged.transport.module`; the 4.2.2
+`PipeItemsDiamond`, `GuiDiamondPipe`, `ContainerDiamondPipe`, `PipeItemsObsidian`, `PipeItemsVoid`, `PipeFluidsVoid`,
+`PipeItemsLapis`, `PipeItemsDaizuli`, `PipeItemsEmzuli`, `GuiEmzuliPipe`, `ContainerEmzuliPipe` and the sandstone pipes
+were read for behaviour only. Recorded 2026-10-31.
+
+- **Walk hooks (4.2 steps 5–6).** `PipeWalk.Rules` gained `resource()` (what is routed; `ResourceRouter` passes it),
+  `order(node, sides, count, colour, random)` and `colourAfter(node, colour)`. By default they ask the pipe:
+  `PipeWorld.Pipe.orderCandidates` (returns how many of the reordered sides to try, or -1 for the uniform permutation,
+  which is unchanged and draws the same random numbers as before) and `PipeWorld.Pipe.walkColour`; `TilePipe` hands
+  both to its module (`PipeModule.orderCandidates`, `PipeModule.walkColour`). `PipeWalk.shuffle` is the uniform
+  permutation, shared with the modules.
+- **Walk colour.** An `int`, `PipeWalk.NO_COLOUR` (-1) or an `EnumColor` ordinal. Each walk frame keeps the colour
+  its children see, set when the pipe is entered, so backing out of a branch drops a colour picked up in it, and a
+  pipe's own filter reads the colour it was entered with (4.2.2 `FindDest` before `ReachedCenter`). A walk can start
+  with a colour: `PipeWalk.walk(…, colour)`, `ResourceRouter.push(…, canEnter, colour, transaction)` and
+  `ItemRouting.extract(…, filter, colour)` are new overloads; the old signatures pass `NO_COLOUR`. The colour is not
+  part of `Route` and never reaches the stack inserted at the destination.
+- **Sorter.** `ModuleSorter`: 54 ghost slots (`SimpleInventory`, saved as `filters`), row `d` = side `d` in side
+  order. `CandidateOrder.sorter` (level-free) is 8.5: matching sides weighted by matching slot count, drawn without
+  replacement; else the sides with empty rows, uniformly; a filtered row that does not match is never tried. Only
+  `ItemResource`s are sorted ("same item" = `ItemResource.is(item)`). Menu `buildcraftreforged:sorter`,
+  `ContainerSorter` (4.2.2 slot layout), `GuiSorter` on 4.2.2 `filter.png` or `filter_cb.png` (client
+  `colorBlindMode`).
+- **Pickup.** `ModulePickup`, a source (already `isSource`). `openSide(mask)`: needs exactly one connection.
+  `range(tier)` is Q12 and `suckingBox(pos, open, d)` is 4.2.2 `getSuckingBox` (unit-tested against the 4.2.2
+  arithmetic for all sides). Each tick, only when the pipe has an item's budget: the pipe's own block (4.2.2's touch,
+  `onEntityCollidedWithBlock`; done by box, so `BlockPipe` needs no `entityInside`), then `d = 1 … range`; entities in
+  each box in level order; the first that moves anything ends the tick, as does `NO_CAPACITY`; an entity that cannot
+  route is left alone and the next one is tried. Item entities shrink by what moved; arrows with `Pickup.ALLOWED` go
+  in as their pickup stack, one; at `d = 1` an `AbstractMinecartContainer` gives up to the budget from its first
+  stack. The walk starts on the open side with no source block. 4.2.2's `entitiesDropped` list is left out: a module
+  never drops anything. The client particle (`TileEntityPickupFX`) is #59's.
+- **Void and Isolator** have no settings and stay plain `PipeModule`s: the Void is the walk's sink by type (#50) and
+  the Isolator a connection rule (#48), on item and fluid pipes.
+- **Colour Tag.** `ModuleColourTag`: `color` (byte, the 4.2.2 key), black when new. `walkColour` returns its colour.
+  Wrench: next colour. 4.2.2's sneaking wrench (previous colour) now removes the module (Q18), so **a dye used on the
+  pipe sets the colour** (`PipeModule.useItem`, called from `BlockPipe.useItemOn` for any item that is not a block,
+  gate, wire or wrench; new, decided 2026-10-31). Gate: the sixteen Pipe Color actions, the first active one applies.
+- **Colour Sorter.** `ModuleColourSorter extends ModuleDirector` for the facing (4.2.2 Daizuli uses `PipeLogicIron`):
+  same validity, `UP`-first placement, wrench `switchPosition`, Pipe Direction actions; no redstone toggle; every side
+  stays open (`allowsOutput` true), the sorting is `CandidateOrder.colourSorter` (8.9). Colour as the Colour Tag
+  (`color`, dye, Pipe Color); 4.2.2's sneaking wrench (next colour) now removes the module. Gate list: the sixteen
+  colours, then one direction per connected side.
+- **Director validity.** A Director (and so a Colour Sorter) no longer faces a pipe with a Filtered Colour Tag either:
+  4.2.2 refused every `PipeItemsWood`, which `PipeItemsEmzuli` extends.
+- **Filtered Colour Tag.** `ModuleFilteredColourTag extends ModuleExtractor` (facing, wrench, exclusion list as #55);
+  now a source type (`PipeModuleType.isSource`). Four ghost filters (`filters`), `slotColors[i]` (0 none, else colour +
+  1; 4.2.2 keys `slotColors[0]` …), `currentFilter`; the active flags are not saved and only gate actions set them
+  (`setActivePresets`: red, blue, green, yellow → filters 0–3; cleared on every resolution). One attempt =
+  `nextFilter` (4.2.2 `incrementFilter`), then `ItemRouting.extract` of that filter's item with the walk starting in
+  its paint colour. Unlike 4.2.2, which tried only when it had energy, an attempt (and the cursor step) happens only
+  when the pipe has an item's budget; stepping every tick would skip filters between items. Menu
+  `buildcraftreforged:filtered_colour_tag`, `ContainerFilteredColourTag` (4.2.2 layout; four `PaintWidget`s; paint
+  as data slots; a click sends slot and colour with `PacketGuiReturn`, refused outside 0–3 / 0–16), and
+  `GuiFilteredColourTag` on 4.2.2 `pipe_emzuli.png`, which draws each paint as its Pipe Color action sprite.
+- **Items.** `module_sorter`, `module_pickup`, `module_void`, `module_colour_tag`, `module_colour_sorter`,
+  `module_filtered_colour_tag`, `module_isolator` (keys `item.moduleSorter` …), machines tab, textures copied from
+  the 4.2.2 diamond, obsidian, void, lapis (blue), daizuli (black), emzuli and sandstone item pipe textures as
+  stand-ins. No recipes (#74). On the pipe, a module is not drawn, so a colour or a filter cannot be seen in the world.
+- **Tests.** Unit `RoutingModuleLogicTest`: Sorter 2:1 weights over 9 000 draws ± 2 %, unfiltered fallback, filtered
+  rows never used; Colour Sorter rules; Pickup ranges, the six boxes against 4.2.2, one connection; the cursor.
+  `PipeRoutingTest`: Colour Tag → Colour Sorter on a stub grid, and a colour dropped when its branch is backed out
+  of. GameTests (`RoutingModuleTests`, padded area): `module_items_fit_and_keep_settings`,
+  `module_sorter_separates_items`, `module_sorter_menu`, `module_pickup_range`, `module_void_items_and_fluids`,
+  `module_colour_tag_and_sorter`, `module_filtered_colour_tag_presets`, `module_filtered_colour_tag_menu`,
+  `module_isolator`.
+- **Not checked without a client:** the two screens (drawing, phantom-slot clicks, paint buttons, tool tips, the
+  colour-blind texture), the module item textures in the inventory, and a dye or wrench used by a real player.
+
+### For #74 (chipsets and module recipes)
+
+- All ten module items exist now: `TransportRegistry.extractorModule`, `filteredExtractorModule`, `directorModule`,
+  `sorterModule`, `pickupModule`, `voidModule`, `colourTagModule`, `colourSorterModule`, `filteredColourTagModule`,
+  `isolatorModule` (`getModuleItem(type)` by `PipeModuleType`). A recipe result should be a blank module (no
+  `module_settings` component), which fits with default settings.
+- PLAN 8.2 makes modules in the Assembly Table; the recipe format is #72's (`buildcraftreforged:assembly`, FE). 4.2.2
+  had no module recipes: the pipes were crafted from the material and glass. The inputs and energy are #74's to
+  decide; a natural mapping is a chipset plus the 4.2.2 pipe material (diamond → Sorter, obsidian → Pickup, redstone
+  and dye → Void as 4.2.2 `PipeItemsVoid`, lapis → Colour Tag, lapis and diamond → Colour Sorter (Daizuli), emerald
+  and lapis → Filtered Colour Tag (Emzuli), sandstone → Isolator).
+- JEI: the module category can list the ten items; settings-free stacks only, as the gate category.
+
 ## Power (kinesis) routing (#52)
 
 New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.route`; the 4.2.2 `PipeTransportPower`,
@@ -2087,7 +2173,8 @@ Ported: `factory/BlockMiningWell`, `TileMiningWell`, `BlockPlainPipe`, and `Util
   `StatusPanel.BLOCKED` with the multipart red light. #63 was not merged when this was written; if it adds a shared
   blocked-output API, the well's flag is the one place to hook it. Output itself is never blocked: as in 4.2.2, what
   neither an inventory nor a pipe takes is thrown out above the well.
-- **Output.** Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
+- **Output (superseded by #130: the drops go through a `MachineOutput`, see "Seams and dev-run cleanup (#130)").**
+  Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
   (4.2.2 `ForgeDirection.UNKNOWN`), then thrown up with the configured `itemLifespan`. `addToRandomPipeAround` hands the
   stack to `IPipeTile.injectItem`, which routes it at once (#50). For the pipe to connect at all, item pipes now also
   connect to an `IMachine` whose `manageSolids()` is true, 4.2.2's rule in `PipeTransportItems.canPipeConnect`; the
@@ -2170,6 +2257,137 @@ Ported `factory/BlockPump`, `TilePump`, `PumpDimensionList`, `BlockFloodGate`, `
 - **Not checked without a client:** the two block models and their textures, the tube's look (geometry, UVs,
   texture, light, the render box when it reaches far down), the status light on the pump, the status panel screens,
   and the recipes in the crafting grid.
+
+## Seams and dev-run cleanup (#130)
+
+Decided 2026-10-31. Wires the seams left by pieces built in parallel and cleans up what the first dev-client run logged.
+
+- **Assembly table → pipe (`SEAM(#50)`).** As 4.2.2: what `Utils.addToRandomInventoryAround` does not take goes to
+  `Utils.addToRandomPipeAround` with no `from`, and only the rest is dropped. The table keeps 4.2.2's drop rather than a
+  `MachineOutput`: it only makes something when a player planned it and a laser powered it.
+- **`Utils.addToRandomInventoryAround` skips engines (`SEAM(#36)`).** A `TileEngine` neighbour is passed by, as in
+  4.2.2, so machine output never ends up in a stone engine's fuel slot. `MachineOutput.push` already skipped
+  `IPowerEmitter` block entities.
+- **Mining well → `MachineOutput`.** The drops are `add`ed to `TileMiningWell.output` (counting `itemsOut` in the flow
+  meter) and pushed every server tick, so chests, item pipes and other inventories beside the well take them as before.
+  What nothing takes waits in the well (saved as `pendingOutput`, dropped when the well is broken) and the well digs no
+  further: State Blocked, Reason "No destination" or "Output blocked", red light. 4.2.2 threw such drops out above the
+  well; plan section 8.3 says nothing is spilled. A refused break still reports `PROTECTED_BLOCK` first.
+- **Pump → `MachineOutput`.** The pump's output is fluid, so it keeps a `MachineOutput` only for its state:
+  `setBlocked(OUTPUT_FULL)` when the next block's fluid does not fit in the tank, `NONE` on the next check that it does.
+  The State, Reason and red light read it as before.
+- **No `@OnlyIn`.** Removed from `RenderLaser`, `RenderLaserTile`, `RenderEnergyLaser`, `RenderEngine`, `RenderMarker`
+  and `RenderEntityBlock`. They are only reached from `@EventBusSubscriber(value = Dist.CLIENT)` classes
+  (`*Renderers`, `EnergyProxyClient`) and from other renderers, so a dedicated server never loads them.
+- **GameTest-only registrations.** The `gameTestServer` run sets the system property `buildcraftreforged.gametest`;
+  `BuildcraftGameTests.isGameTestRun()` reads it. `BuildcraftGameTests` (test functions, test blocks, capabilities,
+  tests, the `gametest_data` pack), `OutputTestBlocks` and `TriggerTestBlocks` return early without it, so the client
+  and server dev runs register no `gametest_*`/`test_tank` blocks and log no missing models. The sample blocks for
+  manual checks (`sample_gui`, `sample_status`) have models and stay in every dev run. A new test-only block that
+  subscribes to `RegisterEvent` itself must check `isGameTestRun()` too. A separate test mod id was rejected: every
+  test class's `@EventBusSubscriber(modid = ...)` and test id would change while other sessions add tests.
+- **Tests.** GameTests `seam_assembly_table_to_pipe` (diamonds reach a chest through a stone pipe, nothing dropped),
+  `seam_inventory_skips_engine` (coal is not put into a stone engine; a chest beside it gets it),
+  `seam_mining_well_blocked_output` (one block dug, dirt pending and saved, Blocked, "No destination", red light,
+  nothing thrown; a chest beside it unblocks it and the well digs on) and `seam_pump_blocked_output` (a full tank:
+  Blocked, "Output blocked", red light, water left; emptying the tank clears it). `mining_well_digs` and
+  `mining_well_protected` now have a chest beside each well.
+
+## Flow records and flow rendering (#59)
+
+New code under `transport/flow` (docs/TRANSPORT.md 9); 4.2.2 `PipeRendererTESR.renderSolids/renderFluids/renderPower`
+were read for the look only. Every `SEAM(#59)` is filled. Recorded 31 Oct 2026.
+
+### Record format
+
+`FlowRecord(PipeType kind, Holder<?> content, byte colour, byte sides, float rate, boolean overload)`, one per pipe:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `ITEM`, `FLUID` or `POWER` (the pipe's kind). |
+| `content` | `Holder<Item>` (item pipes) or `Holder<Fluid>` (fluid pipes) of the last transfer; null for power and when nothing flows. Item components are not carried. |
+| `colour` | The walk colour as a `DyeColor` id 0–15, `FlowRecord.NO_COLOUR` = 16 for none. Every item is 16 until the Colour Tag (#57) colours walks. |
+| `sides` | Bits 0–2 entry side, bits 3–5 exit side, each 0–5 in side order or `FlowRecord.CENTRE` = 6 (a transfer that starts inside the pipe, a Void sink, or a power root whose source is not beside it). |
+| `rate` | Items per second (items) or mB / FE per tick (fluid, power), over the 20 ticks before the boundary. |
+| `overload` | Power only: `PowerPipeState.isOverloaded` at the boundary, kept only while power flows. |
+
+`FlowRecord.none(kind)` is "nothing flows". Stream codec (`FlowRecord.STREAM_CODEC`, `RegistryFriendlyByteBuf`): kind
+byte; for items and fluids a presence boolean and the registry id (`ByteBufCodecs.holderRegistry`, VarInt); colour
+byte; sides byte; rate float; overload boolean. 12 bytes at most. Decoding refuses an unknown kind, colour > 16, a side
+> 6, a negative, NaN or infinite rate.
+
+`FlowRecordsPayload(ChunkPos chunk, int[] localPos, List<FlowRecord> records)`, client-bound, type
+`buildcraftreforged:flow_records`: the chunk, a VarInt count, then per pipe a VarInt position and the record. The
+position packs x and z in the chunk (4 bits each) and `y + 2048` above them. TRANSPORT.md 9.3 said `short[]`; a build
+height of 384 does not fit 16 bits with x and z, so it is a VarInt of at most 3 bytes. At most `MAX_RECORDS` entries.
+
+### Measuring and sending
+
+- **Recording.** `ResourceRouter.push` (items and fluids) and `PowerRouter.run` add to each path pipe's
+  `FlowAccumulator` in the transfer's transaction, so simulations record nothing. `ResourceRouter.Pipes.flow` and
+  `PowerRouter.Pipes.flow` are new default methods (null: no record), overridden by `ItemRouting`, `FluidRouting` and
+  `PowerRouting`. Items and fluids record the walk's entry and exit sides (the endpoint side at the end). Power records
+  the side towards the tree parent (the root: the side facing the pushing block) and, as exit, the outlet that took the
+  most, first in side order on a tie, since a record holds one exit.
+- **Buckets.** 10 ticks, aligned to `floor(gameTime / 10)`, rolled lazily. At a boundary `T` (`T % 10 == 0`,
+  `LevelTickEvent.Post`) the record reads the buckets of `[T - 20, T)`.
+- **Active set.** `FlowSync` keeps, per server level, the pipes something passed; only those are measured at a
+  boundary. A pipe leaves once its record and the clients' record are both zero. `FlowTracker` (on `TilePipe`, not
+  saved) holds the accumulator, the last measured record, the last sent one and the client's.
+- **Send rule.** `FlowRecord.differsFrom`: content, colour, sides or overload changed, the rate crossed zero, or it
+  changed by more than 12.5 % of the larger rate. Changed records go out per chunk, to tracking players whose
+  connection has the payload (as `TileBuildCraft.sendNetworkUpdate`; GameTest mock players have none).
+- **Update tag.** `TilePipe.writePacketPayload` appends the sent record, so a player who starts tracking the chunk (and
+  every `sendNetworkUpdate`) gets the running flow.
+- **Payload registration** is in `FlowSync` (server) and `TransportClient` (client handler), not in `PacketHandler`,
+  under the same protocol version.
+
+### Pipe Contents trigger
+
+`TilePipe` sets `gateHolder.flow` for every kind: `ItemPipeFlow` (new), `FluidPipeFlow` and `PowerPipeFlow` read
+`isFlowing` = the measured record's `rate > 0` and the content from the record; Requests Energy and Too Much Energy still
+come from `PowerRouting`. The record is measured every 10 ticks, so the trigger follows the flow with up to 10 ticks'
+delay (the old 20-tick `lastFlowTick` window is gone; `PowerPipeFlow.FLOW_TICKS` was removed).
+
+### Rendering (`PipeRendererTESR`)
+
+The renderer copies the client record into its state and draws nothing for it when `rate == 0`; no item is simulated.
+
+- **Items.** Icon `j` enters at `clientSince + j × max(20 / rate, 2)` ticks, crosses in 10 ticks (entry face, centre,
+  exit face), at most 8 drawn. `ItemDisplayContext.GROUND`, scale 0.7 as 4.2.2 `doRenderItem`, lowered 0.15 to the
+  pipe's axis. A colour below 16 draws 4.2.2's ItemBox (`textures/pipe/item_box.png`, from `itemBox.png`) around the
+  icon, tinted with the dye's colour.
+- **Fluids.** Arms on the entry and exit sides and a centre, `2 + 6 × clamp(rate / fluidPerTick)` pixels of the 8-pixel
+  inner pipe: horizontal arms fill from the bottom (4.2.2 `sideHorizontal`), vertical arms are a centred square
+  (`sideVertical`); arms use the flowing sprite, the centre the still one, with the fluid's tint, translucent on the
+  block atlas. The texture scrolls by the sprite's own animation; TRANSPORT.md 9.4's "scroll speed proportional to the
+  ratio" is not done.
+- **Power.** A cube at the centre and arms to the entry and exit faces, `1 + 7 × clamp(rate / powerPerTick)` pixels
+  wide, full bright, in 4.2.2 Power_Normal (`textures/pipe/texture_cyan.png`, from `texture_cyan.png`); when
+  `overload`, it alternates with Power_Overload (`texture_red_lit.png`) every 4 ticks.
+- The renderer now takes the `BlockEntityRendererProvider.Context` (for the item model resolver).
+
+### Tests
+
+- JUnit `FlowRecordTest`: bucket measurement for each kind, an aborted transaction records nothing, the send rule, a
+  steady 1 item/s line sends once and a stopped one sends one zero, codec round trips under 16 bytes, bad records
+  refused, payload positions at the lowest and highest y, item icon spacing.
+- GameTests `FlowRecordTests` (padded area): `flow_records_item_line` (wood Extractor line: 1 item/s of cobblestone
+  north to south on every pipe, sent once in 280 ticks, payload and update tag carry the record, Pipe Contents reads
+  it), `flow_records_stop` (pushes at 4 items/s, then nothing: one zero record is sent and the trigger reads Empty),
+  `flow_records_fluid_and_power` (a wood fluid line records 20 mB/t of water; a saturated gold power line records
+  1 280 FE/t and overload).
+- **Not checked without a client:** everything drawn. The item icons' height on the pipe axis and their size, the
+  ItemBox marker, the fluid arms' geometry, tint, UVs and translucency, the power glow's textures and the overload
+  flicker, that the client handler applies payloads to the right pipes, and the look against 4.2.2.
+
+### For #56, #57 and #58
+
+- **#57.** Pass the walk colour to `FlowAccumulator.add` in `ResourceRouter.recordFlow` (now `NO_COLOUR`); the renderer
+  already draws the ItemBox for colours 0–15 (`DyeColor` ids).
+- **#56.** The Pickup particle (TRANSPORT.md 8.6) is not in the record yet; add it as a field or a separate payload.
+- **#58.** The Basic Extractor keeps its own `FlowTracker` (kind `ITEM`) and calls `FlowSync.markActive`; `FlowSync`
+  takes `TilePipe` today, so generalise it to an interface with `getFlowTracker`, `getBlockPos`, `isFlowOverloaded`.
 
 ## Combustion engine and overheat timer (#44, #40)
 

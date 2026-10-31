@@ -2,13 +2,14 @@ package buildcraftreforged.transport.route;
 
 import buildcraftreforged.transport.PipeFlow;
 import buildcraftreforged.transport.TilePipe;
-import net.minecraft.server.level.ServerLevel;
+import buildcraftreforged.transport.flow.FlowRecord;
+import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
- * What the Pipe Contents trigger (#60) reads from a fluid pipe, from {@link FluidPipeState} (docs/TRANSPORT.md 7.3,
- * 12): fluid flowed through the pipe in the last {@link PowerPipeFlow#FLOW_TICKS} ticks (the measuring window of 9.2),
- * and which fluid. Server only; on the client nothing flows. #59 may replace both with its flow record.
+ * What the Pipe Contents trigger (#60) reads from a fluid pipe: its flow record (docs/TRANSPORT.md 9, 12). Fluid flows
+ * while the record's rate is above zero, and the record's content is the fluid. Server only; on the client nothing
+ * flows.
  */
 public final class FluidPipeFlow implements PipeFlow {
 
@@ -20,13 +21,13 @@ public final class FluidPipeFlow implements PipeFlow {
 
     @Override
     public boolean isFlowing() {
-        long last = pipe.getFluidState().lastFlowTick();
-        return pipe.getLevel() instanceof ServerLevel level && last != Long.MIN_VALUE
-                && level.getGameTime() - last < PowerPipeFlow.FLOW_TICKS;
+        return pipe.getFlowTracker().record().isFlowing();
     }
 
     @Override
     public FluidStack fluidContent() {
-        return isFlowing() ? pipe.getFluidState().lastFluid().toStack(1) : FluidStack.EMPTY;
+        FlowRecord record = pipe.getFlowTracker().record();
+        return record.isFlowing() && record.content() != null && record.content().value() instanceof Fluid fluid
+                ? new FluidStack(fluid, 1) : FluidStack.EMPTY;
     }
 }

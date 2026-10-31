@@ -18,11 +18,8 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import org.jspecify.annotations.Nullable;
 
-@OnlyIn(Dist.CLIENT)
 public class RenderLaserTile implements BlockEntityRenderer<TileLaser, RenderLaserTile.State> {
 
     /** TileLaser.findTable searches 5 blocks each way; the beam ends inside the target block. */

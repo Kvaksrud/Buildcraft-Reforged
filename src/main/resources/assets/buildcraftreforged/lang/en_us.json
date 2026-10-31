@@ -226,5 +226,12 @@
   "gui.status.heat.countdown": "%s, %s s",
   "item.moduleDirector": "Director Module",
   "item.moduleExtractor": "Extractor Module",
-  "item.moduleFilteredExtractor": "Filtered Extractor Module"
+  "item.moduleFilteredExtractor": "Filtered Extractor Module",
+  "item.moduleSorter": "Sorter Module",
+  "item.modulePickup": "Pickup Module",
+  "item.moduleVoid": "Void Module",
+  "item.moduleColourTag": "Colour Tag Module",
+  "item.moduleColourSorter": "Colour Sorter Module",
+  "item.moduleFilteredColourTag": "Filtered Colour Tag Module",
+  "item.moduleIsolator": "Isolator Module"
 }
