@@ -46,6 +46,11 @@ public class BuildCraftConfiguration {
     public static final ModConfigSpec.DoubleValue fuelFuelMultiplier;
     public static final ModConfigSpec.BooleanValue spawnOilSprings;
     public static final ModConfigSpec.BooleanValue netherIgnition;
+    public static final ModConfigSpec.BooleanValue biomeOilDesert;
+    public static final ModConfigSpec.BooleanValue biomeOilOcean;
+    public static final ModConfigSpec.DoubleValue oilFieldMultiplier;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> surfaceDepositBiomes;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> excludedBiomes;
 
     // BuildCraftFactory
     public static final ModConfigSpec.BooleanValue allowMining;
@@ -127,6 +132,26 @@ public class BuildCraftConfiguration {
         netherIgnition = mainConfiguration
                 .comment("set to false to stop oil and fuel catching fire in the Nether")
                 .define("fluids.netherIgnition", true);
+
+        // 4.2.2 biomes.oilDesert and biomes.oilOcean were biome ids, 0 to turn the oil biome off; the oil fields are
+        // regions inside vanilla biomes now (OilPopulate), so they are switches. The multiplier was a constant in
+        // OilPopulate, the two lists were filled through IMC (oil-lake-biome, oil-gen-exclude).
+        biomeOilDesert = mainConfiguration
+                .comment("set to false to stop oil field regions forming inside deserts")
+                .define("biomes.oilDesert", true);
+        biomeOilOcean = mainConfiguration
+                .comment("set to false to stop oil field regions forming inside oceans")
+                .define("biomes.oilOcean", true);
+        oilFieldMultiplier = mainConfiguration
+                .comment("how much more often oil wells and lakes generate inside an oil field region, default = 30")
+                .defineInRange("biomes.oilFieldMultiplier", 30.0, 0.0, Double.MAX_VALUE);
+        surfaceDepositBiomes = mainConfiguration
+                .comment("biome ids that get the oil biome bonus (x3) and surface oil lakes, as deserts do (e.g. \"minecraft:ocean\").\n"
+                        + "Oil only generates in the biome tag #buildcraftreforged:has_oil_fields; add other biomes there with a data pack.")
+                .defineListAllowEmpty("biomes.oilLakes", List.of(), () -> "", o -> o instanceof String);
+        excludedBiomes = mainConfiguration
+                .comment("biome ids where no oil generates at all (e.g. \"minecraft:deep_ocean\")")
+                .defineListAllowEmpty("biomes.excludeOil", List.of(), () -> "", o -> o instanceof String);
 
         // BuildCraftFactory.initialize
         ConfigUtils genCat = new ConfigUtils(mainConfiguration);

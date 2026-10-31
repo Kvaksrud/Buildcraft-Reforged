@@ -128,6 +128,8 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
   section 9; `fluids.netherIgnition` (default true, section 19.2); `quarry.loadsChunks` (default false, section 19.3);
   a `transport` section for the P3 tier ladder (`transport.tiers`, section 8). It is defined but empty, and NightConfig
   does not write empty tables, so `[transport]` appears in the file once P3 adds its first value.
+- `biomes.oilDesert` and `biomes.oilOcean` were biome ids; with no oil biomes they are booleans that turn the oil field
+  regions off (#45, section "Oil fields (#45)").
 - `client.colorblindmode` is in the client file.
 
 ### Dropped options
@@ -135,7 +137,6 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
 | 4.2.2 option (category) | Read in | Why dropped |
 |---|---|---|
 | every `*.id` in `block` and `item` (`wrench.id`, `springBlock.id`, the five gear ids, `engine.id`, `oil.id`, `oilStill.id`, `fuel.id`, `bucketOil.id`, `bucketFuel.id`, `miningWell.id`, `drill.id`, `autoWorkbench.id`, `frame.id`, `quarry.id`, `pump.id`, `floodGate.id`, `tank.id`, `refinery.id`, `hopper.id`, `templateItem.id`, `blueprintItem.id`, `marker.id`, `pathMarker.id`, `filler.id`, `builder.id`, `architect.id`, `blueprintLibrary.id`, `laser.id`, `assemblyTable.id`, `redstoneChipset.id`, `pipe.id`, `pipeWaterproof.id`, `redPipeWire.id`, `bluePipeWire.id`, `greenPipeWire.id`, `yellowPipeWire.id`, `pipeGate.id`, `pipeGateAutarchic.id`, `pipeFacade.id`, `pipePlug.id`, `filteredBuffer.id`, one `<pipe name>.id` per pipe) | all five module classes | Numeric ids are gone; registries replace them (PLAN.md section 6). |
-| `biomes.oilDesert`, `biomes.oilOcean` | `BuildCraftEnergy` | Oil biomes are replaced by a placed feature in vanilla deserts and oceans; no biome ids (PLAN.md section 6). |
 | `update.check` (`general`) | `BuildCraftCore` | `Version.java` and every network call are removed (PLAN.md section 19). |
 | `version.seen` (`vars`) | `core/Version` | Same as `update.check`. |
 | `version` (`general`) | `BuildCraftConfiguration.save` | Version stamp written on every save; the mod version comes from `gradle.properties`. |
@@ -2575,3 +2576,68 @@ along a straight run an icon leaves one pipe exactly as it enters the next, at `
 of a pipe uses its own direction, so a bend can shift icons only at its centre. The spacing drawn is the rate's interval
 rounded to a power of two ticks (`displayInterval`), so small rate changes do not move the icons. Icons are still
 drawn from the flow record, not per item; performance is to be tuned later.
+
+## Oil fields (#45)
+
+Ported `energy/worldgen/OilPopulate`, `SimplexNoise` (unchanged), `GenLayerBiomeReplacer` with `GenLayerAddOilDesert`
+and `GenLayerAddOilOcean` folded in as two constants, and the oil half of `core/BlockSpring` (now `energy/BlockSpring`,
+item `ItemBlockBuildCraft` for 4.2.2 `ItemSpring`). New: `energy/worldgen/OilWellFeature`, the data under
+`data/buildcraftreforged/worldgen/feature/oil_well.json`, `worldgen/placed_feature/oil_well.json`,
+`neoforge/biome_modifier/oil_well.json` and `tags/worldgen/biome/has_oil_fields.json`. Changed (additive):
+`EnergyRegistry` (`springOil`, `springOilItem`, `FEATURE_TYPES`, `oilWellFeature`), `BuildCraftConfiguration`, the
+pickaxe and `needs_diamond_tool` block tags, `BuildcraftGameTests`. Decided 2026-10-31.
+
+- **Registration.** 26.3 features are records implementing `Feature`, registered as codecs in
+  `Registries.FEATURE_TYPE`; the configured feature is a data entry of type `buildcraftreforged:oil_well` with no
+  fields (the options are config, read when the feature runs). The placed feature has no placement modifiers: it runs
+  once per chunk, as 4.2.2's `PopulateChunkEvent.Pre` listener did, and `OilPopulate` picks the spot. The biome
+  modifier adds it in the `lakes` step to `#buildcraftreforged:has_oil_fields`, which holds `#c:is_desert` and
+  `#c:is_ocean`. A data pack can change that tag; it is the 26.x form of 4.2.2's biome sets.
+- **Where oil goes.** Only in the tag's biomes (plan section 6). 4.2.2 also rolled wells in every other overworld
+  biome at bonus 1, and gave taiga, non-frozen wasteland and frozen forest the oil biome bonus; that is gone with the
+  decision to keep oil to deserts and oceans. Inside the tag the 4.2.2 rules are unchanged: deserts are oil biomes
+  (×3 and surface lakes), oceans are not.
+- **Oil field regions.** Where 4.2.2 swapped a desert or ocean for the Desert or Ocean Oil Field biome (the
+  `GenLayerBiomeReplacer` noise: scale 0.001 and threshold 0.7 for deserts, 0.0005 and 0.9 for oceans, offsets from
+  the world seed), the point is now an oil field region of the vanilla biome. A region counts as an oil biome and as
+  one of 4.2.2's `excessiveBiomes`: ×3 and ×30. The noise is sampled per block (4.2.2's visible biome map came from the
+  1:1 layer it also wrapped). The ×30 is config `biomes.oilFieldMultiplier`, default 30 so fields look as in 4.2.2
+  (plan section 6). Plan section 19.3 says deserts and oceans "keep the ×3 bonus only"; a default of 1 gives that, and
+  the choice is left to review.
+- **Config.** 4.2.2's `biomes.oilDesert` and `biomes.oilOcean` (biome ids, 0 turned the oil biome off) come back as
+  booleans that turn the regions off. New: `biomes.oilFieldMultiplier`, and the two IMC lists as config lists of biome
+  ids, `biomes.oilLakes` (4.2.2 `surfaceDepositBiomes`, IMC `oil-lake-biome`) and `biomes.excludeOil`
+  (`excludedBiomes`, IMC `oil-gen-exclude`). `oilWellGenerationRate`, `oilSprings` and `modifyWorld` are read as
+  before. 4.2.2's debug mode (×20 everywhere, a spring under every large well) is the system property
+  `buildcraftreforged.debug` (plan section 19.3).
+- **Capped wells** (plan section 19.3). The spout and a large well's cross stop at ground level (4.2.2 went 6 or 16
+  blocks above it). Under water 4.2.2's ground level is the water surface, so the spout stops at the top block of the
+  sea floor and replaces it: a column of oil under the water. The surface deposit is unchanged, so oceans still get
+  4.2.2's oil slicks on the surface.
+- **Spring.** 4.2.2 put the spring at y = 0 when that was bedrock; it is the world's bottom (`getMinY()`, bedrock in
+  the vanilla overworld) now, with the spout from there up. The spring block has obsidian hardness, needs a diamond
+  pickaxe and drops nothing (plan section 19.2), and looks like bedrock as in 4.2.2. Placing it schedules its 6000-tick
+  tick; a random tick restarts a lost schedule, as 4.2.2's `setTickRandomly`.
+- **Chunk bounds.** A 26.x feature may write only its own chunk and the eight around it, and read no further. Every
+  read and write of `OilPopulate` goes through the box it is built with (`featureBounds`: the 3 × 3 chunks, full
+  height); outside it reads see air and writes are dropped. The well is placed anywhere in its chunk instead of 8
+  blocks over, so the box reaches at least 16 blocks from it on every side. Large well lakes (radius 25 to 44 in 4.2.2,
+  though the tendrils seldom pass 20) are cut at the box. The GameTests build the same shapes with a box around the
+  test area.
+- **Block checks.** 4.2.2 Material and class checks map to: `BlockFluid`/`IFluidBlock` → `LiquidBlock`;
+  `blocksMovement` → `isSolid()`; `isBlockOpaqueCube` → `isSolidRender()`; `isBlockSolidOnSide(UP)` → `isFaceSturdy`;
+  `isGenMineableReplaceable(stone)` → `#minecraft:base_stone_overworld`. 26.x biomes have no top and filler block, so
+  "the biome's top block" is any block in `#minecraft:sand` or `#minecraft:dirt`. The surface lake check compares the
+  block one below the top block, as 4.2.2: in deserts that is sand. Blocks 4.2.2 placed with update flag 3 get a fluid
+  tick, as the block update would have given them (section "For oil fields" above).
+- **Tests.** GameTests (`OilFieldTests`, padding 24, shapes clipped to y ≥ 2 of the test area): `oil_well_medium` and
+  `oil_well_large` (sphere, spout up to ground level, the lake there, the cross on large wells, no oil above ground),
+  `oil_lake`, `oil_well_ocean` (spout stops at the sea floor, water above it, slick on the surface), `oil_well_spring`
+  (a large well over bedrock at the world's bottom gets the spring and a spout from it to ground level),
+  `oil_spring_flows` (oil above the spring, obsidian hardness, `tile.spring.oil`), `oil_field_regions` (the noise marks
+  some but not most of a 64 × 64 km area) and `oil_biome_modifier` (the configured and placed features exist; every
+  vanilla ocean and the desert have the feature in the `lakes` step after the modifiers ran, plains, taiga, badlands,
+  beach, river, savanna, Nether and End do not).
+- **Not checked without a client or a generated world:** fields in newly generated deserts and oceans (frequency,
+  look, lag), the spring's bedrock texture and its item in the creative tab, and that no "far chunk" warning appears
+  while chunks generate.
