@@ -17,6 +17,7 @@ import buildcraftreforged.core.ItemRedstoneChipset;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
+import buildcraftreforged.silicon.gui.ContainerAdvancedCraftingTable;
 import buildcraftreforged.silicon.gui.ContainerAssemblyTable;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -78,6 +79,30 @@ public final class SiliconRegistry {
             REGISTERS.menus.register(RegistryNames.of("assemblyTableBlock"),
                     () -> IMenuTypeExtension.create(ContainerAssemblyTable::new));
 
+    /**
+     * 4.2.2 BlockLaserTable meta 1 with ItemLaserTable ("tile.assemblyWorkbenchBlock"), the Advanced Crafting Table:
+     * as the assembly table.
+     */
+    public static final DeferredBlock<BlockLaserTable> advancedCraftingTableBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("assemblyWorkbenchBlock"),
+            properties -> new BlockLaserTable(properties, TileAdvancedCraftingTable::new),
+            properties -> properties.overrideDescription("tile.assemblyWorkbenchBlock").mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL).strength(10F).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredItem<ItemBlockBuildCraft> advancedCraftingTableBlockItem = REGISTERS.items.registerItem(
+            RegistryNames.of("assemblyWorkbenchBlock"),
+            properties -> new ItemBlockBuildCraft(advancedCraftingTableBlock.get(), properties),
+            properties -> properties.overrideDescription("tile.assemblyWorkbenchBlock"));
+
+    /** 4.2.2 registered TileAdvancedCraftingTable as "net.minecraft.src.buildcraft.factory.TileAssemblyAdvancedWorkbench". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileAdvancedCraftingTable>> advancedCraftingTableTile =
+            REGISTERS.blockEntityTypes.register("advanced_crafting_table",
+                    () -> new BlockEntityType<>(TileAdvancedCraftingTable::new, advancedCraftingTableBlock.get()));
+
+    /** 4.2.2 GuiHandler GUI id 0 on block metadata 1. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerAdvancedCraftingTable>> advancedCraftingTableMenu =
+            REGISTERS.menus.register(RegistryNames.of("assemblyWorkbenchBlock"),
+                    () -> IMenuTypeExtension.create(ContainerAdvancedCraftingTable::new));
+
     /** The JSON assembly recipes (AssemblyTableRecipe), type and serializer {@code buildcraftreforged:assembly}. */
     public static final DeferredHolder<RecipeType<?>, RecipeType<AssemblyTableRecipe>> assemblyRecipeType =
             REGISTERS.recipeTypes.register("assembly", id -> RecipeType.<AssemblyTableRecipe>simple(id));
@@ -97,6 +122,7 @@ public final class SiliconRegistry {
     static {
         CreativeTabBuildCraft.MACHINES.add(laserBlockItem);
         CreativeTabBuildCraft.MACHINES.add(assemblyTableBlockItem);
+        CreativeTabBuildCraft.MACHINES.add(advancedCraftingTableBlockItem);
         redstoneChipset.forEach(CreativeTabBuildCraft.MACHINES::add);
     }
 
@@ -116,5 +142,6 @@ public final class SiliconRegistry {
     private static void registerCapabilities(RegisterCapabilitiesEvent event) {
         PowerEnergyHandler.registerEnergyHandler(event, laserTile.get());
         TileBuildCraft.registerItemHandler(event, assemblyTableTile.get());
+        TileBuildCraft.registerItemHandler(event, advancedCraftingTableTile.get());
     }
 }
