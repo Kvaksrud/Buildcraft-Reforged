@@ -575,4 +575,39 @@ class PipeRoutingTest {
         assertEquals(0, left.get(pos(2, 0)));
         assertEquals(400, left.get(pos(1, 1)), "a pipe off the path spent budget");
     }
+
+    // #51: the walk refuses pipes the router's canEnter refuses (fluid locks, docs/TRANSPORT.md 7.3)
+
+    @Test
+    void refusedPipeIsWalkedAround() {
+        // The junction at (1, 0) leads east to a chest through (2, 0) and south to a chest through (1, 1).
+        Grid grid = new Grid(
+                "CPPC",
+                ".P..",
+                ".C..");
+        int refused = grid.node(2, 0);
+        RandomSource random = RandomSource.create(5);
+        for (int i = 0; i < 50; i++) {
+            try (Transaction transaction = Transaction.openRoot()) {
+                TransferResult result = grid.router.push(grid.network, grid.node(1, 0), Direction.WEST, pos(0, 0), STONE,
+                        1, 1000, random, ResourceRouter.Settings.DEFAULTS, node -> grid.network.indexOf(node.pos) != refused,
+                        transaction);
+                assertEquals(1, result.moved());
+                assertNotNull(result.route());
+                assertEquals(pos(1, 2), grid.destination(result.route()), "went through the refused pipe");
+            }
+        }
+    }
+
+    @Test
+    void refusedStartPipeHasNoDestination() {
+        Grid grid = new Grid("CPPC");
+        try (Transaction transaction = Transaction.openRoot()) {
+            TransferResult result = grid.router.push(grid.network, grid.node(1, 0), Direction.WEST, pos(0, 0), STONE, 1,
+                    1000, RandomSource.create(1), ResourceRouter.Settings.DEFAULTS, node -> node.pos != pos(1, 0),
+                    transaction);
+            assertEquals(TransferResult.Reason.NO_DESTINATION, result.reason());
+            assertEquals(0, grid.chest(3, 0).stored);
+        }
+    }
 }

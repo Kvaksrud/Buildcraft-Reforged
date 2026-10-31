@@ -6,6 +6,7 @@ import buildcraftreforged.transport.PipeModuleType;
 import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
+import buildcraftreforged.transport.route.FluidRouting;
 import buildcraftreforged.transport.route.ItemRouting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
@@ -96,7 +98,20 @@ public class ModuleExtractor extends PipeModule {
             if (source != null)
                 extractItems(level, network, node, facing, source);
         }
-        // SEAM(#51): the fluid Extractor offers min(simulated drain of the facing tank, budget) (docs/TRANSPORT.md 8.2).
+        if (network.kind == PipeType.FLUID) {
+            ResourceHandler<FluidResource> source = fluidSource(network, node, facing);
+            if (source != null)
+                FluidRouting.extract(level, network, node, facing, source);
+        }
+    }
+
+    /** The fluid handler of the endpoint on {@code side} of the node, or null when that side is no endpoint. */
+    static @Nullable ResourceHandler<FluidResource> fluidSource(PipeNetwork network, int node, Direction side) {
+        int next = network.nodes[node].next(side);
+        if (!PipeNode.isEndpoint(next))
+            return null;
+        ResourceHandler<FluidResource> handler = FluidRouting.handler(network.endpoints[PipeNode.endpointIndex(next)]);
+        return handler != null && handler.size() > 0 ? handler : null;
     }
 
     /** One item attempt: {@link ItemRouting#extract}, the first routable slot (Q13). */

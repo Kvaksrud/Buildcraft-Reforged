@@ -100,6 +100,11 @@ public final class BuildcraftGameTests {
             function("power_routing_engine_to_machine");
     private static final ResourceKey<Consumer<GameTestHelper>> POWER_ROUTING_SPLITTING = function("power_routing_splitting");
     private static final ResourceKey<Consumer<GameTestHelper>> POWER_ROUTING_LIMITER = function("power_routing_limiter");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_TANK_TO_TANK = function("fluid_routing_tank_to_tank");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_SPLITTING = function("fluid_routing_splitting");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_PUSH_AND_VOID = function("fluid_routing_push_and_void");
+    private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_MIXING_REFUSAL =
+            function("fluid_routing_mixing_refusal");
 
     private BuildcraftGameTests() {
     }
@@ -177,11 +182,19 @@ public final class BuildcraftGameTests {
             for (PipeMaterial material : PipeMaterial.values()) {
                 registry.register(powerCaps(material), helper -> PowerRoutingTests.tierCaps(helper, material));
             }
+            registry.register(FLUID_ROUTING_TANK_TO_TANK, FluidRoutingTests::tankToTank);
+            registry.register(FLUID_ROUTING_SPLITTING, FluidRoutingTests::splitting);
+            registry.register(FLUID_ROUTING_PUSH_AND_VOID, FluidRoutingTests::pushAndVoid);
+            registry.register(FLUID_ROUTING_MIXING_REFUSAL, FluidRoutingTests::mixingRefusal);
+            for (PipeMaterial material : PipeMaterial.values()) {
+                registry.register(fluidCaps(material), helper -> FluidRoutingTests.tierCaps(helper, material));
+            }
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
         EngineTests.register(event);
         PowerRoutingTests.register(event);
+        FluidRoutingTests.register(event);
     }
 
     @SubscribeEvent
@@ -190,6 +203,7 @@ public final class BuildcraftGameTests {
         PipeTests.registerTestCapabilities(event);
         EngineTests.registerCapabilities(event);
         PowerRoutingTests.registerCapabilities(event);
+        FluidRoutingTests.registerCapabilities(event);
     }
 
     @SubscribeEvent
@@ -321,10 +335,23 @@ public final class BuildcraftGameTests {
             event.registerTest(powerCaps(material).identifier(), new FunctionGameTestInstance(powerCaps(material),
                     padded(environment, Level.OVERWORLD, PowerRoutingTests.WINDOW_END + 20)));
         }
+        for (ResourceKey<Consumer<GameTestHelper>> fluid : List.of(FLUID_ROUTING_TANK_TO_TANK, FLUID_ROUTING_SPLITTING,
+                FLUID_ROUTING_PUSH_AND_VOID, FLUID_ROUTING_MIXING_REFUSAL)) {
+            event.registerTest(fluid.identifier(), new FunctionGameTestInstance(fluid,
+                    padded(environment, Level.OVERWORLD, FluidRoutingTests.MAX_TICKS)));
+        }
+        for (PipeMaterial material : PipeMaterial.values()) {
+            event.registerTest(fluidCaps(material).identifier(), new FunctionGameTestInstance(fluidCaps(material),
+                    padded(environment, Level.OVERWORLD, FluidRoutingTests.WINDOW_END + 20)));
+        }
     }
 
     private static ResourceKey<Consumer<GameTestHelper>> powerCaps(PipeMaterial material) {
         return function("power_routing_caps_" + material.getSerializedName());
+    }
+
+    private static ResourceKey<Consumer<GameTestHelper>> fluidCaps(PipeMaterial material) {
+        return function("fluid_routing_caps_" + material.getSerializedName());
     }
 
     private static ResourceKey<Consumer<GameTestHelper>> throughput(PipeMaterial material) {

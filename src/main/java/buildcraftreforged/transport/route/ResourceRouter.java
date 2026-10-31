@@ -2,6 +2,7 @@ package buildcraftreforged.transport.route;
 
 import buildcraftreforged.transport.graph.PipeNetwork;
 import buildcraftreforged.transport.graph.PipeNode;
+import java.util.function.Predicate;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -74,12 +75,31 @@ public final class ResourceRouter<R extends Resource> {
      */
     public TransferResult push(PipeNetwork network, int start, @Nullable Direction in, long sourcePos, R resource,
             int amount, long now, RandomSource random, Settings settings, TransactionContext transaction) {
+        return push(network, start, in, sourcePos, resource, amount, now, random, settings, node -> true, transaction);
+    }
+
+    /**
+     * {@link #push(PipeNetwork, int, Direction, long, Resource, int, long, RandomSource, Settings, TransactionContext)}
+     * through the pipes {@code canEnter} allows only ({@link PipeWalk.Rules#canEnter}): fluids refuse pipes locked to
+     * another fluid (docs/TRANSPORT.md 7.3). A start pipe it refuses gives NO_DESTINATION.
+     */
+    public TransferResult push(PipeNetwork network, int start, @Nullable Direction in, long sourcePos, R resource,
+            int amount, long now, RandomSource random, Settings settings, Predicate<PipeNode> canEnter,
+            TransactionContext transaction) {
         if (amount <= 0 || resource.isEmpty())
             return TransferResult.SOURCE_EMPTY;
 
-        PipeWalk.Route route = PipeWalk.walk(network, start, in, sourcePos,
-                endpoint -> simulateInsert(handlers.handler(endpoint), resource, 1, transaction) > 0, random,
-                settings.maxRouteVisits());
+        PipeWalk.Route route = PipeWalk.walk(network, start, in, sourcePos, new PipeWalk.Rules() {
+            @Override
+            public boolean canEnter(PipeNode node) {
+                return canEnter.test(node);
+            }
+
+            @Override
+            public boolean accepts(PipeNetwork.Endpoint endpoint) {
+                return simulateInsert(handlers.handler(endpoint), resource, 1, transaction) > 0;
+            }
+        }, random, settings.maxRouteVisits());
         if (route == null)
             return TransferResult.NO_DESTINATION;
 
