@@ -68,14 +68,34 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NETHER_IGNITION = function("oil_fuel_nether_ignition");
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER =
             function("oil_fuel_no_ignition_outside_nether");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_HEAT_AND_STAGES = function("engine_heat_and_stages");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_RECEPTOR = function("engine_pushes_into_receptor");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_FE_AND_ENGINES =
+            function("engine_pushes_into_fe_and_engines");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_ORIENTATION = function("engine_orientation");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_RENDER_STATE = function("engine_render_state");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_LASER_CRAFTING = function("assembly_laser_crafting");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_QUEUE_AND_TAGS = function("assembly_queue_and_tags");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_SELECTION_SAVE_AND_SYNC =
+            function("assembly_selection_save_and_sync");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_RECORDED_AND_SAVED = function("owner_recorded_and_saved");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
+    private static final ResourceKey<Consumer<GameTestHelper>> REFINERY_OIL_TO_FUEL = function("refinery_oil_to_fuel");
+    private static final ResourceKey<Consumer<GameTestHelper>> REFINERY_FILTERS_AND_BLOCKED = function("refinery_filters_and_blocked");
+    private static final ResourceKey<Consumer<GameTestHelper>> REFINERY_RECIPES = function("refinery_recipes");
 
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_CHEST_TO_CHEST = function("item_routing_chest_to_chest");
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_HOPPER_PUSH = function("item_routing_hopper_push");
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_BRANCHING = function("item_routing_branching");
     private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_BUDGETS = function("item_routing_budgets");
+
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_ITEMS_AND_FITTING = function("gate_items_and_fitting");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_LOGIC_KINDS = function("gate_logic_kinds");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_WIRE_SIGNALS = function("gate_wire_signals");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_PIPE_CONTENTS = function("gate_pipe_contents");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_MODULE_ACTIONS_AND_PULSER = function("gate_module_actions_and_pulser");
+    private static final ResourceKey<Consumer<GameTestHelper>> GATE_MENU = function("gate_menu");
 
     private BuildcraftGameTests() {
     }
@@ -118,9 +138,26 @@ public final class BuildcraftGameTests {
             registry.register(OIL_FUEL_LIQUIDS, OilFuelTests::liquids);
             registry.register(OIL_FUEL_NETHER_IGNITION, OilFuelTests::netherIgnition);
             registry.register(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, OilFuelTests::noIgnitionOutsideNether);
+            registry.register(GATE_ITEMS_AND_FITTING, GateTests::itemsAndFitting);
+            registry.register(GATE_LOGIC_KINDS, GateTests::logicKinds);
+            registry.register(GATE_WIRE_SIGNALS, GateTests::wireSignals);
+            registry.register(GATE_PIPE_CONTENTS, GateTests::pipeContents);
+            registry.register(GATE_MODULE_ACTIONS_AND_PULSER, GateTests::moduleActionsAndPulser);
+            registry.register(GATE_MENU, GateTests::menu);
+            registry.register(ENGINE_HEAT_AND_STAGES, EngineTests::heatAndStages);
+            registry.register(ENGINE_PUSHES_INTO_RECEPTOR, EngineTests::pushesIntoReceptor);
+            registry.register(ENGINE_PUSHES_INTO_FE_AND_ENGINES, EngineTests::pushesIntoForgeEnergyAndEngines);
+            registry.register(ENGINE_ORIENTATION, EngineTests::orientation);
+            registry.register(ENGINE_RENDER_STATE, EngineTests::renderState);
+            registry.register(ASSEMBLY_LASER_CRAFTING, AssemblyTableTests::laserCrafting);
+            registry.register(ASSEMBLY_QUEUE_AND_TAGS, AssemblyTableTests::queueAndTags);
+            registry.register(ASSEMBLY_SELECTION_SAVE_AND_SYNC, AssemblyTableTests::selectionSaveAndSync);
             registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
             registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
             registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
+            registry.register(REFINERY_OIL_TO_FUEL, RefineryTests::oilToFuel);
+            registry.register(REFINERY_FILTERS_AND_BLOCKED, RefineryTests::filtersAndBlocked);
+            registry.register(REFINERY_RECIPES, RefineryTests::recipes);
             registry.register(ITEM_ROUTING_CHEST_TO_CHEST, ItemRoutingTests::chestToChest);
             registry.register(ITEM_ROUTING_HOPPER_PUSH, ItemRoutingTests::hopperPush);
             registry.register(ITEM_ROUTING_BRANCHING, ItemRoutingTests::branching);
@@ -132,12 +169,14 @@ public final class BuildcraftGameTests {
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
+        EngineTests.register(event);
     }
 
     @SubscribeEvent
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
         FluidTankTests.registerCapabilities(event);
         PipeTests.registerTestCapabilities(event);
+        EngineTests.registerCapabilities(event);
     }
 
     @SubscribeEvent
@@ -207,9 +246,38 @@ public final class BuildcraftGameTests {
                 padded(environment, Level.NETHER, 40)));
         event.registerTest(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER.identifier(), new FunctionGameTestInstance(
                 OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, padded(environment, Level.OVERWORLD, 40)));
+        event.registerTest(id("gate_items_and_fitting"), new FunctionGameTestInstance(GATE_ITEMS_AND_FITTING,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("gate_logic_kinds"), new FunctionGameTestInstance(GATE_LOGIC_KINDS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        event.registerTest(id("gate_wire_signals"), new FunctionGameTestInstance(GATE_WIRE_SIGNALS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
+        event.registerTest(id("gate_pipe_contents"), new FunctionGameTestInstance(GATE_PIPE_CONTENTS,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gate_module_actions_and_pulser"), new FunctionGameTestInstance(GATE_MODULE_ACTIONS_AND_PULSER,
+                new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        event.registerTest(id("gate_menu"), new FunctionGameTestInstance(GATE_MENU,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(ENGINE_HEAT_AND_STAGES.identifier(), new FunctionGameTestInstance(ENGINE_HEAT_AND_STAGES,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        for (ResourceKey<Consumer<GameTestHelper>> engine : List.of(ENGINE_PUSHES_INTO_RECEPTOR, ENGINE_PUSHES_INTO_FE_AND_ENGINES,
+                ENGINE_ORIENTATION, ENGINE_RENDER_STATE)) {
+            event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 200, 0, true)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> assembly : List.of(ASSEMBLY_LASER_CRAFTING, ASSEMBLY_QUEUE_AND_TAGS,
+                ASSEMBLY_SELECTION_SAVE_AND_SYNC)) {
+            event.registerTest(assembly.identifier(), new FunctionGameTestInstance(assembly,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        }
         for (ResourceKey<Consumer<GameTestHelper>> owner : List.of(OWNER_RECORDED_AND_SAVED, OWNER_BREAK, OWNER_PLACE)) {
             event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,
                     new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> refinery : List.of(REFINERY_OIL_TO_FUEL, REFINERY_FILTERS_AND_BLOCKED,
+                REFINERY_RECIPES)) {
+            event.registerTest(refinery.identifier(), new FunctionGameTestInstance(refinery,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
         }
         // Item routing builds lines longer than the 5-block spacing between tests, so it uses the padded area too.
         for (ResourceKey<Consumer<GameTestHelper>> routing : List.of(ITEM_ROUTING_CHEST_TO_CHEST, ITEM_ROUTING_HOPPER_PUSH,

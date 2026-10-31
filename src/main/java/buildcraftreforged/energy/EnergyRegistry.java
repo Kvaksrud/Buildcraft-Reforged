@@ -9,18 +9,24 @@
  * Modified by Buildcraft Reforged, 2026: the registration half of buildcraft/BuildCraftEnergy.java, on
  * DeferredRegister; numeric ids, Configuration and LanguageRegistry names removed. Oil and fuel are a FluidType (BCFluid),
  * a source and a flowing Fluid, a LiquidBlock and a bucket each; FluidContainerRegistry and BucketHandler are replaced by
- * the bucket's fluid capability and vanilla's BucketPickup.
+ * the bucket's fluid capability and vanilla's BucketPickup. 4.2.2's engineBlock with metadata 0-2 becomes one BlockEngine,
+ * ItemEngine and block entity type per engine, registered through engine().
  */
 package buildcraftreforged.energy;
 
 import buildcraftreforged.api.fuels.FuelDataMaps;
 import buildcraftreforged.api.fuels.IronEngineFuel;
+import buildcraftreforged.api.power.PowerEnergyHandler;
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.CreativeTabBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
+import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.fluids.BCFluid;
 import com.mojang.serialization.MapCodec;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import net.minecraft.core.particles.ColorParticleOption;
@@ -30,6 +36,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.MapColor;
@@ -54,6 +61,18 @@ import net.neoforged.neoforge.transfer.fluid.BucketResourceHandler;
  */
 public final class EnergyRegistry {
     public static final ModuleRegisters REGISTERS = new ModuleRegisters();
+
+    /** Every engine's block entity type, for the capabilities. Declared before any engine() field. */
+    private static final List<DeferredHolder<BlockEntityType<?>, ? extends BlockEntityType<? extends TileEngine>>> ENGINE_TILES =
+            new ArrayList<>();
+
+    /** Every engine's block entity type, for the engine renderer (EnergyProxyClient). */
+    public static List<DeferredHolder<BlockEntityType<?>, ? extends BlockEntityType<? extends TileEngine>>> engineTiles() {
+        return Collections.unmodifiableList(ENGINE_TILES);
+    }
+
+    // Engines (#37, #38, #44) go here, below ENGINE_TILES:
+    // public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);
 
     // Oil and fuel (4.2.2 BuildCraftEnergy.preInit). fluidOil and fluidFuel are the source fluids; 4.2.2's
     // buildcraftFluidOil/buildcraftFluidFuel (the BCFluid) are the fluid types.
@@ -128,6 +147,36 @@ public final class EnergyRegistry {
                         .sound(SoundType.EMPTY));
     }
 
+    /** An engine's block, item and block entity type. */
+    public record EngineEntry<T extends TileEngine>(DeferredBlock<BlockEngine> block, DeferredItem<ItemEngine> item,
+            DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> tile) {
+    }
+
+    /**
+     * Registers an engine: a BlockEngine named after unlocalizedName (tile.engineWood → engine_wood) with
+     * {@link BlockEngine#engineProperties}, its ItemEngine in the machines tab, and a block entity type named tileName
+     * whose tiles get the Forge Energy capability (and the item capability, for a TileEngineWithInventory). The
+     * engine still needs its blockstate, models, loot table and minecraft:mineable/pickaxe entry.
+     */
+    public static <T extends TileEngine> EngineEntry<T> engine(String unlocalizedName, String tileName,
+            BlockEntityType.BlockEntitySupplier<T> factory) {
+        String name = RegistryNames.of(unlocalizedName);
+        DeferredBlock<BlockEngine> block = REGISTERS.blocks.registerBlock(name, properties -> new BlockEngine(properties, factory),
+                properties -> BlockEngine.engineProperties(properties).overrideDescription("tile." + unlocalizedName));
+        DeferredItem<ItemEngine> item = REGISTERS.items.registerItem(name, properties -> new ItemEngine(block.get(), properties),
+                properties -> properties.overrideDescription("tile." + unlocalizedName));
+        DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> tile = REGISTERS.blockEntityTypes.register(tileName,
+                () -> new BlockEntityType<>(factory, block.get()));
+        CreativeTabBuildCraft.MACHINES.add(item);
+        ENGINE_TILES.add(tile);
+        return new EngineEntry<>(block, item, tile);
+    }
+
+    private static <T extends TileEngine> void registerEngineCapabilities(RegisterCapabilitiesEvent event, BlockEntityType<T> type) {
+        PowerEnergyHandler.registerEnergyHandler(event, type);
+        TileBuildCraft.registerItemHandler(event, type);
+    }
+
     private static DeferredItem<ItemBucketBuildcraft> bucket(String unlocalizedName, Supplier<? extends Fluid> fluid) {
         DeferredItem<ItemBucketBuildcraft> item = REGISTERS.items.registerItem(RegistryNames.of(unlocalizedName),
                 properties -> new ItemBucketBuildcraft(fluid.get(), properties),
@@ -148,8 +197,11 @@ public final class EnergyRegistry {
         modBus.addListener(FMLCommonSetupEvent.class, EnergyRegistry::commonSetup);
     }
 
-    /** 4.2.2 FluidContainerRegistry.registerFluidContainer for the two buckets. */
+    /** 4.2.2 FluidContainerRegistry.registerFluidContainer for the two buckets; the engines' energy and items. */
     private static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        for (DeferredHolder<BlockEntityType<?>, ? extends BlockEntityType<? extends TileEngine>> tile : ENGINE_TILES) {
+            registerEngineCapabilities(event, tile.get());
+        }
         event.registerItem(Capabilities.Fluid.ITEM, (stack, access) -> new BucketResourceHandler(access), bucketOil.get(),
                 bucketFuel.get());
     }

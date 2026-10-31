@@ -1,0 +1,6 @@
+{
+  "parent": "buildcraftreforged:block/engine",
+  "textures": {
+    "particle": "buildcraftreforged:block/engine_iron_bottom"
+  }
+}

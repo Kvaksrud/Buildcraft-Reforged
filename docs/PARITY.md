@@ -71,8 +71,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Fluid tank contains | `TriggerFluidContainer` | `trigger_contains_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.contains`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
 | Fluid tank space | `TriggerFluidContainer` | `trigger_space_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.space`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
 | Fluid tank full | `TriggerFluidContainer` | `trigger_full_fluid` | #31 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.fluid.full`. GameTest `trigger_*`; icon drawn by the gate GUI (#60). |
-| Redstone input active | `TriggerRedstoneInput` | `buildcraft.redtone.input.active` | #60 | [ ] | [ ] | [ ] | Offered by the pipe itself (`TileGenericPipe.getTriggers`). Tag misspelt in 4.2.2. |
-| Redstone input inactive | `TriggerRedstoneInput` | `buildcraft.redtone.input.inactive` | #60 | [ ] | [ ] | [ ] | As above. |
+| Redstone input active | `TriggerRedstoneInput` | `trigger_redstone_active` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.redtone.input.active`. Offered by the pipe itself (`TileGenericPipe.getTriggers`). Tag misspelt in 4.2.2. GameTest `gate_*`. |
+| Redstone input inactive | `TriggerRedstoneInput` | `trigger_redstone_inactive` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.redtone.input.inactive`. As above. GameTest `gate_*`. |
 
 ### Actions (core, `DefaultActionProvider`)
 
@@ -89,9 +89,9 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37 | [ ] | [ ] | [ ] | One block per engine; facing in the block state. Engine base in #36. |
-| Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38 | [ ] | [ ] | [ ] |  |
-| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44 | [ ] | [ ] | [ ] |  |
+| Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37, #39 | [ ] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36; renderer, base/trunk/chamber textures and the `buildcraftreforged:engine` item model type in #39. |
+| Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
+| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
 | Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [x] | [ ] | [ ] | `FluidType` `oil` plus source fluid `oil` and flowing fluid `flowing_oil`. Density 800, viscosity 1500, ticks every 7. |
 | Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [x] | [ ] | [ ] | As above: `fuel` and `flowing_fuel`, ticks every 5. |
 | Oil (block) (`blockOil`) | `BlockBuildcraftFluid` | `block_oil` | #42 | [x] | [ ] | [ ] | Nether: fire instead of explosion (section 19.2). Flow, buckets and the Nether rule pass GameTests; textures and drips not seen in a client. |
@@ -138,7 +138,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
 | Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [ ] | [ ] | [ ] |  |
 | Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [ ] | [ ] | [ ] |  |
-| Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [ ] | [ ] | [ ] |  |
+| Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [x] | [ ] | [ ] | JSON recipe type `buildcraftreforged:refinery`; status panel added. GameTests `refinery_oil_to_fuel`, `refinery_filters_and_blocked`, `refinery_recipes`; renderer and item model not checked in game. `BptBlockRefinery` waits for the builder (#78). |
 | Hopper (`blockHopper`) | `BlockHopper, TileHopper` | `block_hopper` | #70 | [ ] | [ ] | [ ] |  |
 
 ### GUIs (factory, `factory.GuiHandler`)
@@ -146,7 +146,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Automatic Crafting Table (`GuiIds.AUTO_CRAFTING_TABLE` 30) | `GuiAutoCrafting / ContainerAutoWorkbench` | `auto_workbench_block` menu | #69 | [ ] | [ ] | [ ] |  |
-| Refinery (`GuiIds.REFINERY` 31) | `GuiRefinery / ContainerRefinery` | `refinery_block` menu | #68 | [ ] | [ ] | [ ] |  |
+| Refinery (`GuiIds.REFINERY` 31) | `GuiRefinery / ContainerRefinery` | `refinery_block` menu | #68 | [x] | [ ] | [ ] | Filter sync and return covered by GameTest `refinery_filters_and_blocked`; drawing and clicks not checked in game. |
 | Hopper (`GuiIds.HOPPER` 32) | `GuiHopper / ContainerHopper` | `block_hopper` menu | #70 | [ ] | [ ] | [ ] |  |
 
 ## silicon (`BuildCraftSilicon`)
@@ -156,7 +156,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
-| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [ ] | [ ] | [ ] | Separate block, no metadata. |
+| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client; the 4.2.2 recipes wait for their items (#60, #61, #74). GameTests `assembly_*`. |
 | Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_chipset_0` | #74 | [ ] | [ ] | [ ] | Metadata suffix names are placeholders; #18 notes they become items or a data component. |
 | Redstone Iron Chipset (`redstoneChipset.1`) | `ItemRedstoneChipset (meta 1)` | `redstone_chipset_1` | #74 | [ ] | [ ] | [ ] |  |
@@ -168,7 +168,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Assembly Table (GUI id 0, block meta) | `GuiAssemblyTable / ContainerAssemblyTable` | `assembly_table_block` menu | #72 | [ ] | [ ] | [ ] |  |
+| Assembly Table (GUI id 0, block meta) | `GuiAssemblyTable / ContainerAssemblyTable` | `assembly_table_block` menu | #72 | [x] | [ ] | [ ] | Menu, data slots and the selection GUI return tested by GameTests `assembly_*`; the screen not yet seen in a client. |
 | Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [ ] | [ ] | [ ] |  |
 
 ## transport (`BuildCraftTransport`)
@@ -179,24 +179,24 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Pipe block (`pipeBlock`) | `BlockGenericPipe, TileGenericPipe` | `pipe_block` | #48 | [ ] | [ ] | [ ] | Replaced by the tier pipe blocks below; kept as the shared pipe base. |
 | Pipe Sealant (`pipeWaterproof`) | `ItemBuildCraft` | `pipe_waterproof` | #53 | [x] | [ ] | [ ] | 4.2.2 fluid-pipe ingredient, kept: fluid pipes are item pipe + sealant (TRANSPORT.md Q17). |
-| Red Pipe Wire (`redPipeWire`) | `ItemBuildCraft` | `red_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
-| Blue Pipe Wire (`bluePipeWire`) | `ItemBuildCraft` | `blue_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
-| Green Pipe Wire (`greenPipeWire`) | `ItemBuildCraft` | `green_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
-| Yellow Pipe Wire (`yellowPipeWire`) | `ItemBuildCraft` | `yellow_pipe_wire` | #60 | [ ] | [ ] | [ ] |  |
-| Gate (`pipeGate.0`) | `ItemGate (meta 0)` | `pipe_gate_0` | #60 | [ ] | [ ] | [ ] | Crafting in #74. Metadata suffix names are placeholders. |
-| Iron AND Gate (`pipeGate.1`) | `ItemGate (meta 1)` | `pipe_gate_1` | #60 | [ ] | [ ] | [ ] |  |
-| Iron OR Gate (`pipeGate.2`) | `ItemGate (meta 2)` | `pipe_gate_2` | #60 | [ ] | [ ] | [ ] |  |
-| Gold AND Gate (`pipeGate.3`) | `ItemGate (meta 3)` | `pipe_gate_3` | #60 | [ ] | [ ] | [ ] |  |
-| Gold OR Gate (`pipeGate.4`) | `ItemGate (meta 4)` | `pipe_gate_4` | #60 | [ ] | [ ] | [ ] |  |
-| Diamond AND Gate (`pipeGate.5`) | `ItemGate (meta 5)` | `pipe_gate_5` | #60 | [ ] | [ ] | [ ] |  |
-| Diamond OR Gate (`pipeGate.6`) | `ItemGate (meta 6)` | `pipe_gate_6` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Gate (`pipeGateAutarchic.0`) | `ItemGate autarchic (meta 0)` | `pipe_gate_autarchic_0` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Iron AND Gate (`pipeGateAutarchic.1`) | `ItemGate autarchic (meta 1)` | `pipe_gate_autarchic_1` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Iron OR Gate (`pipeGateAutarchic.2`) | `ItemGate autarchic (meta 2)` | `pipe_gate_autarchic_2` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Gold AND Gate (`pipeGateAutarchic.3`) | `ItemGate autarchic (meta 3)` | `pipe_gate_autarchic_3` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `pipe_gate_autarchic_4` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `pipe_gate_autarchic_5` | #60 | [ ] | [ ] | [ ] |  |
-| Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `pipe_gate_autarchic_6` | #60 | [ ] | [ ] | [ ] |  |
+| Red Pipe Wire (`redPipeWire`) | `ItemPipeWire` | `red_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
+| Blue Pipe Wire (`bluePipeWire`) | `ItemPipeWire` | `blue_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
+| Green Pipe Wire (`greenPipeWire`) | `ItemPipeWire` | `green_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
+| Yellow Pipe Wire (`yellowPipeWire`) | `ItemPipeWire` | `yellow_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
+| Gate (`pipeGate.0`) | `ItemGate (meta 0)` | `gate` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Crafting in #74. GameTest `gate_*`. |
+| Iron AND Gate (`pipeGate.1`) | `ItemGate (meta 1)` | `gate_iron_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Iron OR Gate (`pipeGate.2`) | `ItemGate (meta 2)` | `gate_iron_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Gold AND Gate (`pipeGate.3`) | `ItemGate (meta 3)` | `gate_gold_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Gold OR Gate (`pipeGate.4`) | `ItemGate (meta 4)` | `gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Diamond AND Gate (`pipeGate.5`) | `ItemGate (meta 5)` | `gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Diamond OR Gate (`pipeGate.6`) | `ItemGate (meta 6)` | `gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Gate (`pipeGateAutarchic.0`) | `ItemGate autarchic (meta 0)` | `autarchic_gate` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Iron AND Gate (`pipeGateAutarchic.1`) | `ItemGate autarchic (meta 1)` | `autarchic_gate_iron_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Iron OR Gate (`pipeGateAutarchic.2`) | `ItemGate autarchic (meta 2)` | `autarchic_gate_iron_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Gold AND Gate (`pipeGateAutarchic.3`) | `ItemGate autarchic (meta 3)` | `autarchic_gate_gold_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `autarchic_gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `autarchic_gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
 | Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). |
 | Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61 | [ ] | [ ] | [ ] |  |
 | Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [ ] | [ ] | [ ] |  |
@@ -240,72 +240,72 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Pipe empty | `TriggerPipeContents` | `buildcraft.pipe.contents.empty` | #60 | [ ] | [ ] | [ ] | Reads the flow record (section 8.5). |
-| Pipe contains items | `TriggerPipeContents` | `buildcraft.pipe.contents.containsItems` | #60 | [ ] | [ ] | [ ] |  |
-| Pipe contains fluids | `TriggerPipeContents` | `buildcraft.pipe.contents.containsFluids` | #60 | [ ] | [ ] | [ ] |  |
-| Pipe contains energy | `TriggerPipeContents` | `buildcraft.pipe.contents.containsEnergy` | #60 | [ ] | [ ] | [ ] |  |
-| Pipe requests energy | `TriggerPipeContents` | `buildcraft.pipe.contents.requestsEnergy` | #60 | [ ] | [ ] | [ ] |  |
-| Pipe too much energy | `TriggerPipeContents` | `buildcraft.pipe.contents.tooMuchEnergy` | #60 | [ ] | [ ] | [ ] |  |
-| Red pipe signal active | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.red.active` | #60 | [ ] | [ ] | [ ] |  |
-| Red pipe signal inactive | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.red.inactive` | #60 | [ ] | [ ] | [ ] |  |
-| Blue pipe signal active | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.blue.active` | #60 | [ ] | [ ] | [ ] |  |
-| Blue pipe signal inactive | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.blue.inactive` | #60 | [ ] | [ ] | [ ] |  |
-| Green pipe signal active | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.green.active` | #60 | [ ] | [ ] | [ ] |  |
-| Green pipe signal inactive | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.green.inactive` | #60 | [ ] | [ ] | [ ] |  |
-| Yellow pipe signal active | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.yellow.active` | #60 | [ ] | [ ] | [ ] |  |
-| Yellow pipe signal inactive | `TriggerPipeSignal` | `buildcraft.pipe.wire.input.yellow.inactive` | #60 | [ ] | [ ] | [ ] |  |
+| Pipe empty | `TriggerPipeContents` | `trigger_pipe_empty` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.contents.empty`. Reads the flow record (section 8.5). GameTest `gate_*`. |
+| Pipe contains items | `TriggerPipeContents` | `trigger_pipe_items` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.contents.containsItems`. GameTest `gate_*`. |
+| Pipe contains fluids | `TriggerPipeContents` | `trigger_pipe_fluids` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.contents.containsFluids`. GameTest `gate_*`. |
+| Pipe contains energy | `TriggerPipeContents` | `trigger_pipe_contains_energy` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.contents.containsEnergy`. GameTest `gate_*`. |
+| Pipe requests energy | `TriggerPipeContents` | `trigger_pipe_requests_energy` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.contents.requestsEnergy`. GameTest `gate_*`. |
+| Pipe too much energy | `TriggerPipeContents` | `trigger_pipe_too_much_energy` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.contents.tooMuchEnergy`. GameTest `gate_*`. |
+| Red pipe signal active | `TriggerPipeSignal` | `trigger_red_signal_active` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.red.active`. GameTest `gate_*`. |
+| Red pipe signal inactive | `TriggerPipeSignal` | `trigger_red_signal_inactive` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.red.inactive`. GameTest `gate_*`. |
+| Blue pipe signal active | `TriggerPipeSignal` | `trigger_blue_signal_active` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.blue.active`. GameTest `gate_*`. |
+| Blue pipe signal inactive | `TriggerPipeSignal` | `trigger_blue_signal_inactive` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.blue.inactive`. GameTest `gate_*`. |
+| Green pipe signal active | `TriggerPipeSignal` | `trigger_green_signal_active` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.green.active`. GameTest `gate_*`. |
+| Green pipe signal inactive | `TriggerPipeSignal` | `trigger_green_signal_inactive` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.green.inactive`. GameTest `gate_*`. |
+| Yellow pipe signal active | `TriggerPipeSignal` | `trigger_yellow_signal_active` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.yellow.active`. GameTest `gate_*`. |
+| Yellow pipe signal inactive | `TriggerPipeSignal` | `trigger_yellow_signal_inactive` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.input.yellow.inactive`. GameTest `gate_*`. |
 
 ### Actions (transport, `GateVanilla` and pipe `getActions`)
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Red signal output | `ActionSignalOutput` | `buildcraft.pipe.wire.output.red` | #60 | [ ] | [ ] | [ ] |  |
-| Blue signal output | `ActionSignalOutput` | `buildcraft.pipe.wire.output.blue` | #60 | [ ] | [ ] | [ ] |  |
-| Green signal output | `ActionSignalOutput` | `buildcraft.pipe.wire.output.green` | #60 | [ ] | [ ] | [ ] |  |
-| Yellow signal output | `ActionSignalOutput` | `buildcraft.pipe.wire.output.yellow` | #60 | [ ] | [ ] | [ ] |  |
-| Energy Pulser | `ActionEnergyPulser` | `buildcraft.pulser.constant` | #60 | [ ] | [ ] | [ ] | Autarchic gates only. |
-| Single Energy Pulse | `ActionSingleEnergyPulse` | `buildcraft.pulser.single` | #60 | [ ] | [ ] | [ ] | Autarchic gates only. |
-| Extraction preset red | `ActionExtractionPreset` | `buildcraft.extraction.preset.color.red` | #57, #60 | [ ] | [ ] | [ ] | Emzuli pipe → Filtered Colour Tag module. |
-| Extraction preset blue | `ActionExtractionPreset` | `buildcraft.extraction.preset.color.blue` | #57, #60 | [ ] | [ ] | [ ] | Emzuli pipe → Filtered Colour Tag module. |
-| Extraction preset green | `ActionExtractionPreset` | `buildcraft.extraction.preset.color.green` | #57, #60 | [ ] | [ ] | [ ] | Emzuli pipe → Filtered Colour Tag module. |
-| Extraction preset yellow | `ActionExtractionPreset` | `buildcraft.extraction.preset.color.yellow` | #57, #60 | [ ] | [ ] | [ ] | Emzuli pipe → Filtered Colour Tag module. |
-| Pipe colour black | `ActionPipeColor` | `buildcraft.pipe.color.black` | #57, #60 | [ ] | [ ] | [ ] | Lapis and Daizuli pipes → Colour Tag and Colour Sorter modules. |
-| Pipe colour red | `ActionPipeColor` | `buildcraft.pipe.color.red` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour green | `ActionPipeColor` | `buildcraft.pipe.color.green` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour brown | `ActionPipeColor` | `buildcraft.pipe.color.brown` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour blue | `ActionPipeColor` | `buildcraft.pipe.color.blue` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour purple | `ActionPipeColor` | `buildcraft.pipe.color.purple` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour cyan | `ActionPipeColor` | `buildcraft.pipe.color.cyan` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour light gray | `ActionPipeColor` | `buildcraft.pipe.color.light.gray` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour gray | `ActionPipeColor` | `buildcraft.pipe.color.gray` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour pink | `ActionPipeColor` | `buildcraft.pipe.color.pink` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour lime | `ActionPipeColor` | `buildcraft.pipe.color.lime` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour yellow | `ActionPipeColor` | `buildcraft.pipe.color.yellow` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour light blue | `ActionPipeColor` | `buildcraft.pipe.color.light.blue` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour magenta | `ActionPipeColor` | `buildcraft.pipe.color.magenta` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour orange | `ActionPipeColor` | `buildcraft.pipe.color.orange` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe colour white | `ActionPipeColor` | `buildcraft.pipe.color.white` | #57, #60 | [ ] | [ ] | [ ] |  |
-| Pipe direction down | `ActionPipeDirection` | `buildcraft.pipe.dir.down` | #55, #60 | [ ] | [ ] | [ ] | Iron and Daizuli pipes → Director and Colour Sorter modules. |
-| Pipe direction up | `ActionPipeDirection` | `buildcraft.pipe.dir.up` | #55, #60 | [ ] | [ ] | [ ] |  |
-| Pipe direction north | `ActionPipeDirection` | `buildcraft.pipe.dir.north` | #55, #60 | [ ] | [ ] | [ ] |  |
-| Pipe direction south | `ActionPipeDirection` | `buildcraft.pipe.dir.south` | #55, #60 | [ ] | [ ] | [ ] |  |
-| Pipe direction west | `ActionPipeDirection` | `buildcraft.pipe.dir.west` | #55, #60 | [ ] | [ ] | [ ] |  |
-| Pipe direction east | `ActionPipeDirection` | `buildcraft.pipe.dir.east` | #55, #60 | [ ] | [ ] | [ ] |  |
-| Power limiter 2 | `ActionPowerLimiter` | `buildcraft.power.limiter.m2` | #52, #60 | [ ] | [ ] | [ ] | Iron kinesis pipe; 4.2.2 MJ/t steps, × 10 FE. |
-| Power limiter 4 | `ActionPowerLimiter` | `buildcraft.power.limiter.m4` | #52, #60 | [ ] | [ ] | [ ] |  |
-| Power limiter 8 | `ActionPowerLimiter` | `buildcraft.power.limiter.m8` | #52, #60 | [ ] | [ ] | [ ] |  |
-| Power limiter 16 | `ActionPowerLimiter` | `buildcraft.power.limiter.m16` | #52, #60 | [ ] | [ ] | [ ] |  |
-| Power limiter 32 | `ActionPowerLimiter` | `buildcraft.power.limiter.m32` | #52, #60 | [ ] | [ ] | [ ] |  |
-| Power limiter 64 | `ActionPowerLimiter` | `buildcraft.power.limiter.m64` | #52, #60 | [ ] | [ ] | [ ] |  |
-| Power limiter 128 | `ActionPowerLimiter` | `buildcraft.power.limiter.m128` | #52, #60 | [ ] | [ ] | [ ] |  |
+| Red signal output | `ActionSignalOutput` | `action_red_signal` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.output.red`. GameTest `gate_*`. |
+| Blue signal output | `ActionSignalOutput` | `action_blue_signal` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.output.blue`. GameTest `gate_*`. |
+| Green signal output | `ActionSignalOutput` | `action_green_signal` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.output.green`. GameTest `gate_*`. |
+| Yellow signal output | `ActionSignalOutput` | `action_yellow_signal` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.wire.output.yellow`. GameTest `gate_*`. |
+| Energy Pulser | `ActionEnergyPulser` | `action_energy_pulser` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pulser.constant`. Autarchic gates only. GameTest `gate_*`. |
+| Single Energy Pulse | `ActionSingleEnergyPulse` | `action_single_energy_pulse` | #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pulser.single`. Autarchic gates only. GameTest `gate_*`. |
+| Extraction preset red | `ActionExtractionPreset` | `action_extraction_preset_red` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.extraction.preset.color.red`. Emzuli pipe → Filtered Colour Tag module. GameTest `gate_*`. |
+| Extraction preset blue | `ActionExtractionPreset` | `action_extraction_preset_blue` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.extraction.preset.color.blue`. Emzuli pipe → Filtered Colour Tag module. GameTest `gate_*`. |
+| Extraction preset green | `ActionExtractionPreset` | `action_extraction_preset_green` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.extraction.preset.color.green`. Emzuli pipe → Filtered Colour Tag module. GameTest `gate_*`. |
+| Extraction preset yellow | `ActionExtractionPreset` | `action_extraction_preset_yellow` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.extraction.preset.color.yellow`. Emzuli pipe → Filtered Colour Tag module. GameTest `gate_*`. |
+| Pipe colour black | `ActionPipeColor` | `action_pipe_color_black` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.black`. Lapis and Daizuli pipes → Colour Tag and Colour Sorter modules. GameTest `gate_*`. |
+| Pipe colour red | `ActionPipeColor` | `action_pipe_color_red` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.red`. GameTest `gate_*`. |
+| Pipe colour green | `ActionPipeColor` | `action_pipe_color_green` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.green`. GameTest `gate_*`. |
+| Pipe colour brown | `ActionPipeColor` | `action_pipe_color_brown` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.brown`. GameTest `gate_*`. |
+| Pipe colour blue | `ActionPipeColor` | `action_pipe_color_blue` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.blue`. GameTest `gate_*`. |
+| Pipe colour purple | `ActionPipeColor` | `action_pipe_color_purple` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.purple`. GameTest `gate_*`. |
+| Pipe colour cyan | `ActionPipeColor` | `action_pipe_color_cyan` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.cyan`. GameTest `gate_*`. |
+| Pipe colour light gray | `ActionPipeColor` | `action_pipe_color_light_gray` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.light.gray`. GameTest `gate_*`. |
+| Pipe colour gray | `ActionPipeColor` | `action_pipe_color_gray` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.gray`. GameTest `gate_*`. |
+| Pipe colour pink | `ActionPipeColor` | `action_pipe_color_pink` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.pink`. GameTest `gate_*`. |
+| Pipe colour lime | `ActionPipeColor` | `action_pipe_color_lime` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.lime`. GameTest `gate_*`. |
+| Pipe colour yellow | `ActionPipeColor` | `action_pipe_color_yellow` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.yellow`. GameTest `gate_*`. |
+| Pipe colour light blue | `ActionPipeColor` | `action_pipe_color_light_blue` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.light.blue`. GameTest `gate_*`. |
+| Pipe colour magenta | `ActionPipeColor` | `action_pipe_color_magenta` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.magenta`. GameTest `gate_*`. |
+| Pipe colour orange | `ActionPipeColor` | `action_pipe_color_orange` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.orange`. GameTest `gate_*`. |
+| Pipe colour white | `ActionPipeColor` | `action_pipe_color_white` | #57, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.color.white`. GameTest `gate_*`. |
+| Pipe direction down | `ActionPipeDirection` | `action_pipe_direction_down` | #55, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.dir.down`. Iron and Daizuli pipes → Director and Colour Sorter modules. GameTest `gate_*`. |
+| Pipe direction up | `ActionPipeDirection` | `action_pipe_direction_up` | #55, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.dir.up`. GameTest `gate_*`. |
+| Pipe direction north | `ActionPipeDirection` | `action_pipe_direction_north` | #55, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.dir.north`. GameTest `gate_*`. |
+| Pipe direction south | `ActionPipeDirection` | `action_pipe_direction_south` | #55, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.dir.south`. GameTest `gate_*`. |
+| Pipe direction west | `ActionPipeDirection` | `action_pipe_direction_west` | #55, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.dir.west`. GameTest `gate_*`. |
+| Pipe direction east | `ActionPipeDirection` | `action_pipe_direction_east` | #55, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.pipe.dir.east`. GameTest `gate_*`. |
+| Power limiter 2 | `ActionPowerLimiter` | `action_power_limiter_m2` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m2`. Iron kinesis pipe; 4.2.2 MJ/t steps, × 10 FE. GameTest `gate_*`. |
+| Power limiter 4 | `ActionPowerLimiter` | `action_power_limiter_m4` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m4`. GameTest `gate_*`. |
+| Power limiter 8 | `ActionPowerLimiter` | `action_power_limiter_m8` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m8`. GameTest `gate_*`. |
+| Power limiter 16 | `ActionPowerLimiter` | `action_power_limiter_m16` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m16`. GameTest `gate_*`. |
+| Power limiter 32 | `ActionPowerLimiter` | `action_power_limiter_m32` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m32`. GameTest `gate_*`. |
+| Power limiter 64 | `ActionPowerLimiter` | `action_power_limiter_m64` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m64`. GameTest `gate_*`. |
+| Power limiter 128 | `ActionPowerLimiter` | `action_power_limiter_m128` | #52, #60 | [x] | [ ] | [ ] | 4.2.2 tag `buildcraft.power.limiter.m128`. GameTest `gate_*`. |
 
 ### GUIs (transport, `transport.GuiHandler`)
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Diamond pipe (`GuiIds.PIPE_DIAMOND` 50) | `GuiDiamondPipe / ContainerDiamondPipe` | Sorter module menu | #56 | [ ] | [ ] | [ ] |  |
-| Gate interface (`GuiIds.GATES` 51) | `GuiGateInterface / ContainerGateInterface` | gate menu | #60 | [ ] | [ ] | [ ] |  |
-| Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [x] | [ ] | [ ] |  |
+| Gate interface (`GuiIds.GATES` 51) | `GuiGateInterface / ContainerGateInterface` | gate menu | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
+| Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [x] | [ ] | [ ] | GameTest `module_filtered_extractor_menu`. |
 | Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [ ] | [ ] | [ ] |  |
 | Filtered Buffer (`GuiIds.FILTERED_BUFFER` 60) | `GuiFilteredBuffer / ContainerFilteredBuffer` | `filtered_buffer_block` menu | #62 | [ ] | [ ] | [ ] |  |
 

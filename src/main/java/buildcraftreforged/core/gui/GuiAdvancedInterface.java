@@ -3,11 +3,12 @@
  * Modified by Buildcraft Reforged, 2026: generic in its menu, as GuiBuildCraft. Icons are atlas sprites, which know
  * their atlas, so AdvancedSlot.getTexture is gone. Empty stacks are ItemStack.EMPTY. The item renderer is
  * GuiGraphicsExtractor.item/itemDecorations, drawCreativeTabHoveringText is a deferred tooltip and the GL lighting
- * calls are gone. IInventorySlot reads a vanilla Container until #23 ports the inventory layer. FluidSlot draws
- * nothing until #24 ports FluidRenderer (SEAM(#24)); 4.2.2 marked it unfinished too.
+ * calls are gone. IInventorySlot reads a vanilla Container until #23 ports the inventory layer. FluidSlot draws the
+ * fluid's still sprite from the block atlas, tinted with its colour (#68).
  */
 package buildcraftreforged.core.gui;
 
+import buildcraftreforged.core.render.FluidRenderer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
@@ -16,6 +17,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.jspecify.annotations.Nullable;
 
 /* Client only. */
@@ -180,16 +182,21 @@ public abstract class GuiAdvancedInterface<T extends BuildCraftContainer> extend
             super(x, y);
         }
 
+        /** 4.2.2 set the GL colour with FluidRenderer.setColorForFluidStack; the sprite is tinted with it here. */
         @Override
         public void drawSprite(int cornerX, int cornerY) {
-            // SEAM(#24): FluidRenderer.setColorForFluidStack(new FluidStack(fluid, 100)) tints the sprite.
-            super.drawSprite(cornerX, cornerY);
+            TextureAtlasSprite icon = getIcon();
+            if (fluid == null || icon == null) {
+                return;
+            }
+            int color = FluidRenderer.getColorForFluidStack(new FluidStack(fluid, 100));
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, icon, cornerX + x, cornerY + y, 16, 16,
+                    0xFF000000 | color);
         }
 
         @Override
         public @Nullable TextureAtlasSprite getIcon() {
-            // SEAM(#24): FluidRenderer.getFluidTexture(fluid, false).
-            return null;
+            return FluidRenderer.getFluidTexture(fluid, false);
         }
     }
 }

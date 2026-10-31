@@ -23,7 +23,7 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
 | `ISimpleBlockRenderingHandler`, `TileEntitySpecialRenderer` | JSON models + blockstates for static blocks; `BlockEntityRenderer` for engines, quarry arm, lasers, markers, refinery, tank fluid; pipes per section 8 | Keep the 16× textures. |
-| Animated textures | `.png.mcmeta` | Oil, fuel, laser, engine chamber. |
+| Animated textures | `.png.mcmeta` | Oil, fuel, laser. The engine chamber is one still frame in 4.2.2; its animation is the renderer stacking it behind the piston (#39). |
 | Java recipe registration | `data/buildcraftreforged/recipe/*.json` via datagen; custom `RecipeType` + serializer for Assembly Table and Refinery | Assembly recipes are JSON with energy cost in FE. |
 | Ore Dictionary | Common tags (`c:ingots/iron` etc.) **only in the recipes where 4.2.2 used the Ore Dictionary** (core recipes, assembly recipes, Advanced Crafting Table matching); exact vanilla items everywhere else | Decided 29 Oct 2026. |
 | `BuildCraftAPI` fuels, `IronEngineFuel`, `IronEngineCoolant` | Ported registries, data-driven via tags or JSON where easy | Coolant: water and ice as in 4.2.2. |
@@ -1175,6 +1175,292 @@ of `BuildCraftEnergy.preInit`. Decisions recorded 31 Oct 2026.
   in `BuildCraftEnergy.preInit`; #68 owns it now (oil in, fuel out, `energy` 12 MJ, so 120 FE, `delay` 1).
 - `FluidRenderer` draws the tank contents from the fluid models registered here.
 
+## Gates, pipe wire, and pipe triggers and actions (#60)
+
+Ported from 4.2.2 `Gate`, `GateVanilla`, `ItemGate`, `EnergyPulser`, `PipeTriggerProvider`, `ITriggerPipe`,
+`transport/triggers/*`, `gui/ContainerGateInterface`, `gui/GuiGateInterface`, the gate and wire half of `Pipe`, and
+the gate and wire parts of `TileGenericPipe`, `BlockGenericPipe` and `PipeRendererTESR`. Decided 2026-10-31.
+
+- **Where it lives.** `TilePipe.gateHolder` is a `PipeGateHolder`, the gate and wire half of 4.2.2's `Pipe` object
+  (wires, signal strengths, the gate, `redstonePowered`, the wire render state, fitting and stripping). It
+  implements `IPipe`, and `TilePipe.getPipe()` returns it, so `ActionManager.getPipeTriggers` and the trigger
+  providers keep their 4.2.2 signatures. The shared files only call into it: `TilePipe` (tick, save, payload,
+  `destroy`, mask change), `BlockPipe` (neighbour change, use, redstone), `TransportRegistry` (entries).
+- **Items.** The two 4.2.2 gate items with seven damage values each are fourteen items, named after the 4.2.2 icons:
+  `gate`, `gate_iron_and` … `gate_diamond_or`, `autarchic_gate` … `autarchic_gate_diamond_or`, with the 4.2.2
+  keys `item.pipeGate.<damage>` and `item.pipeGateAutarchic.<damage>`. `ItemGate` holds `kind` and `autarchic`
+  (4.2.2 `series`). Wires are `ItemPipeWire` (`red_pipe_wire` …), 4.2.2 `ItemBuildCraft`. `Gate.GateKind` keeps the
+  4.2.2 ordinals (saved as `Kind`).
+- **Programming travels with the gate** (plan section 6, item NBT → data components). Taking a gate off stores its
+  triggers, parameters and actions in the `buildcraftreforged:gate_settings` component (`GateSettings`, one entry
+  per used position, registry ids); fitting it puts them back. 4.2.2 lost the program. A programmed gate does not
+  stack with a blank one.
+- **Fitting and GUI.** Use a gate or wire item on a pipe to fit it (`ItemGate.useOn`, `ItemPipeWire.useOn`); sneak-use
+  takes it off (the gate only when the gate is clicked). Sneaking with an empty hand strips wires red to yellow, then
+  the gate (4.2.2 `stripEquipment`; facades go first once #61 adds them). A gate is "clicked" when the hit lies on the
+  pipe centre box, on a face whose side is not connected: 4.2.2 ray-traced the gate boxes there. A click on the gate
+  opens the gate menu; `BlockPipe.useItemOn` passes block items, gates and wires to their own use, so placing blocks
+  against a gated pipe still works (4.2.2 returned false for `ItemPipe` and signs). #55 decides how a module GUI
+  shares the remaining clicks.
+- **Signals** are 4.2.2's: a broadcasting gate puts 255 on its pipe's colour, each wired pipe takes its strongest
+  neighbour minus one, and a pipe with no stronger neighbour drops to 0 and makes its neighbours look again, one
+  step per tick. Two pipes share a colour when both have it and are connected to each other, or one is a Structure
+  Pipe (#54). Taking a wire off leaves the pipe's strength for that colour as it was, as in 4.2.2.
+- **Redstone.** `BlockPipe.getSignal` and `getDirectSignal` both answer 4.2.2 `isPoweringTo` (15 on every side
+  except towards a connected pipe while the gate emits); `shouldRedstoneWireConnectTo` is 4.2.2 `canConnectRedstone`
+  (dust connects only to a pipe with a gate). `redstonePowered` is `hasNeighborSignal`, read on neighbour change and
+  saved. As in 4.2.2, a gate emitting redstone strongly powers the solid blocks around its pipe, and the pipe then
+  reads itself as powered: "Redstone Signal On → Redstone Signal" latches.
+- **Pipe triggers and actions** (TRANSPORT.md 12) are registered in `TransportRegistry` under their 4.2.2 field
+  names (`trigger_pipe_empty`, `trigger_red_signal_active`, `action_red_signal`, `action_energy_pulser`, …); the
+  4.2.2 arrays become `action_pipe_color_<colour>`, `action_pipe_direction_<side>`, `action_power_limiter_m<n>` and the
+  lists `TransportRegistry.actionPipeColor` / `actionPipeDirection` / `actionPowerLimiter` (by `EnumColor`,
+  `Direction`, `PowerMode` ordinal). `TriggerRedstoneInput` is registered in `CoreRegistry` as in 4.2.2
+  (`trigger_redstone_active` / `_inactive`). 4.2.2's `PipePowerIron.PowerMode` is `transport/PowerMode`, in FE/t.
+- **Pipe Contents** reads `PipeGateHolder.flow`, a `PipeFlow` (`isFlowing`, `itemContent`, `fluidContent`,
+  `requestsEnergy`, `isOverloaded`), `PipeFlow.NONE` until #59 (flow records) and #52 (power phases) set it. Power
+  Requested is offered on every power pipe (Q21). Structure Pipes get no Pipe Contents triggers.
+- **Module actions.** `PipeGateHolder.target` is an `IPipeGateTarget` (4.2.2 `Pipe.getActions` and
+  `actionsActivated` overrides): it adds its actions to the gate's list and receives every action with a trigger and
+  its state after each resolution. #55 (Director: Pipe Direction; on a power pipe Power Limiter), #57 (Colour Tag and
+  Colour Sorter: Pipe Color; Filtered Colour Tag: Extraction Preset) set it when a module is fitted.
+- **Autarchic gates.** `EnergyPulser` sends `min(2^(n-1), 64) × 1.01` MJ, now `EnergyPulser.pulseEnergy(n)` FE (10,
+  20, 40 … 646), every 10 ticks to its `IPowerReceptor`. Pipes need no power (TRANSPORT.md 12), so on a pipe the
+  receptor is null: the actions are offered and light the gate, nothing more. `GateVanilla.addEnergyPulser` takes the
+  gate holder's block entity as the receptor when it is an `IPowerReceptor`; the Basic Extractor (#58) needs a holder
+  of its own for that.
+- **Gate menu.** `ContainerGateInterface` (menu `buildcraftreforged:gate`) and `GuiGateInterface` keep the 4.2.2
+  layouts and `gate_interface_1..4.png`. The `GATE_*` packets are a hidden `GateWidget` (server to client: the offered
+  lists when the menu opens, then the selection and the trigger-state bits whenever they change) and a
+  `PacketGuiReturn` per changed position (`SelectionReturn`). The server refuses a position outside the gate, a
+  trigger or action it did not offer, and a parameter on a gate below gold or a trigger without one; a parameter is
+  the server's own carried stack (plan section 19.2). The menu closes when its gate comes off.
+- **Rendering** is a `BlockEntityRenderer`, `transport/render/PipeRendererTESR` (4.2.2's `renderGatesWires`), the pipe
+  type's only renderer: #59's flow renderer goes into the same class. Wire boxes and gate boxes use the 4.2.2 block
+  textures as their own textures (`textures/pipe/texture_<colour>_<dark|lit>.png`, `textures/pipe/gate*_<lit|dark>.png`).
+  The server computes the render state (wire set and lit per colour, wire connections per colour and side, gate kind,
+  series and light) and sends it in the pipe's payload after the connection mask.
+- **Icons.** The 4.2.2 trigger and action icons for pipe contents, colours, extraction presets, directions and
+  limiters are GUI sprites under `textures/gui/sprites/triggers/`. Descriptions stay 4.2.2's English strings.
+- **GameTests** (`GateTests`): `gate_items_and_fitting`, `gate_logic_kinds` (every kind's AND/OR resolution,
+  redstone input and output), `gate_wire_signals` (four colours along five pipes, a pipe missing a colour, an
+  unconnected pipe), `gate_pipe_contents` (stubbed flow), `gate_module_actions_and_pulser`, `gate_menu` (lists,
+  widget data, checked selections, save and load).
+
+### For #74 (chipsets and gate recipes)
+
+- 4.2.2 `BuildCraftSilicon.loadRecipes`, in MJ (× 10 for FE): Assembly Table — Gate = Redstone Chipset, 20 000;
+  Iron AND / OR = Iron Chipset + Red Pipe Wire, 40 000; Gold AND / OR = Golden Chipset + Red + Blue Pipe Wire,
+  80 000; Diamond AND / OR = Diamond Chipset + Red + Blue + Green + Yellow Pipe Wire, 160 000; each autarchic gate =
+  the gate of the same kind + Pulsating Chipset + Iron Chipset, at half the gate's cost (10 000 … 80 000).
+  Crafting table, shapeless — Redstone Chipset + an AND gate gives the OR gate and the other way round, for iron, gold
+  and diamond, normal and autarchic.
+- `BuildCraftTransport.loadRecipes`: Assembly Table — 8 Red, Blue, Green, Yellow Pipe Wire = the dye (`dyeRed` … ,
+  so the `c:dyes/*` tags per the Ore Dictionary rule) + redstone + iron ingot, 500 MJ.
+- Items: `TransportRegistry.getGateItem(kind, autarchic)`, `getPipeWire(color)`; a recipe result is a blank gate (no
+  `gate_settings`). The AND↔OR swap in 4.2.2 dropped nothing because 4.2.2 gates carried no program; a recipe that
+  takes a programmed gate should either keep the component or refuse it (open question for #74).
+- JEI: the gate category can list `GateSettings`-free stacks only.
+
+### For #52, #54, #55, #57, #58, #59, #61
+
+- #59 / #52: set `pipe.gateHolder.flow` to the pipe's flow record and power state (`PipeFlow`).
+- #55 / #57: set `pipe.gateHolder.target` when a module is fitted, clear it when removed; offer the module's actions
+  from `addActions` (4.2.2: `PipeItemsIron` six directions except the open side, `PipeItemsLapis` 16 colours,
+  `PipeItemsDaizuli` colours and directions, `PipeItemsEmzuli` four presets, `PipePowerIron` seven limits).
+- #54: a Structure Pipe carries wire across any neighbour wired with the same colour (`PipeGateHolder.isWireConnectedTo`).
+- #58: the Basic Extractor takes gates and wires "like a pipe end"; it needs a `PipeGateHolder`-like holder with
+  itself as the `IPowerReceptor` so the autarchic pulser feeds it.
+- #61: facades and plugs hide the gate on their side (`PipeRendererTESR.shouldRenderNormalPipeSide`, `SEAM(#61)`),
+  drop on removal and come first in `stripEquipment`.
+
+## Engine base (#36)
+
+Ported: `energy/TileEngine`, `TileEngineWithInventory`, `BlockEngine`, `ItemEngine`, plus `EnergyRegistry.engine(...)`.
+Not ported: `TileEngineLegacy` (converts pre-4.0 saves, which cannot reach 26.x) and `BptBlockEngine` (deprecated in
+4.2.2; blueprints are P6). Recorded 31 Oct 2026.
+
+- **Units.** The engine's own store stays 4.2.2's `float energy`, now in FE (MJ × 10), and so do `currentOutput`
+  (FE/t), `getMaxEnergy`, `maxEnergyReceived`, `maxEnergyExtracted`, `minEnergyReceived` (default 20) and
+  `getCurrentOutput`. A float keeps the fractions 4.2.2 had: the Stirling engine's PID output, a fuel's
+  `powerPerCycle` (already a float FE in #43) and `doWork`'s 95 % of what came in (`useEnergy(10, max) * 0.95F`, so
+  10 FE in is 9.5 FE stored; this settles #35's open rounding question). Only whole FE cross to a receiver: the pulse
+  is `(long) extracted` and the engine keeps the rest. The thresholds that counted MJ count FE × 10: the idle drain
+  is 10 FE in `updateEntity` and 10 FE in `engineUpdate` (20 FE a tick, 4.2.2's 2 MJ), the `PowerHandler` is
+  `configure(min, max, 10, maxEnergy)` with perdition `(10, 100)`. Heat, heat level, stages and piston speeds are
+  unitless and unchanged. NBT keeps 4.2.2's `energyF`, `heat` and `progress` floats.
+- **Orientation is `BlockEngine.FACING`** (all six directions, default up). `TileEngine.getOrientation()` reads it
+  and `setOrientation(Direction)` sets it with `Block.UPDATE_ALL` (4.2.2's `markBlockForUpdate` plus neighbour
+  notification) and calls `level.invalidateCapabilities`, because the output side refuses Forge Energy. The block
+  entity survives the change. Use these where 4.2.2 used the `orientation` field; it is no longer saved or in the
+  payload. Placement (`setPlacedBy`) faces up, then `switchOrientation(true)`; the wrench is `IRotatableBlock` →
+  `switchOrientation(false)`; structure rotation turns `FACING` (BuildCraft#1771). The first server tick after
+  loading or placing re-checks the orientation (4.2.2 `validate`), and a new neighbour is seen once the
+  `TileBuffer` refreshes, within 20 ticks, as in 4.2.2.
+- **Delivery.** Unchanged for a neighbour that is an `IPowerReceptor`: its receiver's min/max limit the pulse and
+  `receiveEnergy(Type.ENGINE, ...)` takes it. A neighbour that is only a Forge Energy `EnergyHandler` (another mod, or
+  a power pipe once #52 exposes one) counts as powered too: the pulse is `extractEnergy(0, maxEnergyExtracted())`,
+  inserted in one committed transaction, and only what it accepted leaves the engine. An engine never pushes into an
+  `IPowerEmitter` that emits towards it (engines facing each other, BUGFIXES BuildCraft#1827). Every FE handed over
+  goes into the engine's `FlowMeter` (`meter.energyOut`).
+- **Pipes.** `IPipeConnection`: item and fluid pipes do not connect on the output side; power pipes decide
+  themselves (`DEFAULT`).
+- **Block.** `BlockEngine(Properties, BlockEntitySupplier<? extends TileEngine>)`; `BlockEngine.engineProperties`
+  is 4.2.2's Material.iron and hardness 5: metal, `strength(5F)`, needs a pickaxe, no occlusion, not a redstone
+  conductor, no suffocation. Only the back face is sturdy (`getBlockSupportShape`, 4.2.2 `isBlockSolidOnSide`); the
+  collision and outline shapes stay a full cube, as 4.2.2's bounds. Sneaking passes the click on; holding a pipe
+  `BlockItem` places the pipe (4.2.2 `IItemPipe`); otherwise `TileEngine.onBlockActivated(player, side)` runs. Its
+  default opens the status panel (plan section 10), so the redstone engine needs nothing; engines with a GUI override
+  it. Redstone is read by `neighborChanged` and `initialize` (`hasNeighborSignal`). Red dust particles while
+  `isBurning()`. The render shape is left at the default; #39 decides it with the renderer.
+- **Overheat.** Still 4.2.2: `addEnergy` while the stage is `OVERHEAT` (heat level 1, a full engine) explodes at the
+  block's corner with `explosionRange()` and removes the block; the stage stays `OVERHEAT` once reached.
+  `SEAM(#40)` marks the spot for the timer and `engines.explode`.
+- **Sync.** The payload is the stage ordinal and `isPumping`; the client runs the piston animation (`progress`,
+  `progressPart`, `getPistonSpeed` from the stage) for #39's renderer to read. `guiData` is a 4-slot `ContainerData`
+  standing in for `getGUINetworkData`/`sendGUINetworkData`: energy in two 16-bit halves (whole FE, 4.2.2's tenths of
+  an MJ), output in tenths of an FE/t, heat in hundredths. A `ContainerEngine` adds it with `addDataSlots(tile.guiData)`
+  on both sides (the client menu uses the client tile's `guiData`).
+- **Status panel.** `TileEngine` is an `IStatusProvider`: State `OVERHEATING` in stage `OVERHEAT`, `WORKING` while
+  redstone-powered and `isActive()`, else `IDLE`; Power is `Power.produced(meter, energy, getMaxEnergy())`; Heat is
+  the stage with `Heat.NO_COUNTDOWN`.
+- **Not here.** Comparator output and the four heat triggers (`IOverrideDefaultTriggers.getTriggers`, `SEAM(#41)`),
+  the overheat timer (#40), the renderer and textures (`getTextureFile` points at `textures/block/base_*.png`, which
+  #39 adds).
+
+### For the engines (#37, #38, #44)
+
+- Register with one line in `EnergyRegistry`, below `ENGINE_TILES`:
+  `public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);`
+  It registers the block (`engine_wood`, translation key `tile.engineWood`), the `ItemEngine` in the machines tab and
+  the block entity type, and gives the type the Forge Energy capability and the item capability (the latter only
+  answers for a `TileEngineWithInventory`). The tile's constructor is
+  `super(EnergyRegistry.engineWood.tile().get(), pos, state)` (`TileEngineWithInventory` adds the slot count).
+- Each engine still adds its blockstate (one variant per `facing`), item model, loot table (drops itself), recipe and
+  `minecraft:mineable/pickaxe` entry.
+- Override `getMaxEnergy`, `maxEnergyReceived`, `maxEnergyExtracted`, `explosionRange`, `isBurning`,
+  `getScaledBurnTime`, `getCurrentOutput`, `getTextureFile`, and `minEnergyReceived` where 4.2.2 did (wood: 0), with
+  the values × 10 from "For the engines (#36)" under Power. `burn()` and `engineUpdate()` are the hooks 4.2.2 used;
+  fuel engines return `OUT_OF_FUEL` from `getStatusState` when they have none.
+- **Tests.** GameTests `engine_heat_and_stages` (heat, stages at each quarter, sticky overheat, server and client
+  piston speeds, payload, save tags, GUI data, idle drain), `engine_pushes_into_receptor` (10 FE pulses into an
+  `IPowerReceptor`, FE refused on the output side and 95 % kept from the back, status lines),
+  `engine_pushes_into_fe_and_engines` (a 25 FE Forge Energy block filled by 10 + 10 + 5, a chain at 9.5 FE per
+  pulse, engines facing each other idle) and `engine_orientation` (placement, wrench, solid back, pipe overrides,
+  explosion when full). They use the test-only `gametest_engine` (10 FE pulses, 1 000 FE, 500 FE intake, explosion
+  range 0 so the blast cannot reach neighbouring tests) and two
+  receivers in `EngineTests`. Rendering, particles and the right-click in a client are not tested.
+
+## Assembly table (#72)
+
+Ported: `silicon/BlockLaserTable`, `silicon/TileAssemblyTable`, `silicon/gui/ContainerAssemblyTable`,
+`silicon/gui/GuiAssemblyTable`, and `Utils.addToRandomInventoryAround`. New: `silicon/AssemblyTableRecipe` (the JSON
+recipe type and its serializer), `silicon/AssemblyRecipeManager` (where the table finds its recipes) and
+`silicon/gui/SiliconScreens` (screen registration and the client's recipe copy). Recorded 31 Oct 2026.
+
+- **Block.** `assembly_table_block`, block entity type `assembly_table`, menu `assembly_table_block`. 4.2.2's
+  `BlockLaserTable` had two metadata variants; each is now its own block, built as `new BlockLaserTable(properties,
+  TileX::new)`, so #73 registers `assembly_workbench_block` the same way. `ItemLaserTable` (names per metadata) is
+  gone: each block's item is a plain `ItemBlockBuildCraft` with the 4.2.2 key (`tile.assemblyTableBlock`). Material,
+  hardness, sound, pickaxe tag and `noOcclusion` as the laser (#71). Shape 16 × 9 × 16 px (4.2.2 block bounds); JSON
+  model `block/assembly_table_block` with 4.2.2's `assemblytable_top/bottom/side` textures, side UVs from the bounds
+  (v 7–16) as `RenderBlocks` did. Right-click opens the menu unless the player sneaks. Crafting recipe `ORO/ODO/OGO`
+  (obsidian, redstone, diamond, diamond gear) as 4.2.2.
+- **Energy is FE** (`long`): the recipe's `energy` is FE (4.2.2 MJ × 10). The table is an `ILaserTarget`:
+  `requiresLaserEnergy()` while a recipe is current and less than five times its energy is stored, as 4.2.2. When the
+  stored energy reaches the recipe's, the table crafts and the store goes to 0 (4.2.2 discards the excess too).
+- **Output** goes to a random neighbouring inventory (`Utils.addToRandomInventoryAround`, which now also reaches other
+  mods' blocks through the item capability), then would go to a pipe (`SEAM(#50)`, 4.2.2's `addToRandomPipeAround`),
+  and what is left drops above the table. The drop is what is left, not 4.2.2's whole output (docs/BUGFIXES.md,
+  silicon). 4.2.2 did not put output into engines (`SEAM(#36)` in `Utils`).
+- **Items.** The table is a vanilla `Container` of 12 slots, every side (`TileBuildCraft.registerItemHandler`), and
+  drops its contents when broken.
+- **Recipe selection and queue** are 4.2.2's: `plannedOutput` in click order, `currentRecipe` the one being powered,
+  `setNextCurrentRecipe` after each craft or when the current one can no longer be made. The GUI lists the first 8
+  recipes the inventory can make (4.2.2's 8 slots); clicking plans or cancels one.
+- **Network.** 4.2.2's three packets are replaced:
+  - `SELECTION_ASSEMBLY` (client → server): the screen sends `PacketGuiReturn` with the `SelectionMessage` (select flag
+    and output stack, through `ItemStack.STREAM_CODEC`) as extra data; `TileAssemblyTable.readGuiData` applies it after
+    `PacketHandler` has checked the menu and distance. The screen applies the click locally first, as 4.2.2 did.
+  - `SELECTION_ASSEMBLY_GET`/`SEND`: the planned outputs and the current output are part of the tile's network payload,
+    sent to the players tracking the chunk whenever they change (next tick) and with the chunk. Clients therefore also
+    see other players' clicks and the current recipe moving on, which 4.2.2 did not send.
+  - The energy numbers (required, stored, rate) are 4.2.2's six 16-bit progress bars as vanilla data slots. FE are
+    whole numbers and are sent as they are; the rate is FE/t × 100. The ledger shows FE and FE/t.
+- **Recipes are keyed by output**, as 4.2.2 did (item id and damage then; item and components now): in saved data
+  (`planned`, a list of stacks, and `recipe`, the current one), in the selection message and in the payload. Saved
+  data and the payload are looked up again when the level is known (loading now happens before the block entity has
+  a level) and whenever the recipe objects change (datapack reload, joining a server). Saved tags: `items`,
+  `energyStored` (FE, a long; 4.2.2 saved MJ as a float), `planned`, `recipe`.
+- **Not done here:** the 4.2.2 recipes themselves (their items do not exist yet; see the table below), JEI categories
+  (#74), the status panel provider (plan section 10, #26), the builders' `BptBlockInventory` for the table (P6).
+
+### Recipe format (`buildcraftreforged:assembly`)
+
+```json
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 5000,
+  "inputs": [
+    { "tag": "c:dyes/red", "count": 1 },
+    { "item": "minecraft:redstone" },
+    { "item": "minecraft:iron_ingot" }
+  ],
+  "result": { "id": "buildcraftreforged:red_pipe_wire", "count": 8 }
+}
+```
+
+- `energy` (int, at least 1): FE to craft once. 4.2.2 recipes: MJ × 10.
+- `inputs` (1 to 12 entries, the table's slot count): each is an exact item (`item`, 4.2.2's `ItemStack` input,
+  components ignored as 4.2.2 ignored NBT) or an item tag (`tag`, 4.2.2's Ore Dictionary name), with `count`
+  (default 1). Inputs are matched by total count across the 12 slots, in any slots. Ore names become `c:` tags with a
+  slash (`dyeRed` → `c:dyes/red`, plan section 6).
+- `result`: an item stack template (`id`, optional `count` and `components`), as vanilla recipe results.
+- Files go in `data/<namespace>/recipe/`. The table lists recipes ordered by recipe id, then any added in code to
+  `AssemblyRecipe.assemblyRecipes` (the api list, for other mods). A data pack can add, replace or remove recipes; the
+  type is sent whole to clients (`OnDatapackSyncEvent.sendRecipes`), whose GUI lists them.
+- Recipes load before item components are bound, so `AssemblyTableRecipe` keeps the templates and
+  `AssemblyRecipeManager` builds the 4.2.2 `AssemblyRecipe` objects on first use after each load, one list per side.
+- The repository has no datagen providers yet; recipes are written by hand like the crafting recipes.
+
+### The 4.2.2 assembly recipes, for the issues that add their items
+
+Every recipe 4.2.2 registered (`BuildCraftSilicon.loadRecipes`, `BuildCraftTransport` post-init, `ItemFacade.addFacade`),
+with energy × 10. The registry names are PARITY.md's, some of them placeholders. Each issue adds the JSON files with
+its items.
+
+| Output | Inputs | FE | Issue |
+|---|---|---|---|
+| Redstone Chipset (`redstone_chipset_0`) | redstone | 100000 | #74 |
+| Redstone Iron Chipset (`redstone_chipset_1`) | redstone, iron ingot | 200000 | #74 |
+| Redstone Golden Chipset (`redstone_chipset_2`) | redstone, gold ingot | 400000 | #74 |
+| Redstone Diamond Chipset (`redstone_chipset_3`) | redstone, diamond | 800000 | #74 |
+| 2 Pulsating Chipsets (`redstone_chipset_4`) | redstone, ender pearl | 400000 | #74 |
+| Gate (`pipe_gate_0`) | Redstone Chipset | 200000 | #74 |
+| Iron AND / OR Gate (`pipe_gate_1`, `_2`) | Iron Chipset, red pipe wire | 400000 each | #74 |
+| Gold AND / OR Gate (`pipe_gate_3`, `_4`) | Golden Chipset, red and blue pipe wire | 800000 each | #74 |
+| Diamond AND / OR Gate (`pipe_gate_5`, `_6`) | Diamond Chipset, red, blue, green and yellow pipe wire | 1600000 each | #74 |
+| Autarchic Gate (`pipe_gate_autarchic_0`) | Gate, Pulsating Chipset, Iron Chipset | 100000 | #74 |
+| Autarchic Iron AND / OR (`_1`, `_2`) | that gate, Pulsating Chipset, Iron Chipset | 200000 each | #74 |
+| Autarchic Gold AND / OR (`_3`, `_4`) | that gate, Pulsating Chipset, Iron Chipset | 400000 each | #74 |
+| Autarchic Diamond AND / OR (`_5`, `_6`) | that gate, Pulsating Chipset, Iron Chipset | 800000 each | #74 |
+| 8 Red / Blue / Green / Yellow Pipe Wire | 1 of `c:dyes/red` (`blue`, `green`, `yellow`), redstone, iron ingot | 5000 each | #60 |
+| 8 Plugs | 1 Cobblestone Structure Pipe | 10000 | #61 |
+| 6 Facades of a block | 3 Cobblestone Structure Pipes, the block | 80000 | #61 |
+
+4.2.2 created one facade recipe per facade-able block at start-up (`addFacade`); with data-driven recipes that is
+either one JSON per block or a recipe type of its own for #61 to decide.
+
+### Tests
+
+GameTests `assembly_laser_crafting` (a laser under the table powers a planned recipe selected through the GUI return
+path: crafts after 400 FE at 40 FE/t, inputs used, output dropped, GUI data slots read back on a client copy),
+`assembly_queue_and_tags` (two planned recipes in turn, output into a chest, a tag input takes exactly its count, the
+five-times energy cap) and `assembly_selection_save_and_sync` (JSON → 4.2.2 input array, cancelling, a malformed
+selection refused, payload to a client copy, save and load, drop on break). Their recipes are test-only
+(`gametest_data`: `gametest_assembly_items`, `gametest_assembly_tag`) because no 4.2.2 output item exists yet.
+Drawing, clicking in the screen and the client's recipe sync need a client and are not tested.
+
 ## Owner tracking and the owner-profile fake player (#27)
 
 New: `core/utils/BuildCraftPlayer`. Changed: `core/TileBuildCraft`, `core/utils/BlockUtil`. Decision in the API mapping
@@ -1300,6 +1586,163 @@ New code from `docs/TRANSPORT.md` 4, 5 and 6, package `buildcraftreforged.transp
   has the path (node indices), and `route.endpoint()` / `route.sink()` the exit. Record flow there, journaled in the
   same transaction, so simulations record nothing.
 
+## Refinery (#68)
+
+Ported `factory/BlockRefinery`, `TileRefinery`, `gui/GuiRefinery`, `gui/ContainerRefinery`, `render/RenderRefinery`.
+New: `factory/RefineryRecipe` (the recipe type), `factory/RefineryRecipeManager` (lookup and client sync),
+`factory/gui/FactoryScreens` (client registration). `BptBlockRefinery` waits for the builder (#78). Recorded
+2026-10-31.
+
+### Recipe format
+
+4.2.2 registered its one refinery recipe in Java (`RefineryRecipes.addRecipe` in `BuildCraftEnergy.preInit`). Recipes
+are JSON files of type `buildcraftreforged:refinery` now, under `data/<namespace>/recipe/`. The shipped one is
+`data/buildcraftreforged/recipe/refinery/fuel.json`, 4.2.2's oil to fuel:
+
+```json
+{
+  "type": "buildcraftreforged:refinery",
+  "ingredient1": { "fluid": "buildcraftreforged:oil", "amount": 1 },
+  "result": { "fluid": "buildcraftreforged:fuel", "amount": 1 },
+  "energy": 120,
+  "delay": 1
+}
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `ingredient1` | yes | `{"fluid": id, "amount": mB}`: the first input (amount at least 1, not `minecraft:empty`) |
+| `ingredient2` | no | a second input in the same form; the recipe then needs both, one per input tank |
+| `result` | yes | the output fluid and amount per cycle |
+| `energy` | yes | FE per cycle (4.2.2 MJ × 10), at least 0 |
+| `delay` | no, 1 | ticks between cycles, at least 1 |
+
+- **Rate.** 4.2.2's oil recipe is 1 mB of oil to 1 mB of fuel for 12 MJ every tick: 120 FE per mB here, so a
+  refinery makes 20 mB of fuel per second while it gets at least 120 FE/t (plus the 10 FE/t it loses). Power settings
+  are 4.2.2's `configure(50, 150, 25, 1000)` and `configurePowerPerdition(1, 1)` × 10: receives up to 1500 FE per
+  insert, stores 10000 FE, loses 10 FE per tick.
+- **Fluids are an id and an amount**, not a `FluidStack` codec (no components): the stacks are built on first use,
+  after fluid data components are bound (see "Fuel and coolant registry (#43)" for why a stack cannot be decoded early).
+- **Lookup.** `RefineryRecipeManager.findRefineryRecipe(level, liquid1, liquid2)` replaces 4.2.2's
+  `RefineryRecipes.findRefineryRecipe`: first the JSON recipes of the level's side, kept in a `TreeSet` in 4.2.2's
+  `Recipe.compareTo` order (two-ingredient recipes before the one-ingredient recipe on the same first fluid; a recipe
+  with the same ingredients as one with a smaller recipe id is dropped, as 4.2.2's set dropped later additions), then
+  the code-registered `RefineryRecipes` set, which stays for other mods. Each JSON recipe builds a 4.2.2
+  `RefineryRecipes.Recipe` (new `RefineryRecipes.createRecipe`, which does not add it to the code set), so matching
+  (`Recipe.matches`, loose as in 4.2.2) is unchanged.
+- **Client copy.** The GUI shows the result of the chosen filters, so the type is sent to clients on data pack sync
+  (`OnDatapackSyncEvent.sendRecipes`) and kept from `RecipesReceivedEvent`, forgotten on logout. Same pattern as the
+  assembly table (#72).
+- **Data packs** add recipes with new files and override or remove the shipped one at the same path. Hand-written JSON
+  like the rest of `data/` (no datagen providers yet).
+
+### Block, tile and GUI
+
+- **Block.** `refinery_block`, block entity `refinery`, menu `refinery`. `Material.iron` + `setHardness(5F)` → metal
+  sound and map colour, `strength(5F)`, `requiresCorrectToolForDrops`, `minecraft:mineable/pickaxe`, `noOcclusion`.
+  Metadata → `FACING` (horizontal), set on placement to face the placer as 4.2.2's `onBlockPlacedBy`; the wrench turns
+  it N → W → S → E as 4.2.2's `rotateBlock`. Recipe `RTR/TGT` (redstone torch, tank, diamond gear) as 4.2.2. Not a
+  `BlockBuildCraft` (4.2.2 extended `BlockContainer`), so it does not light up while active.
+- **Right-click.** A sneaking wrench resets the three tank filters; any held item except an empty bucket is tried as a
+  fluid container that fills the refinery (never drains it); otherwise, or when that fails, the GUI opens.
+- **Fluid capability** (`Capabilities.Fluid.BLOCK`, any side): three indices (tank1, tank2, result). Insert reaches
+  tank1 and tank2 only, so an insert fills tank1 and then tank2 as 4.2.2's `fill`; extract reaches the result only,
+  as 4.2.2's `drain`. The tanks are 4000 mB `SingleUseTank`s: the first fluid a tank takes becomes its filter.
+- **Energy capability** through `PowerEnergyHandler` on every side.
+- **Ticking.** `updateEntity` now calls `TileBuildCraft.updateEntity` (4.2.2 skipped it), so perdition runs each tick
+  instead of only when energy arrives or is used; the energy lost is the same.
+- **Filters.** 4.2.2's progress bars 0 and 1 (filter fluid ids) are two `DataSlot`s on the menu: 0 is no filter, a
+  fluid is its registry id + 1. 4.2.2 never sent a cleared filter, so the client kept showing it; it does now. The
+  GUI's `REFINERY_FILTER_SET` packet is a `PacketGuiReturn` carrying both filters, checked by `PacketData` bounds.
+  Clicks as 4.2.2: left with a filled container sets the filter to its fluid, shift-left clears it, right sets it to
+  the tank's current fluid. `GuiAdvancedInterface.FluidSlot` now draws the fluid's still sprite tinted with its colour
+  (the SEAM(#24) it carried).
+- **Status panel** (plan section 10, new): Working; No power while a recipe can run but the store holds less than its
+  energy; Blocked with reason "Output blocked" while the result tank has no room for a cycle (`IMachine.isBlocked`,
+  which 4.2.2 did not have; the refinery just stopped). Flow counts mB consumed and made and FE used per cycle. The
+  GUI adds the status ledger. No red-light overlay: the model is drawn by the tile renderer.
+- **Renderer.** `RenderRefinery` keeps 4.2.2's boxes (a 8 × 16 × 8 tank drawn three times, four 8 × 4 × 4 magnets
+  picked by animation speed) as baked `ModelPart`s with the same texture offsets on `textures/block/refinery.png`
+  (64 × 32), the same translations, scale and FACING angle, and the three fluids through `FluidRenderer.renderFluid`.
+  The block shape is invisible; `refinery_back` is the particle texture. 4.2.2's inventory render is the item model
+  `block/refinery_block_inventory`: the three tanks and two resting magnets as JSON elements with UVs from the same
+  box layout.
+- **Tests.** GameTests `refinery_oil_to_fuel` (no fuel without power; exactly 20 mB in 20 powered ticks; 10 mB for
+  1300 FE in 10 ticks on stored energy; inputs and outputs through the capability), `refinery_filters_and_blocked`
+  (a filter sends oil to tank2, the GUI return with a refused id, the data slots on a client copy, the sneaking wrench,
+  a full result tank blocks and draining it resumes, save and load) and `refinery_recipes` (the shipped recipe's
+  values, and a two-ingredient water + lava recipe from the GameTest data pack consuming both inputs; placement
+  facing).
+- **Not checked without a client:** the renderer (geometry, texture orientation, animation, fluid levels, lighting),
+  the item model's UVs, the GUI's drawing, fluid-slot sprites and mouse clicks, the right-click → `openMenu` path
+  (mock players cannot receive the open-screen packet), and the client recipe copy.
+
+## Engine renderer and textures (#39)
+
+Ported: `energy/render/RenderEngine` (4.2.2's `TileEntitySpecialRenderer` and `IInventoryRenderer` in one class, as
+4.2.2) and the engine half of `EnergyProxyClient.registerTileEntities`. Textures copied unchanged from
+`reference/.../textures/blocks`: `base_wood`, `base_stone`, `base_iron`, `chamber`, `trunk_blue`, `trunk_green`,
+`trunk_yellow`, `trunk_red` (64 × 32, 4.2.2 `ModelBase`'s texture size) and `engineWoodBottom`, `engineStoneBottom`,
+`engineIronBottom` as `engine_*_bottom` (16 × 16). Recorded 31 Oct 2026.
+
+- **Geometry.** The four `ModelRenderer` boxes keep their sizes and texture offsets: base `(0, 1)` 16 × 4 × 16,
+  moving box `(0, 1)` 16 × 4 × 16, chamber `(1, 1)` 10 × 2 × 10, trunk `(1, 1)` 8 × 12 × 8. They are baked
+  `ModelPart`s with no pose; 26.x `ModelPart.Cube` lays out UVs as 1.6.4 `ModelBox` did. The rotation point (8, 8, 8)
+  and `angleMap` rotation (Z, then Y, then X, as `ModelRenderer.render`) go on the pose stack per part, not on the
+  shared parts, because submitted parts are drawn after `submit` returns.
+- **Animation.** `render` is 4.2.2's: `step` rises from 0 to 7.99 px over the first half of `progress` and falls back
+  over the second; the moving box is translated `step / 16` along the facing; one chamber slice is drawn every 2 px
+  up to `step + 2`, so the bellows grows and shrinks with the piston. The trunk texture follows the stage (blue, green,
+  yellow, red; overheat draws red). No partial-tick interpolation, as 4.2.2.
+- **What the renderer reads.** `energyStage` and `isPumping` from the tile payload (#36), `progress` from the
+  client's own tick (it advances at `getPistonSpeed()` of the synced stage while pumping), the facing from
+  `BlockEngine.FACING` and the base texture from `getTextureFile()`. All of it is copied into `RenderEngine.State` in
+  `extractRenderState`.
+- **Render types.** 4.2.2 drew with lighting and face culling on and blending off: `RenderTypes.entitySolid` on each
+  texture, the block's packed light, no overlay, plus the breaking overlay (`submitCrumblingOverlay`), which 4.2.2 did
+  not have for engines.
+- **Chamber texture.** Plan section 6 listed the engine chamber under animated textures. In 4.2.2 `chamber.png` is a
+  single still frame; the moving part is the stacked slices above. No `.png.mcmeta` was added; the plan row is corrected.
+- **Block model.** The block keeps `RenderShape.MODEL` with an element-less model, as vanilla's chest:
+  `block/engine` (parent `minecraft:block/block`, for the item display transforms) and `block/engine_wood`,
+  `engine_stone`, `engine_iron`, which only name the 4.2.2 `BlockEngine.getIcon` texture as `particle` (breaking and
+  landing particles). Everything visible is the block entity renderer, as 4.2.2's `RenderingEntityBlocks` drew nothing
+  for an engine in the world. This replaces #36's note that each engine adds one blockstate variant per facing: one
+  `""` variant is enough.
+- **Item.** 4.2.2 put one `RenderEngine(TEXTURE)` per engine metadata into `RenderingEntityBlocks.blockByEntityRenders`.
+  Now the item model is a `minecraft:special` model of type `buildcraftreforged:engine` with the base texture as its
+  `texture` field (`RenderEngine.ItemRenderer`, registered in `EnergyProxyClient`). It draws 4.2.2's
+  `inventoryRender`: blue trunk, facing up, progress 0.25.
+- **Registration.** `EnergyProxyClient.registerRenderers` binds `RenderEngine` to every type in
+  `EnergyRegistry.engineTiles()`, so an engine registered with `EnergyRegistry.engine(...)` gets the renderer without
+  further code.
+
+### Engine textures, for #37, #38 and #44
+
+Each engine plugs in one row. The trunk and chamber textures are shared.
+
+| Engine | `getTextureFile()` | Item model `texture` | Block model (particle) |
+|---|---|---|---|
+| Redstone (`engine_wood`, #37) | `TileEngine.WOOD_TEXTURE` | `buildcraftreforged:textures/block/base_wood.png` | `block/engine_wood` (`engine_wood_bottom`) |
+| Stirling (`engine_stone`, #38) | `TileEngine.STONE_TEXTURE` | `buildcraftreforged:textures/block/base_stone.png` | `block/engine_stone` (`engine_stone_bottom`) |
+| Combustion (`engine_iron`, #44) | `TileEngine.IRON_TEXTURE` | `buildcraftreforged:textures/block/base_iron.png` | `block/engine_iron` (`engine_iron_bottom`) |
+
+The textures and block models are in place. Each engine adds two files:
+
+- `blockstates/engine_wood.json`: `{"variants": {"": {"model": "buildcraftreforged:block/engine_wood"}}}`
+- `items/engine_wood.json`:
+  `{"model": {"type": "minecraft:special", "base": "buildcraftreforged:block/engine_wood", "model": {"type": "buildcraftreforged:engine", "texture": "buildcraftreforged:textures/block/base_wood.png"}}}`
+
+### Tests and what is not checked
+
+- GameTest `engine_render_state`: a running engine's payload gives the client the stage (yellow at 60 %), the pumping
+  flag and the matching piston speed; overheat syncs and stops the client piston; the facing reaches the client tile
+  through the block state; every texture the renderer, the item model and the block models name is in the jar at
+  its 4.2.2 size.
+- **Not checked without a client:** the drawing itself (box orientation for all six facings, the UVs, face culling
+  and winding, the chamber stacking, light), the item render in the GUI, hand and ground, and the particle texture.
+  Tick the PARITY "renders" columns when an engine has been looked at in game.
+
 ## Pipe modules: framework, Extractor, Filtered Extractor and Director (#55)
 
 New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transport.module`; the 4.2.2 `PipeItemsWood`,
@@ -1314,7 +1757,9 @@ New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transpo
   `onInstalled(pipe)`, `onRemoved(pipe)`; `onNeighbourChange(pipe)`, after every connection recompute (neighbour block
   change, capability invalidation, load, plug or module change); `allowsOutput(pipe, side)`, read live by the walk;
   `tickSource(level, network, node, pipe)`, one attempt per tick for source types, called by `PipeSources`;
-  `onWrench(pipe, player)`, a wrench without sneaking; `getMenuProvider(pipe)`, the GUI opened with an empty hand;
+  `onWrench(pipe, player)`, a wrench without sneaking; `gateTarget(pipe)`, the `IPipeGateTarget` of #60 that the pipe
+  puts in `gateHolder.target` when the module is fitted or loaded; `getMenuProvider(pipe)`, the GUI opened with an
+  empty hand (a click on a gate opens the gate first);
   `save(ValueOutput)` / `load(ValueInput)`; `toItem(registries)` / `PipeModule.fromItem(type, stack, registries)`.
 - **Pipe.** `TilePipe.getModule()`, `setModule(module)` (null removes; calls `onRemoved` / `onInstalled`, recomputes
   connections, rebuilds the network, syncs), `setModuleType(type)` (a new default module), `removeModule()` (returns the
@@ -1351,15 +1796,15 @@ New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transpo
 - **Director.** Facing saved as `facing`; `allowsOutput(side) = side == facing`, none = nothing leaves. Valid facing: a
   connected side whose neighbour is not a pipe with an Extractor or Filtered Extractor. Installed, it starts at `UP`
   and moves to the first valid side (4.2.2 `onBlockPlaced`); a Director fitted before its pipe's connections settle
-  gets its first valid side on the next recompute. Wrench: `switchPosition`. `setFacing(pipe, side)` is the 4.2.2
-  setter the Pipe Direction gate action (#60) calls. Redstone (Q11): `onNeighbourChange` compares
+  gets its first valid side on the next recompute. Wrench: `switchPosition`. Gate: it offers one Pipe Direction
+  action per connected side and applies the first active one through `setFacing(pipe, side)`, the 4.2.2 setter
+  (refused for an invalid side). Redstone (Q11): `onNeighbourChange` compares
   `hasNeighborSignal` with the last value (not saved, read again on load) and switches on every change.
 - **Power Limiter (Q7).** A Director on a power pipe directs nothing (`allowsOutput` is true on every side) and keeps
-  `powerMode`, an index into `ModuleDirector.POWER_LIMITS` = 20, 40, 80, 160, 320, 640, 1 280 FE/t (4.2.2 M2–M128
-  × 10), saved as `powerMode`, default 20 as a fresh 4.2.2 iron kinesis pipe. The wrench steps to the next limit and
-  shows `chat.pipe.power.limiter.mode`; 4.2.2 stepped back on a sneaking wrench, which now removes the module.
-  `getPowerLimit()` is `SEAM(#52)`: power routing caps the pipe with it. `setPowerMode(pipe, index)` is for the Power
-  Limiter gate action (#60).
+  a `PowerMode` (#60's enum, 20 to 1 280 FE/t), saved as `powerMode` (its ordinal), default `M2` as a fresh 4.2.2 iron
+  kinesis pipe. The wrench steps to the next limit and shows `chat.pipe.power.limiter.mode`; 4.2.2 stepped back on a
+  sneaking wrench, which now removes the module. The gate offers the seven Power Limiter actions and applies the first
+  active one. `getPowerLimit()` is `SEAM(#52)`: power routing caps the pipe with it.
 - **Items.** `module_extractor`, `module_filtered_extractor`, `module_director` (keys
   `item.moduleExtractor` …, no 4.2.2 keys), in the machines tab, textures copied from the 4.2.2 wood, emerald and
   iron item pipe textures as stand-ins. No recipe yet: modules are made in the Assembly Table (PLAN 8.2); the recipes are
@@ -1371,7 +1816,8 @@ New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transpo
   item, facing, wood-rate extraction from a chest and the wrench reversing it; the exclusion list; sneak-wrench removal
   with settings, refitting, saving with the pipe, no Filtered Extractor on a fluid pipe, the drop on breaking; filtered
   round robin; blocking versus non-blocking and empty filters; the menu, its phantom slots and the GUI return; the
-  Director's facing, wrench, gate setter and redstone toggle with chests; the Power Limiter steps.
+  Director's facing, wrench, Pipe Direction actions and redstone toggle with chests; the Power Limiter's wrench steps
+  and actions.
 
 ### For #56 (Sorter, Pickup, Void), #57 (colours, Isolator), #60 (gates), #51 and #52
 
@@ -1385,8 +1831,8 @@ New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transpo
 - **Pickup:** a source type already; `tickSource` is called once per tick when the pipe's network exists (source
   pipes ask for theirs on their own tick).
 - **Void:** the walk's `isSink` still reads `node.module == VOID` (the type), which needs no module object.
-- **#60:** Pipe Direction = `ModuleDirector.setFacing(pipe, side)`, Power Limiter = `setPowerMode(pipe, index)`; the
-  action lists of 8.4 (one Pipe Direction per connected side, seven limits) are not built here.
+- **Gate actions:** a module with actions returns an `IPipeGateTarget` from `gateTarget(pipe)` (Pipe Color and
+  Extraction Preset for #57), as the Director does.
 - **#51:** fluid Extractor at `SEAM(#51)` in `ModuleExtractor.tickSource` (facing and validity already handle fluid
   pipes through `PipeManager.canExtractFluids`); the Director works once the fluid router uses the default
   `allowsOutput`.

@@ -1,0 +1,9 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 400,
+  "inputs": [
+    { "item": "minecraft:redstone" },
+    { "item": "minecraft:iron_ingot", "count": 2 }
+  ],
+  "result": { "id": "minecraft:diamond", "count": 2 }
+}

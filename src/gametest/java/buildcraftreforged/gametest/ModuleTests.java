@@ -1,13 +1,16 @@
 package buildcraftreforged.gametest;
 
+import buildcraftreforged.api.gates.IAction;
 import buildcraftreforged.api.transport.IExtractionHandler;
 import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.api.transport.PipeManager;
 import buildcraftreforged.core.CoreRegistry;
 import buildcraftreforged.core.network.InvalidPacketException;
 import buildcraftreforged.core.network.PacketData;
+import buildcraftreforged.transport.IPipeGateTarget;
 import buildcraftreforged.transport.PipeMaterial;
 import buildcraftreforged.transport.PipeModuleType;
+import buildcraftreforged.transport.PowerMode;
 import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
 import buildcraftreforged.transport.module.ContainerFilteredExtractor;
@@ -16,6 +19,7 @@ import buildcraftreforged.transport.module.ModuleExtractor;
 import buildcraftreforged.transport.module.ModuleFilteredExtractor;
 import buildcraftreforged.transport.module.PipeModule;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -136,6 +140,10 @@ final class ModuleTests {
     private static InteractionResult fit(GameTestHelper helper, Player player, int x, int z, ItemStack module) {
         player.setItemInHand(InteractionHand.MAIN_HAND, module);
         return module.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit(helper, x, z)));
+    }
+
+    private static IAction pipeDirection(Direction side) {
+        return TransportRegistry.actionPipeDirection.get(side.ordinal()).get();
     }
 
     private static <T extends PipeModule> T module(GameTestHelper helper, TilePipe pipe, Class<T> type) {
@@ -369,8 +377,8 @@ final class ModuleTests {
 
     /**
      * Source chest, an Extractor pipe, a Director junction with chests north, south and east. The Director starts
-     * facing north and everything goes north; a wrench turns it south; the Pipe Direction setter refuses the
-     * Extractor's side; a redstone change turns it on to east (Q11).
+     * facing north and everything goes north; a wrench turns it south; the Pipe Direction gate action refuses the
+     * Extractor's side and turns it to another; a redstone change turns it on to east (Q11).
      */
     static void directorDirection(GameTestHelper helper) {
         Container source = chest(helper, 0, 2);
@@ -393,6 +401,18 @@ final class ModuleTests {
             helper.assertTrue(wrench(helper, player, 2, 2).consumesAction(), "the wrench did nothing");
             helper.assertValueEqual(module.getFacing(), Direction.SOUTH, "Director facing after the wrench");
             helper.assertFalse(module.setFacing(director, Direction.WEST), "the Director faced an Extractor pipe");
+            // The gate actions: one Pipe Direction per connected side; the Extractor's side is refused.
+            IPipeGateTarget target = director.gateHolder.target;
+            helper.assertTrue(target != null, "the Director is not the pipe's gate target");
+            LinkedList<IAction> actions = new LinkedList<>();
+            target.addActions(actions);
+            helper.assertValueEqual(actions.size(), 4, "Pipe Direction actions (one per connected side)");
+            target.actionsActivated(Map.of(pipeDirection(Direction.WEST), true));
+            helper.assertValueEqual(module.getFacing(), Direction.SOUTH, "facing after a refused Pipe Direction action");
+            target.actionsActivated(Map.of(pipeDirection(Direction.NORTH), true));
+            helper.assertValueEqual(module.getFacing(), Direction.NORTH, "facing after the Pipe Direction action");
+            helper.assertTrue(wrench(helper, player, 2, 2).consumesAction(), "the wrench did nothing");
+            helper.assertValueEqual(module.getFacing(), Direction.SOUTH, "facing after the second wrench");
             int northBefore = count(north, null);
 
             helper.runAfterDelay(25, () -> {
@@ -420,6 +440,14 @@ final class ModuleTests {
                     .consumesAction(), "the Director did not fit a power pipe");
             ModuleDirector module = module(helper, pipe, ModuleDirector.class);
             helper.assertValueEqual(module.getPowerLimit(), 20, "first limit");
+            LinkedList<IAction> actions = new LinkedList<>();
+            pipe.gateHolder.target.addActions(actions);
+            helper.assertValueEqual(actions.size(), 7, "Power Limiter actions");
+            pipe.gateHolder.target.actionsActivated(Map.of(TransportRegistry.actionPowerLimiter.get(PowerMode.M64.ordinal())
+                    .get(), true));
+            helper.assertValueEqual(module.getPowerLimit(), 640, "limit after the Power Limiter action");
+            pipe.gateHolder.target.actionsActivated(Map.of(TransportRegistry.actionPowerLimiter.get(PowerMode.M2.ordinal())
+                    .get(), true));
             for (int limit : new int[] {40, 80, 160, 320, 640, 1280, 20}) {
                 helper.assertTrue(wrench(helper, player, 1, 0).consumesAction(), "the wrench did nothing");
                 helper.assertValueEqual(module.getPowerLimit(), limit, "limit after the wrench");

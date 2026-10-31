@@ -59,6 +59,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     private @Nullable PipeModule module;
     private boolean connectionsDirty = true;
     private final BlockCapabilityCache<?, ?>[] endpointCaches = new BlockCapabilityCache<?, ?>[6];
+    /** The gate and pipe wire (#60). */
+    public final PipeGateHolder gateHolder = new PipeGateHolder(this);
     private final PipeBudget budget = new PipeBudget();
     private final PipeItemHandler[] itemHandlers = new PipeItemHandler[6];
 
@@ -128,6 +130,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         if (module != null && server)
             module.onRemoved(this);
         module = newModule;
+        gateHolder.target = module == null ? null : module.gateTarget(this);
         if (module != null && server)
             module.onInstalled(this);
         onConfigurationChanged();
@@ -183,6 +186,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         super.updateEntity();
         if (connectionsDirty)
             updateConnections();
+        gateHolder.updateEntity();
         // Sources are ticked per network (PipeSources), so a source makes sure its network exists.
         if (module != null && module.type.isSource() && level instanceof ServerLevel serverLevel)
             PipeNetworks.get(serverLevel, worldPosition);
@@ -204,6 +208,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
             connectionMask = mask;
             sendNetworkUpdate();
             PipeNetworks.invalidate(level, worldPosition);
+            gateHolder.onConnectionsChanged();
         }
 
         // The rule is symmetric for two pipes, so a neighbour that disagrees missed a change (it was unloaded, or
@@ -270,11 +275,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return PipeConnections.hasSide(connectionMask, with);
     }
 
-    /** 4.2.2's deprecated pipe object; the pipe is this block entity now. */
+    /** 4.2.2's deprecated pipe object; the pipe is this block entity now, and its gate and wire half answer here. */
     @Deprecated
     @Override
-    public @Nullable IPipe getPipe() {
-        return null;
+    public IPipe getPipe() {
+        return gateHolder;
     }
 
     /** Pushes entering on {@code from} route at once (docs/TRANSPORT.md 6.2); returns how many items were taken. */
@@ -308,15 +313,17 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return module == null || module.allowsOutput(this, side);
     }
 
-    /** Breaking the pipe drops the module as its item, with its settings. */
+    /** The gate and wires drop with the pipe (4.2.2 {@code Pipe.onBlockRemoval}), and the module as its item. */
     @Override
     public void destroy() {
         super.destroy();
+        gateHolder.onBlockRemoval();
         Level world = level;
         if (world != null && !world.isClientSide() && module != null) {
             ItemStack stack = module.toItem(world.registryAccess());
             module.onRemoved(this);
             module = null;
+            gateHolder.target = null;
             if (!stack.isEmpty())
                 Block.popResource(world, worldPosition, stack);
         }
@@ -337,6 +344,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         output.storeNullable("module", PipeModuleType.CODEC, getModuleType());
         if (module != null)
             module.save(output.child("module_settings"));
+        gateHolder.writeToNBT(output);
     }
 
     @Override
@@ -346,6 +354,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         module = input.read("module", PipeModuleType.CODEC).map(PipeModule::create).orElse(null);
         if (module != null)
             module.load(input.childOrEmpty("module_settings"));
+        gateHolder.target = module == null ? null : module.gateTarget(this);
+        gateHolder.readFromNBT(input);
         scheduleConnectionUpdate();
     }
 
@@ -355,6 +365,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         data.writeByte(connectionMask);
         PipeModuleType type = getModuleType();
         data.writeByte(type == null ? -1 : type.ordinal());
+        gateHolder.writeRenderState(data);
     }
 
     @Override
@@ -365,8 +376,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         int type = data.readByte();
         PipeModuleType[] types = PipeModuleType.values();
         PipeModuleType synced = type >= 0 && type < types.length ? types[type] : null;
-        if (synced != getModuleType())
+        if (synced != getModuleType()) {
             module = synced == null ? null : PipeModule.create(synced);
+            gateHolder.target = module == null ? null : module.gateTarget(this);
+        }
+        gateHolder.readRenderState(data);
     }
 
     /** Client: the new mask picks another cached model and shape, so refresh the model data and re-mesh. */

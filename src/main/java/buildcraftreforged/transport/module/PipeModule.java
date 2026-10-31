@@ -1,5 +1,6 @@
 package buildcraftreforged.transport.module;
 
+import buildcraftreforged.transport.IPipeGateTarget;
 import buildcraftreforged.transport.PipeModuleType;
 import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
@@ -28,8 +29,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Modules need no power (PLAN 8.2). A module is fitted by using its item on a pipe without one and removed by
  * sneak-using a wrench, which hands back the item with the settings in {@link TransportRegistry#moduleSettings} (Q18).
  *
- * <p>Hooks the later modules add here: a candidate filter for the walk (Sorter, Colour Sorter, #56/#57), colour tagging
- * on entry (#57) and gate actions (#60).
+ * <p>Hooks the later modules add here: a candidate filter for the walk (Sorter, Colour Sorter, #56/#57) and colour
+ * tagging on entry (#57).
  */
 public class PipeModule {
 
@@ -79,6 +80,14 @@ public class PipeModule {
     /** Server: a wrench was used on the pipe without sneaking. Returns whether the module did something. */
     public boolean onWrench(TilePipe pipe, Player player) {
         return false;
+    }
+
+    /**
+     * The part of the module that offers and takes gate actions (docs/TRANSPORT.md 12), or null for none. The pipe
+     * puts it in {@code PipeGateHolder.target} when the module is fitted or loaded.
+     */
+    public @Nullable IPipeGateTarget gateTarget(TilePipe pipe) {
+        return null;
     }
 
     /** The GUI opened by using the pipe with an empty hand, or null for none. */
