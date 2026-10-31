@@ -23,6 +23,7 @@ final class SiliconScreens {
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(SiliconRegistry.assemblyTableMenu.get(), GuiAssemblyTable::new);
+        event.register(SiliconRegistry.advancedCraftingTableMenu.get(), GuiAdvancedCraftingTable::new);
     }
 
     @SubscribeEvent
