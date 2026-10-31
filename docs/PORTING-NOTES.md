@@ -798,3 +798,72 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
 - **GameTests** (`PipeTests`): chest and pipe bits and breaking the chest; each kind against chest, cauldron and an
   energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
   The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
+
+## Oil and fuel (#42)
+
+Ported `energy/BlockBuildcraftFluid`, `ItemBucketBuildcraft`, `render/EntityDropParticleFX` and the oil and fuel part
+of `BuildCraftEnergy.preInit`. Decisions recorded 31 Oct 2026.
+
+- **Registry** (`EnergyRegistry`). Per fluid: a `FluidType` (`BCFluid`, registry name `oil`/`fuel`, 4.2.2 field
+  `buildcraftFluidOil`/`buildcraftFluidFuel`), a source `Fluid` (`oil`/`fuel`, field `fluidOil`/`fluidFuel`), a
+  flowing `Fluid` (`flowing_oil`/`flowing_fuel`, fields `fluidOilFlowing`/`fluidFuelFlowing`, new), a
+  `BlockBuildcraftFluid` (`block_oil`/`block_fuel`, keys `tile.blockOil`/`tile.blockFuel`) and an
+  `ItemBucketBuildcraft` (`bucket_oil`/`bucket_fuel`, keys `item.bucketOil`/`item.bucketFuel`, Machines tab). A
+  `FluidStack` always holds the source fluid; compare with `Fluid.isSame` when a flowing fluid can turn up.
+  `FluidUtils.getFluid("oil")` still resolves the 4.2.2 name to `buildcraftreforged:oil`.
+- **Flow** (`BuildcraftFlowingFluid`, new; Forge's `BlockFluidClassic` split into `LiquidBlock` and `FlowingFluid`).
+  7 blocks (quantaPerBlock 8, drop-off 1, slope search 4); tick delay viscosity / 200 as Forge 1.6.4's
+  `BlockFluidBase` computed it: oil 1500 → 7 ticks, fuel 1000 → 5. No new sources. Falling fluid spreads the vanilla
+  way (7 blocks from where it lands; Forge gave it one less), accepted as a platform difference. Density, viscosity
+  and temperature are on the `FluidType` as 4.2.2 set them.
+- **Other liquids.** 4.2.2 made both fluids `Material.water` and overrode `canDisplace`: oil and fuel never flow into
+  another liquid (on water they spread sideways over it), nothing flows into them, and lava hardens against them as
+  against water (obsidian from a source, cobblestone from flowing lava; a `FluidInteractionRegistry` entry). NeoForge
+  26.3 checks fluid interactions in `LiquidBlock.neighborChanged` only, not in `onPlace`, so lava hardens when oil or
+  fuel arrives next to it or on its next neighbour update, not the instant lava is poured beside existing oil.
+- **Tag.** `minecraft:washed_away_by_fluids` must list every `LiquidBlock`: `FlowingFluid` only spreads into blocks
+  in that tag (water and lava are in it), including its own flowing blocks. Without it oil does not flow.
+- **`Material.water` properties** on the `FluidType`: swim, drown, extinguish, boats, farmland hydration, no fall
+  damage. Bucket sounds are vanilla's (1.6.4 buckets were silent). The block copies vanilla water's block properties.
+- **Fire** (`BlockBuildcraftFluid`). Fire spread 300 when flammable; flammability oil 0, fuel 5; oil is a fire source
+  (burns forever) as in 4.2.2. Oil's flammability follows `burnOil` through a supplier, so the config is read when
+  fire asks, not at registration. In the Nether, a neighbour change turns a flammable fluid block into fire (no
+  explosion) when `fluids.netherIgnition` is on (PLAN.md section 19.2).
+- **Buckets.** `BucketHandler` and `FluidContainerRegistry` are gone: vanilla `BucketPickup` on the `LiquidBlock`
+  fills an empty bucket with `Fluid.getBucket()`. NeoForge gives `Capabilities.Fluid.ITEM` only to the exact
+  `BucketItem` class, so `EnergyRegistry` registers `BucketResourceHandler` for both buckets; tanks and
+  `FluidUtils.handleRightClick` then take and give 1000 mB.
+- **Client** (`EnergyProxyClient`, not checked in a client). `RegisterFluidModelsEvent` gives each fluid pair the 4.2.2
+  `<fluid>_still`/`<fluid>_flow` textures (with their 4.2.2 `.mcmeta` animations) and no overlay or tint;
+  `RenderingOil` and `textureHook` have no counterpart. No `IClientFluidTypeExtensions`: the view from inside oil uses
+  NeoForge's defaults, not 1.6.4's water fog. The drip particle is the `drop` particle type
+  (`ColorParticleOption`, oil black, fuel 0.7/0.7/0) with vanilla's `drip_hang`/`drip_fall`/`drip_land` sprites
+  for 1.6.4's particle indices 113/112/114.
+- **GameTests** (`OilFuelTests`): bucket placement, pickup and a tank both ways; flow distance, levels and tick
+  rates in walled channels, and no new source between two; oil over water, water over oil, lava against oil and fuel;
+  fuel turning into fire in the Nether (the test runs in the Nether) and staying put in the overworld. They use
+  padding around the 1x1x1 structure and build from y = 2, above the barrier case GameTest puts around it.
+
+### For the combustion engine (#44)
+
+- 4.2.2 `IronEngineFuel.addFuel("oil", 3, 5000 * fuel.oil.combustion)` and `("fuel", 6, 25000 * fuel.fuel.combustion)`:
+  key them on `EnergyRegistry.fluidOil`/`fluidFuel` (or the names, which `FluidUtils.getFluid` resolves), MJ × 10
+  for the power per tick. The multipliers are `BuildCraftConfiguration.fuelOilMultiplier`/`fuelFuelMultiplier`.
+  The fuel registry itself is #43.
+- The engine's fuel tank accepts the source fluids; buckets of oil and fuel go in through `FluidUtils.handleRightClick`
+  with no extra code.
+
+### For oil fields (#45)
+
+- Place `EnergyRegistry.blockOil.get().defaultBlockState()` (a source). Worldgen that places sources where they could
+  flow must schedule a fluid tick (`scheduleTick(pos, fluid, fluid.getTickDelay(level))`) as vanilla lake features
+  do, or the oil stays still until a neighbour changes.
+- `BlockSpring.EnumSpring.OIL.liquidBlock` is `blockOil`; `canGen` follows `BuildCraftConfiguration.spawnOilSprings`.
+- In oceans: oil does not sink into or displace water and water does not flow into oil, so a well capped at the sea
+  floor stays a column of oil under the water.
+
+### For the refinery (#68)
+
+- 4.2.2 `RefineryRecipes.addRecipe(new FluidStack(fluidOil, 1), new FluidStack(fluidFuel, 1), 12, 1)` was registered
+  in `BuildCraftEnergy.preInit`; #68 owns it now (oil in, fuel out, `energy` 12 MJ, so 120 FE, `delay` 1).
+- `FluidRenderer` draws the tank contents from the fluid models registered here.

@@ -92,12 +92,12 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37 | [ ] | [ ] | [ ] | One block per engine; facing in the block state. Engine base in #36. |
 | Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38 | [ ] | [ ] | [ ] |  |
 | Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44 | [ ] | [ ] | [ ] |  |
-| Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [ ] | [ ] | [ ] | Fluid + `FluidType`; flowing variant per NeoForge convention. |
-| Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [ ] | [ ] | [ ] | As above. |
-| Oil (block) (`blockOil`) | `BlockBuildcraftFluid` | `block_oil` | #42 | [ ] | [ ] | [ ] | Nether: fire instead of explosion (section 19.2). |
-| Fuel (block) (`blockFuel`) | `BlockBuildcraftFluid` | `block_fuel` | #42 | [ ] | [ ] | [ ] | As above. |
-| Oil Bucket (`bucketOil`) | `ItemBucketBuildcraft` | `bucket_oil` | #42 | [ ] | [ ] | [ ] |  |
-| Fuel Bucket (`bucketFuel`) | `ItemBucketBuildcraft` | `bucket_fuel` | #42 | [ ] | [ ] | [ ] |  |
+| Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [x] | [ ] | [ ] | `FluidType` `oil` plus source fluid `oil` and flowing fluid `flowing_oil`. Density 800, viscosity 1500, ticks every 7. |
+| Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [x] | [ ] | [ ] | As above: `fuel` and `flowing_fuel`, ticks every 5. |
+| Oil (block) (`blockOil`) | `BlockBuildcraftFluid` | `block_oil` | #42 | [x] | [ ] | [ ] | Nether: fire instead of explosion (section 19.2). Flow, buckets and the Nether rule pass GameTests; textures and drips not seen in a client. |
+| Fuel (block) (`blockFuel`) | `BlockBuildcraftFluid` | `block_fuel` | #42 | [x] | [ ] | [ ] | As above. |
+| Oil Bucket (`bucketOil`) | `ItemBucketBuildcraft` | `bucket_oil` | #42 | [x] | [ ] | [ ] | Places, picks up and fills tanks (GameTest). |
+| Fuel Bucket (`bucketFuel`) | `ItemBucketBuildcraft` | `bucket_fuel` | #42 | [x] | [ ] | [ ] | As above. |
 
 ### Worldgen (energy)
 
