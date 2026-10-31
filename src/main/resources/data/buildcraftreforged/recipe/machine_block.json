@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "i": "buildcraftreforged:iron_gear_item",
+    "p": "minecraft:redstone",
+    "g": "buildcraftreforged:gold_gear_item",
+    "d": "buildcraftreforged:diamond_gear_item",
+    "D": "minecraft:diamond_pickaxe"
+  },
+  "pattern": [
+    "ipi",
+    "gig",
+    "dDd"
+  ],
+  "result": {
+    "id": "buildcraftreforged:machine_block"
+  }
+}

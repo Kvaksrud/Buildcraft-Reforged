@@ -1,0 +1,47 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "facing": "north"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/machine_block"
+      }
+    },
+    {
+      "when": {
+        "facing": "east"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/machine_block",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/machine_block",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/machine_block",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "blocked": "true"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/status_light"
+      }
+    }
+  ]
+}

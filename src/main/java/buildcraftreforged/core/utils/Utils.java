@@ -17,6 +17,7 @@ import buildcraftreforged.api.core.Position;
 import buildcraftreforged.api.transport.IPipeTile;
 import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.core.EntityBlock;
+import buildcraftreforged.core.IFramePipeConnection;
 import buildcraftreforged.core.inventory.ITransactor;
 import buildcraftreforged.core.inventory.Transactor;
 import buildcraftreforged.energy.TileEngine;
@@ -34,7 +35,9 @@ import net.minecraft.world.ItemStackWithSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
@@ -48,7 +51,7 @@ import org.jspecify.annotations.Nullable;
  * - addToRandomInventoryAround: ported (#72, engines skipped since #130).
  * - addToRandomPipeAround: ported (#66).
  * - checkPipesConnections: IPipeTile (#34, #48).
- * - checkLegacyPipesConnections: IFramePipeConnection (#67).
+ * - checkLegacyPipesConnections: ported (#67).
  * - preDestroyBlock: TileBuildCraft (#21), IDropControlInventory and InvUtils (#23).
  * Dropped: getItemData, the stack's NBT compound; item data lives in data components (docs/PLAN.md section 6).
  * Dropped: handleBufferedDescription; description data goes through vanilla getUpdateTag now (#20).
@@ -404,5 +407,26 @@ public class Utils {
             slots[k - first] = k;
         }
         return slots;
+    }
+
+    public static boolean checkLegacyPipesConnections(BlockGetter blockAccess, int x1, int y1, int z1, int x2, int y2, int z2) {
+
+        Block b1 = blockAccess.getBlockState(new BlockPos(x1, y1, z1)).getBlock();
+        Block b2 = blockAccess.getBlockState(new BlockPos(x2, y2, z2)).getBlock();
+
+        if (!(b1 instanceof IFramePipeConnection) && !(b2 instanceof IFramePipeConnection)) {
+            return false;
+        }
+
+        if (b1 instanceof IFramePipeConnection && !((IFramePipeConnection) b1).isPipeConnected(blockAccess, x1, y1, z1, x2, y2, z2)) {
+            return false;
+        }
+
+        if (b2 instanceof IFramePipeConnection && !((IFramePipeConnection) b2).isPipeConnected(blockAccess, x2, y2, z2, x1, y1, z1)) {
+            return false;
+        }
+
+        return true;
+
     }
 }

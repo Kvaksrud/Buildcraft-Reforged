@@ -11,7 +11,9 @@ public enum MachineStatus {
     NO_POWER(0xb06000),
     OVERHEATING(0xb02020),
     OUT_OF_FUEL(0xb06000),
-    NO_WORK_AREA(0xb06000);
+    NO_WORK_AREA(0xb06000),
+    /** A machine that has finished its work for good: the quarry with nothing left to dig (plan section 19.3). */
+    DONE(0x2a7f2a);
 
     /** Text colour of the value in the panel. */
     public final int colour;

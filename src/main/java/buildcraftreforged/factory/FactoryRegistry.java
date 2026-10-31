@@ -12,6 +12,7 @@
  */
 package buildcraftreforged.factory;
 
+import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.api.power.PowerEnergyHandler;
 import buildcraftreforged.core.BlockBuildCraft;
 import buildcraftreforged.core.CreativeTabBuildCraft;
@@ -20,6 +21,7 @@ import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.factory.gui.ContainerRefinery;
 import java.util.function.Supplier;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -32,6 +34,8 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
+import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
+import net.neoforged.neoforge.common.world.chunk.TicketController;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -125,6 +129,36 @@ public final class FactoryRegistry {
                     .isSuffocating((state, world, pos) -> false));
     public static final DeferredItem<ItemBlockBuildCraft> plainPipeBlockItem = blockItem("plainPipeBlock", plainPipeBlock);
 
+    /**
+     * BlockFrame's constructor: Material.glass (glass sound, the hat instrument, not a redstone conductor, no
+     * suffocation, no spawns), setHardness(0.5F); idDropped -1: no drops; not opaque.
+     */
+    public static final DeferredBlock<BlockFrame> frameBlock = REGISTERS.blocks.registerBlock(RegistryNames.of("frameBlock"),
+            BlockFrame::new, properties -> properties.overrideDescription("tile.frameBlock").instrument(NoteBlockInstrument.HAT)
+                    .strength(0.5F).sound(SoundType.GLASS).noOcclusion().noLootTable()
+                    .isValidSpawn((state, world, pos, type) -> false).isRedstoneConductor((state, world, pos) -> false)
+                    .isSuffocating((state, world, pos) -> false));
+    public static final DeferredItem<ItemBlockBuildCraft> frameBlockItem = blockItem("frameBlock", frameBlock);
+
+    /**
+     * BlockQuarry's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(10F), setResistance(10F)
+     * (1.6.4 resistance 10 * 3 / 5 = explosion resistance 6), anvil step sound. 4.2.2's unlocalised name is
+     * "machineBlock", so the registry name is machine_block (docs/PORTING-NOTES.md, "Quarry (#67)").
+     */
+    public static final DeferredBlock<BlockQuarry> quarryBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("machineBlock"), BlockQuarry::new,
+            properties -> properties.overrideDescription("tile.machineBlock").mapColor(MapColor.METAL).strength(10F, 6F)
+                    .sound(SoundType.ANVIL).requiresCorrectToolForDrops());
+    public static final DeferredItem<ItemBlockBuildCraft> quarryBlockItem = blockItem("machineBlock", quarryBlock);
+
+    /** 4.2.2 registered TileQuarry as "Machine". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileQuarry>> quarryTile =
+            REGISTERS.blockEntityTypes.register("quarry", () -> new BlockEntityType<>(TileQuarry::new, quarryBlock.get()));
+
+    /** 4.2.2's ForgeChunkManager ticket callback (QuarryChunkloadCallback), for quarry.loadsChunks. */
+    public static final TicketController quarryChunkLoader = new TicketController(
+            Identifier.fromNamespaceAndPath(BuildcraftReforged.MOD_ID, "quarry"), TileQuarry::validateTickets);
+
     private FactoryRegistry() {
     }
 
@@ -145,10 +179,12 @@ public final class FactoryRegistry {
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, pumpTile.get(), (tile, side) -> tile);
         PowerEnergyHandler.registerEnergyHandler(event, pumpTile.get());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, floodGateTile.get(), (tile, side) -> tile);
+        PowerEnergyHandler.registerEnergyHandler(event, quarryTile.get());
     }
 
     public static void register(IEventBus modBus) {
         REGISTERS.register(modBus);
         modBus.addListener(FactoryRegistry::registerCapabilities);
+        modBus.addListener((RegisterTicketControllersEvent event) -> event.register(quarryChunkLoader));
     }
 }

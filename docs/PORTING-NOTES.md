@@ -2465,3 +2465,88 @@ Ported: `energy/TileEngineIron`, `gui/GuiCombustionEngine`; new: the overheat ti
 - **Fluid triggers.** `SEAM(#41)` in `TileEngineIron`: 4.2.2 added `triggerEmptyFluid`, `triggerContainsFluid`,
   `triggerSpaceFluid` and `triggerFullFluid` (`CoreRegistry`); they read `Capabilities.Fluid.BLOCK`, which the engine
   exposes on every side.
+
+## Quarry, frame and mechanical arm (#67)
+
+Ported `factory/BlockQuarry`, `TileQuarry`, `BlockFrame`, `EntityMechanicalArm`, `core/IFramePipeConnection` and
+`Utils.checkLegacyPipesConnections`. New: `factory/QuarryFrameBuilder`, `factory/render/RenderQuarry`. Changed
+(additive): `FactoryRegistry`, `FactoryRenderers`, `BlockPlainPipe` (the `SEAM(#67)` is gone: it implements
+`IFramePipeConnection` and never connects, as 4.2.2), `MachineStatus` (`DONE`), the `quarry.loadsChunks` comment.
+Decided 2026-10-31.
+
+- **Names.** The quarry is `machine_block` (4.2.2's unlocalised name `machineBlock` under the naming rule of
+  "Registries (#18)"; PLAN.md section 6's `quarry` was an example), block entity `quarry`; the frame is `frame_block`.
+  Both have block items in the machines tab (4.2.2 listed both). Quarry recipe as 4.2.2 (`ipi/gig/dDd`: iron gear,
+  redstone, gold gear, diamond gear, diamond pickaxe); the frame has none, as 4.2.2. `mining.enabled` does not remove
+  the recipe yet, as for the mining well.
+- **Blocks.** Quarry: `Material.iron`, `setHardness(10F)`, `setResistance(10F)` (explosion resistance 6), anvil step
+  sound, pickaxe; `FACING` from the placer as 4.2.2's metadata, model `cube` with `quarry_front` on the facing side,
+  `quarry_top` above and `quarry_side` elsewhere; `StatusPanel.BLOCKED` and the multipart red light. A wrench restarts
+  it (`reinitalize`), an empty hand opens the status panel, sneaking passes. `quarry.one.time.use` empties `getDrops`.
+  Frame: `Material.glass`, hardness 0.5, no drops, waterloggable (plan section 6). 4.2.2 drew it with the legacy pipe
+  model and computed its collision, selection and ray-trace boxes from `checkLegacyPipesConnections` on every call; it
+  now has six connection properties (vanilla `PipeBlock.PROPERTY_BY_DIRECTION`) set by `getConnectedState` and
+  `updateShape`, a multipart model (`frame_block` core and `frame_block_<side>` arms) and the matching shape.
+- **Frame building.** 4.2.2 built the frame with a `BptBlueprint` of the box (frame on the twelve edges, air inside),
+  a `BptBuilderBlueprint` and an `EntityRobot`. The builders are not ported (#78), so `QuarryFrameBuilder` holds the
+  part the quarry used, with the 4.2.2 names: the clear list (top layer first) and the build list (bottom first, all
+  slots in the secondary list because the frame is not opaque), `getNextBlock`/`internalGetNextBlock`, and the robot's
+  queue (`Robot`: up to 20 targets, `updateWait`, `readyToBuild`, `done`). Each `buildFrame` tick costs 25 MJ ×
+  multiplier (250 FE) and schedules one slot. As in 4.2.2 the robot voids blocks inside the box without drops (soft
+  blocks such as water are only removed when their slot is reached in the build list), places frames for free, and
+  waits for ever at a slot it cannot change (bedrock, lava, oil). New: each change is made as the owner's fake player
+  (`canBreak` before clearing, `placeBlock` for frames); a refusal keeps the slot at the head of the queue and blocks
+  the quarry (Reason "protected block") until the next try succeeds. The robot is not an entity any more: it does not
+  fly about, and its laser is not drawn (not checked in game anyway; a later port of `EntityRobot` for the builder can
+  bring the look back).
+- **Arm.** `EntityMechanicalArm` keeps its 4.2.2 fields, `setHead` in 1/32 steps and `updatePosition`, but is render
+  data like `EntityBlock`: the quarry creates it in `createUtilsIfNeeded` once the frame is done, on both sides, and
+  `RenderQuarry` draws its three drill bars and the drill head (`textures/block/drill.png`, `drill_head.png`, from
+  4.2.2's `blockDrillTexture` and `blockDrillHeadTexture`) with `RenderEntityBlock`, plus the stripes box while the
+  frame is being built. Only the client moves it, from the head position in the network payload, as 4.2.2.
+- **Digging.** `dig`, `findTarget`, `createColumnVisitList`, `moveHead` and `positionReached` follow 4.2.2. Power in FE:
+  building `configure(500m, 1000m, 250m, 150000m)`, digging `configure(1000m, 5000m, 640, 150000m)`, 640 FE × m per
+  block, head movement `20 + stored / 500` FE per tick at `0.1 + energy / 2000` blocks per tick, perdition
+  `PerditionCalculator(20m)`. 1.6.4's world bottom (`searchY >= 1`, `height > 0`) becomes `getMinY()`, the height map
+  is `WORLD_SURFACE`, the Nether check is `Level.NETHER`, and the zig-zag parity uses `floorMod` so it holds below
+  y = 0. `positionReached` asks `BuildCraftPlayer.canBreak` for the owner first: a refusal leaves the block, sets the
+  blocked flag and the quarry asks again once a second; it never skips the block (the plan's "stops in a protected
+  claim"). Drops, and the item entities the "collect lost items" pass picks up around the head, go to a
+  `MachineOutput` (#63) instead of 4.2.2's chest, pipe, throw-out sequence; the quarry pushes it every tick and digs
+  nothing new while it holds items (blocked, Reason "Output blocked" or "No destination", red light). The output is
+  saved and drops when the quarry is broken.
+- **Done.** When nothing is left to dig the head parks at the start corner, `isDigging` turns false and the quarry
+  reconfigures its power handler to receive nothing (plan section 19.3); the State line shows the new `DONE` state. A
+  wrench restarts it.
+- **Area.** `setBoundaries` takes a marker area next to the quarry (`Utils.getNearbyAreaProvider`) or 4.2.2's default
+  11 × 5 × 11 behind the front, raises the height to 5, falls back to the default for areas under 3 wide or of 25 or
+  more chunks (ForgeChunkManager's default `maximumChunksPerTicket`, 4.2.2's `getMaxChunkListDepth`), and removes the
+  markers (their items drop). The chat messages go to the placing player, as 4.2.2. 4.2.2 also ran `setBoundaries` on
+  the client from `initialize`; the client now waits for the box in the description packet.
+- **Chunk loading.** 4.2.2 forced the quarry's chunk and every chunk of its box through a `ForgeChunkManager` ticket,
+  always, and a quarry without a ticket never ran. Now `FactoryRegistry.quarryChunkLoader` (a NeoForge
+  `TicketController` keyed by the quarry's position) forces the same chunks only with `quarry.loadsChunks` (default
+  off, plan section 19.3); without it the quarry runs while its chunks are loaded. The plan's sentence says "its own
+  chunk"; the frame's chunks are forced too because the quarry reads and changes blocks there, and the option's comment
+  now says so. Tickets are released when the quarry is broken; when a world loads, `TileQuarry.validateTickets` (4.2.2
+  `QuarryChunkloadCallback`) drops tickets whose owner is no longer a quarry, and all of them while the option is off.
+- **Removal.** Breaking the quarry removes the frame blocks on the box's edges at once (4.2.2 marked them for decay;
+  plan section 19.3), releases the chunks and drops the pending output. Frames broken by hand do not take their
+  neighbours (BuildCraft#2005 rejected, docs/BUGFIXES.md).
+- **Save and sync.** Tags as 4.2.2: the power handler, `targetX/Y/Z`, `headPosX/Y/Z`, `box` (a child), plus
+  `pendingOutput`. The pre-box `xSize` format is not read. Network payload in 4.2.2's `@TileNetworkData` order: box,
+  `inProcess`, target, head, `speed`, `builderDone`, `isAlive`; sent every tick while the head moves and on load.
+- **Tests.** GameTests (`QuarryTests`, padded area, bedrock floor at y = 2 and dirt at y = 3):
+  `quarry_digs_9x9` (default area: the 92 frame blocks on the twelve edges with their connections, a stone in a frame
+  slot and one inside the box cleared without drops, the stripes box gone and the arm made; the 9 × 9 layer dug into a
+  chest beside the quarry, including a buried chest and its five diamonds (BuildCraft#2340); Done, no item thrown out,
+  `powerRequest` 0), `quarry_marker_area` (three linked markers next to the quarry give a 5 × 5 box, raised to 5 high;
+  markers gone, 44 frame blocks, 3 × 3 dug; breaking the quarry removes the frame), `quarry_blocked_output` (nothing
+  takes items: blocked after one block, "No destination", red light, one dirt pending; a chest clears it and all nine
+  arrive) and `quarry_protected_block` (a stand-in claim refuses the owner at the middle block: the quarry stops there
+  with State Blocked, Reason "protected block", the red light and the owner's UUID seen by the claim, without skipping
+  it; when the claim lifts it finishes).
+- **Not checked without a client:** the quarry and frame models and textures, the frame's arms and waterlogged look,
+  the arm and stripes rendering (geometry, UVs, light, the render box), the red light, the status panel screen, the
+  chat messages, the recipe in the crafting grid, and chunk loading with `quarry.loadsChunks` on (no test toggles the
+  option).
