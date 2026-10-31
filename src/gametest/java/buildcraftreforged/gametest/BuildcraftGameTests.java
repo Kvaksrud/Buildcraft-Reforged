@@ -72,6 +72,9 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_FE_AND_ENGINES =
             function("engine_pushes_into_fe_and_engines");
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_ORIENTATION = function("engine_orientation");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_RECORDED_AND_SAVED = function("owner_recorded_and_saved");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
+    private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
 
     private BuildcraftGameTests() {
     }
@@ -118,6 +121,9 @@ public final class BuildcraftGameTests {
             registry.register(ENGINE_PUSHES_INTO_RECEPTOR, EngineTests::pushesIntoReceptor);
             registry.register(ENGINE_PUSHES_INTO_FE_AND_ENGINES, EngineTests::pushesIntoForgeEnergyAndEngines);
             registry.register(ENGINE_ORIENTATION, EngineTests::orientation);
+            registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
+            registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
+            registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -204,6 +210,10 @@ public final class BuildcraftGameTests {
                 ENGINE_ORIENTATION)) {
             event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine,
                     new TestData<>(environment, EMPTY_STRUCTURE, 200, 0, true)));
+        }
+        for (ResourceKey<Consumer<GameTestHelper>> owner : List.of(OWNER_RECORDED_AND_SAVED, OWNER_BREAK, OWNER_PLACE)) {
+            event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
         }
     }
 

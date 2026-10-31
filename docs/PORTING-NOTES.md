@@ -258,8 +258,8 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
 - **`SafeTimeTracker`** reads `Level.getGameTime()`. The comparison sits in package-private overloads taking the game
   time, so it is unit-tested without a level.
 - **`BlockUtil` break path.** `getBuildCraftPlayer(ServerLevel)` stands in for `CoreProxy.getBuildCraftPlayer` and
-  returns `FakePlayerFactory.getMinecraft` for now. It and the comment in `breakBlock` are marked `SEAM(#27)`: #27
-  returns the owner-profile fake player there and fires `BlockEvent.BreakEvent` before breaking. Drops come from
+  returns the `[BuildCraft]` fake player; machines pass their owner's player instead, and `breakBlock` asks
+  `BreakBlockEvent` first (see "Owner tracking and the owner-profile fake player (#27)"). Drops come from
   `Block.getDrops` with that player as breaker; `breakBlock` still spawns them itself with the 4.2.2 lifespan and
   pick-up delay, so NeoForge's `BlockDropsEvent` does not fire. `itemLifespan` and `dropBrokenBlocks` are read from
   `BuildCraftConfiguration` on each call; the oil check in `canChangeBlock` is `TODO(#42)`.
@@ -290,8 +290,8 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
   `setRemoved` (4.2.2 `invalidate`) and `clearRemoved`.
 - **Save/load.** `saveAdditional(ValueOutput)` / `loadAdditional(ValueInput)` replace `writeToNBT` / `readFromNBT`
   and keep the tag names (`owner`). A missing tag keeps the field's default, as 4.2.2's `hasKey` checks did.
-- **Owner** stays the 4.2.2 string (player name, default `[BuildCraft]`). #27 adds the owner's game profile for the
-  fake player next to it.
+- **Owner** stays the 4.2.2 string (player name, default `[BuildCraft]`). #27 added the owner's UUID next to it
+  (`ownerId`), for the fake player.
 - **Removal.** 26.x has no `breakBlock` with the block entity still present; vanilla calls
   `BlockEntity.preRemoveSideEffects` on the server before removing it. `TileBuildCraft` overrides it with 4.2.2
   `Utils.preDestroyBlock`: drop the inventory unless an `IDropControlInventory` says no, then `destroy()`. So
@@ -975,8 +975,8 @@ Decided 31 Oct 2026.
   `getStatusState` cheap). The model shows it with a multipart case applying `buildcraftreforged:block/status_light`, a
   small emissive red lamp on top of the block (see the `sample_status` blockstate). Blocks drawn by a
   `BlockEntityRenderer` (engines) can read the same property.
-- **For #27 (owner).** Only `IStatusProvider.getStatusOwner()`'s default reads `TileBuildCraft.getOwner()`; change the
-  default when the owner becomes a game profile. The line is a plain string, at most 64 characters on the wire.
+- **Owner (#27).** `IStatusProvider.getStatusOwner()`'s default reads `TileBuildCraft.getOwner()`, the name recorded
+  with the owner's profile, so it needed no change. The line is a plain string, at most 64 characters on the wire.
 - **For #36 (engines).** Implement `getStatusState` (`WORKING`, `IDLE`, `OVERHEATING`, `OUT_OF_FUEL`), `getStatusPower`
   with `Power.produced(meter, stored, capacity)` and `meter.energyOut(fe)` where the engine sends power, and
   `getStatusHeat` with `HeatStage.values()[energyStage.ordinal()]` (named and ordered as 4.2.2's
@@ -1250,3 +1250,48 @@ Not ported: `TileEngineLegacy` (converts pre-4.0 saves, which cannot reach 26.x)
   pulse, engines facing each other idle) and `engine_orientation` (placement, wrench, solid back, pipe overrides,
   explosion when full). They use the test-only `gametest_engine` (10 FE pulses, 1 000 FE, 500 FE intake) and two
   receivers in `EngineTests`. Rendering, particles and the right-click in a client are not tested.
+
+## Owner tracking and the owner-profile fake player (#27)
+
+New: `core/utils/BuildCraftPlayer`. Changed: `core/TileBuildCraft`, `core/utils/BlockUtil`. Decision in the API mapping
+table ("No fake player in 4.2.2", decided 29 Oct 2026).
+
+- **Recorded at placement.** `TileBuildCraft.onBlockPlacedBy` keeps the 4.2.2 `owner` name and adds the placer's UUID,
+  saved as `ownerId` (`UUIDUtil` int array). `getOwnerProfile()` returns `new GameProfile(ownerId, owner)`, or null
+  when no player placed the block (a dispenser, a structure, a world from before #27). The name is the one at
+  placement; a later rename does not change it, and claim mods match on the UUID anyway.
+- **The fake player.** `BuildCraftPlayer.get(tile)` (server side, else null) or `get(ServerLevel, profile)` returns
+  `FakePlayerFactory.get(level, profile)`. Without a profile it uses `BuildCraftPlayer.DEFAULT`, 4.2.2's
+  `[BuildCraft]` with a fixed name-based UUID that belongs to no real player, so claim mods treat ownerless machines
+  as strangers. `BlockUtil.getBuildCraftPlayer(level)` returns that default player. `FakePlayerFactory` caches one
+  player per level and profile and drops them when the level unloads; do not keep the player in a field, ask for it
+  per action.
+- **Breaking.** `BuildCraftPlayer.canBreak(player, level, pos)` fires `BreakBlockEvent` through
+  `CommonHooks.fireBlockBreak` with `GameType.SURVIVAL`, as a player breaking by hand would. In NeoForge 26.x the
+  event is `net.neoforged.neoforge.event.level.block.BreakBlockEvent`; the plan's `BlockEvent.BreakEvent` is its old
+  name. A cancelled event means a protected block: nothing is broken. `BlockUtil.breakBlock(..., player)` asks it
+  first and now returns whether it broke the block (4.2.2 returned nothing); the overloads without a player use the
+  default player. `getItemStackFromBlock(..., player)` takes the loot with that player as breaker but asks no one, so
+  call `canBreak` before it.
+- **Placing.** `BuildCraftPlayer.placeBlock(player, level, pos, state)` sets the block, fires `EntityPlaceEvent` as
+  vanilla does after a placement, and restores the old block through its `BlockSnapshot` when cancelled. Neighbour
+  updates of the short-lived block have already happened by then; vanilla's item path avoids that by capturing
+  snapshots. `BuildCraftPlayer.useItemOn(player, stack, against, face)` is 4.2.2's `onItemUse` with the BuildCraft
+  player: the stack goes in the player's main hand for the call, `ItemStack.useOn` runs NeoForge's own placement
+  checks and event, and the hand is emptied again. The stack is used up as the item decides.
+- **For #66 (mining well) and #67 (quarry).** 4.2.2 took the drops with `getItemStackFromBlock` and then set the block
+  itself. Port as: `FakePlayer owner = BuildCraftPlayer.get(this)`; if `!BuildCraftPlayer.canBreak(owner, level,
+  pos)`, stop digging (blocked, status reason for #63) and leave the block; else `getItemStackFromBlock(..., owner)`
+  and set the block (pipe or air) as 4.2.2 did. The quarry plan says it "stops in a protected claim": stop, do not skip.
+- **For #78 (builder) and #79 (filler).** `FillerPattern.breakBlock` calls `BlockUtil.breakBlock(..., lifespan,
+  owner)`; `fillerDestroy`'s `setBlockToAir` must ask `canBreak` first. The filler's `onItemUse` becomes
+  `BuildCraftPlayer.useItemOn(owner, stackToPlace, pos.below(), Direction.UP)` (4.2.2 side 1 is up). Schematic
+  placement that sets block states directly goes through `placeBlock`; a refused slot is skipped or stops the build as
+  the builder port decides.
+- **Not covered.** Spawn protection (`MinecraftServer.isUnderSpawnProtection`) is checked by vanilla's player
+  interaction code, not by these events, so machines may still break and place near spawn, as in 4.2.2.
+- **Tests.** GameTests `owner_recorded_and_saved` (profile and Owner line after placement, save and load, the fake
+  player's UUID, the default player for an ownerless block), `owner_break` (a listener standing in for a claim mod
+  cancels `BreakBlockEvent` at one position: that block stays and `breakBlock` returns false, the other is broken and
+  drops; the listener sees the owner's UUID) and `owner_place` (the same for `placeBlock` and `useItemOn`, with the
+  stack not used up when refused). Real claim mods (FTB Chunks and similar) need a client and were not tried.
