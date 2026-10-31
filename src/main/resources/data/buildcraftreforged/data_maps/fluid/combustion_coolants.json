@@ -1,0 +1,7 @@
+{
+  "values": {
+    "minecraft:water": {
+      "degrees_cooling_per_mb": 0.0023
+    }
+  }
+}
