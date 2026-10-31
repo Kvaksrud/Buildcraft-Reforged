@@ -1,6 +1,7 @@
 package buildcraftreforged.gametest;
 
 import buildcraftreforged.api.transport.IPipeTile.PipeType;
+import buildcraftreforged.core.CoreRegistry;
 import buildcraftreforged.core.network.PacketData;
 import buildcraftreforged.transport.ItemFacade;
 import buildcraftreforged.transport.PipeConnections;
@@ -24,6 +25,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -55,6 +57,7 @@ final class FacadeTests {
         TESTS.put("facade_place_and_strip", FacadeTests::placeAndStrip);
         TESTS.put("plug_blocks_connection", FacadeTests::plugBlocksConnection);
         TESTS.put("facade_plug_save_sync_and_drops", FacadeTests::saveSyncAndDrops);
+        TESTS.put("wrench_disconnects_side", FacadeTests::wrenchDisconnectsSide);
     }
 
     private static final int SETTLE = 3;
@@ -335,5 +338,79 @@ final class FacadeTests {
         helper.assertTrue(dropped.stream().anyMatch(e -> e.getItem().is(TransportRegistry.plugItem.get())),
                 "plug not dropped");
         helper.succeed();
+    }
+
+    /** A wrench used on the pipe as the block sees it ({@code BlockPipe.useItemOn}). */
+    private static InteractionResult wrench(GameTestHelper helper, Player player, BlockPos pos, double x, double y,
+            double z, Direction face) {
+        ItemStack wrench = new ItemStack(CoreRegistry.wrenchItem.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, wrench);
+        BlockPos absolute = helper.absolutePos(pos);
+        return helper.getLevel().getBlockState(absolute).useItemOn(wrench, helper.getLevel(), player,
+                InteractionHand.MAIN_HAND, hit(absolute, x, y, z, face));
+    }
+
+    /**
+     * New over 4.2.2: a wrench on a connected arm disconnects that side (the hit position picks the arm, here a click
+     * on the arm's north face), splitting the network, with no plug item; the state is saved and synced. A wrench on
+     * the centre face of that side reconnects it.
+     */
+    static void wrenchDisconnectsSide(GameTestHelper helper) {
+        BlockPos west = MIDDLE.west();
+        BlockPos east = MIDDLE.east();
+        helper.setBlock(west.west(), Blocks.CHEST);
+        helper.setBlock(west, itemPipe());
+        helper.setBlock(MIDDLE, itemPipe());
+        helper.setBlock(east, itemPipe());
+
+        helper.runAfterDelay(SETTLE, () -> {
+            PipeNetwork before = PipeNetworks.get(helper.getLevel(), helper.absolutePos(west));
+            helper.assertTrue(before != null && before.size() == 3, "three pipes in one network: " + before);
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            clearDrops(helper);
+
+            helper.assertTrue(wrench(helper, player, MIDDLE, 0.875, 0.5, 0.25, Direction.NORTH).consumesAction(),
+                    "the wrench did nothing on the east arm");
+            TilePipe pipe = tile(helper, MIDDLE);
+            helper.assertTrue(pipe.isWrenchDisconnected(Direction.EAST), "east side not disconnected");
+            helper.assertFalse(pipe.isWrenchDisconnected(Direction.NORTH), "the clicked face was taken, not the arm");
+            helper.assertFalse(pipe.hasPlug(Direction.EAST), "a plug appeared");
+            helper.assertValueEqual(pipe.getPluggedMask(), (byte) 0, "plug mask");
+
+            RegistryAccess registryAccess = helper.getLevel().registryAccess();
+            CompoundTag tag = pipe.saveWithFullMetadata(registryAccess);
+            TilePipe loaded = new TilePipe(pipe.getBlockPos(), pipe.getBlockState());
+            loaded.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registryAccess, tag));
+            helper.assertTrue(loaded.isWrenchDisconnected(Direction.EAST), "disconnected side not loaded");
+            TilePipe client = new TilePipe(pipe.getBlockPos(), pipe.getBlockState());
+            RegistryFriendlyByteBuf data = PacketData.wrap(PacketData.write(registryAccess, pipe::writePacketPayload),
+                    registryAccess);
+            try {
+                client.readPacketPayload(data);
+            } finally {
+                data.release();
+            }
+            helper.assertTrue(client.isWrenchDisconnected(Direction.EAST), "disconnected side not synced");
+
+            helper.runAfterDelay(SETTLE, () -> {
+                assertMask(helper, MIDDLE, "disconnected east", Direction.WEST);
+                assertMask(helper, east, "the far pipe", new Direction[0]);
+                PipeNetwork split = PipeNetworks.get(helper.getLevel(), helper.absolutePos(west));
+                helper.assertTrue(split != null && split != before && split.size() == 2, "network not split: " + split);
+                PipeNetwork alone = PipeNetworks.get(helper.getLevel(), helper.absolutePos(east));
+                helper.assertTrue(alone != null && alone.size() == 1, "far pipe not on its own: " + alone);
+                helper.assertTrue(drops(helper).isEmpty(), "disconnecting dropped something");
+
+                helper.assertTrue(wrench(helper, player, MIDDLE, 0.75, 0.5, 0.5, Direction.EAST).consumesAction(),
+                        "the second wrench did nothing");
+                helper.assertFalse(pipe.isWrenchDisconnected(Direction.EAST), "east side still disconnected");
+                helper.runAfterDelay(SETTLE, () -> {
+                    assertMask(helper, MIDDLE, "reconnected", Direction.WEST, Direction.EAST);
+                    PipeNetwork after = PipeNetworks.get(helper.getLevel(), helper.absolutePos(east));
+                    helper.assertTrue(after != null && after.size() == 3, "network not joined again: " + after);
+                    helper.succeed();
+                });
+            });
+        });
     }
 }

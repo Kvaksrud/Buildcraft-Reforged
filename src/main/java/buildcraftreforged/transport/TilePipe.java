@@ -80,6 +80,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     public final PipeType kind;
     private byte connectionMask;
     private byte pluggedMask;
+    /** Sides a wrench disconnected (new, #61): blocked like a plugged side, but with no plug item. */
+    private byte disconnectedMask;
     /** 4.2.2 {@code facadeBlocks} and {@code facadeMeta}: the facade's block state per side, or null. */
     private final @Nullable BlockState[] facadeStates = new BlockState[6];
     private @Nullable PipeModule module;
@@ -112,8 +114,34 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return connectionMask;
     }
 
+    /** The sides with a plug item. */
     public byte getPluggedMask() {
         return pluggedMask;
+    }
+
+    /** The sides that never connect: plugged or disconnected with a wrench. */
+    public byte getBlockedMask() {
+        return (byte) (pluggedMask | disconnectedMask);
+    }
+
+    public boolean isWrenchDisconnected(Direction side) {
+        return PipeConnections.hasSide(disconnectedMask, side);
+    }
+
+    /**
+     * A wrench disconnects or reconnects a side (new over 4.2.2, docs/TRANSPORT.md 3.2): the side is blocked as a
+     * plugged one is, on both pipes, without a plug item.
+     */
+    public void setWrenchDisconnected(Direction side, boolean disconnected) {
+        byte mask = PipeConnections.with(disconnectedMask, side, disconnected);
+        if (mask != disconnectedMask) {
+            disconnectedMask = mask;
+            onConfigurationChanged();
+            if (level != null && !level.isClientSide()) {
+                sendNetworkUpdate();
+                level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
+            }
+        }
     }
 
     public @Nullable PipeModuleType getModuleType() {
@@ -185,7 +213,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     }
 
     public PipeConnections.PipeEnd end() {
-        return new PipeConnections.PipeEnd(kind, pluggedMask, getModuleType());
+        return new PipeConnections.PipeEnd(kind, getBlockedMask(), getModuleType());
     }
 
     /** Plugs (#61) call this. A plugged side never connects, on either pipe. */
@@ -553,6 +581,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.putByte("plugs", pluggedMask);
+        output.putByte("disconnected", disconnectedMask);
         for (int i = 0; i < 6; i++) {
             output.storeNullable("facade[" + i + "]", BlockState.CODEC, facadeStates[i]);
         }
@@ -566,6 +595,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         pluggedMask = input.getByteOr("plugs", (byte) 0);
+        disconnectedMask = input.getByteOr("disconnected", (byte) 0);
         for (int i = 0; i < 6; i++) {
             facadeStates[i] = input.read("facade[" + i + "]", BlockState.CODEC).orElse(null);
         }
@@ -590,6 +620,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         for (BlockState facade : facadeStates) {
             ByteBufCodecs.VAR_INT.encode(data, facade == null ? 0 : Block.BLOCK_STATE_REGISTRY.getId(facade) + 1);
         }
+        data.writeByte(disconnectedMask);
     }
 
     @Override
@@ -613,6 +644,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
             int id = ByteBufCodecs.VAR_INT.decode(data);
             facadeStates[i] = id == 0 ? null : Block.BLOCK_STATE_REGISTRY.byId(id - 1);
         }
+        disconnectedMask = (byte) (data.readByte() & 63);
     }
 
     /** Client: the new mask picks another cached model and shape, so refresh the model data and re-mesh. */

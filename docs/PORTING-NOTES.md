@@ -2637,6 +2637,14 @@ Ported from 4.2.2 `ItemFacade`, `ItemPlug`, `api/transport/FacadeManager`, `tran
   Structure Pipes and the block, 80 000 FE) are **not** here: the Structure Pipe does not exist yet (#54), and the
   facade recipe, one per facade state, needs either generated JSON or an assembly recipe type of its own.
 
+- **Wrench disconnect** (new, not 4.2.2; the rule and its order are in docs/TRANSPORT.md 3.2). `TilePipe` keeps a
+  `disconnectedMask` beside `pluggedMask`; `getBlockedMask()` (both) feeds the connection rule and the item, fluid and
+  energy handlers' refusal of blocked sides, while `getPluggedMask()` stays the plug items only (shape, rendering,
+  drops). Saved as `disconnected`, appended to the payload after the facades. `BlockPipe.wrenchPipe` replaces
+  `wrenchModule`: the module still wins on a sneaking click and on centre clicks it handles, an arm click always
+  disconnects. A disconnected side is drawn with no arm and no mark (chosen over drawing a plug, so a plug still
+  reads as an item that drops). A trace that hits no part (a synthetic hit) counts as a centre click on the face.
+
 ### For #74 (and #54)
 
 - Plugs: one `buildcraftreforged:assembly` JSON, input `buildcraftreforged:pipe_structure_cobblestone` (or whatever
@@ -2656,7 +2664,9 @@ neighbouring block's face, a second identical facade and a grass facade refused,
 face, connections unchanged, stripping with an empty hand and with a facade, drops), `plug_blocks_connection`
 (a plug on an arm cuts both pipes' connection and splits the network; outline with the plug, collision without;
 sneak-use takes it off, drops it and joins the network again) and `facade_plug_save_sync_and_drops` (save and load,
-the client payload, drops when the pipe breaks).
+the client payload, drops when the pipe breaks), and `wrench_disconnects_side` (a wrench on the arm's side face
+disconnects the arm's side with no plug item, the network splits, the state saves and syncs; a wrench on the centre
+face reconnects it and the network joins again). The module wrench tests still pass with module-first order.
 
 Not checked without a client: every picture (facade boxes and sprites, tints, the hollow facade around an arm, the
 structure supports, plugs, gates hidden behind facades and plugs, the facade item in the GUI, hand and on the ground,

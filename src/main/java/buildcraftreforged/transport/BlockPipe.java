@@ -159,7 +159,7 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
      * Blocks are placed, and gate, wire, facade and plug items fit themselves (their useOn), without opening the gate. Module items
      * fit themselves too ({@code ItemPipeModule.useOn}). On a pipe with a module (docs/TRANSPORT.md 8.1, Q18) a wrench
      * turns the module (its {@code onWrench}) and a sneaking wrench takes it off and hands back its item with the
-     * settings. Any other item falls through to {@link #useWithoutItem}, as 4.2.2 {@code PipeItemsEmerald} opened its
+     * settings. Otherwise a wrench disconnects or reconnects a side ({@link #wrenchPipe}). Any other item falls through to {@link #useWithoutItem}, as 4.2.2 {@code PipeItemsEmerald} opened its
      * GUI whatever the player held.
      */
     @Override
@@ -169,8 +169,8 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
                 || stack.getItem() instanceof ItemPipeWire || stack.getItem() instanceof ItemFacade
                 || stack.getItem() instanceof ItemPlug)
             return InteractionResult.PASS;
-        if (WrenchHelper.isWrench(stack) && level.getBlockEntity(pos) instanceof TilePipe pipe && pipe.getModule() != null)
-            return wrenchModule(pipe, level, pos, player, hand);
+        if (WrenchHelper.isWrench(stack) && level.getBlockEntity(pos) instanceof TilePipe pipe)
+            return wrenchPipe(pipe, level, pos, player, hand, hitResult);
         // A dye sets a Colour Tag's or Colour Sorter's colour (#57).
         if (level.getBlockEntity(pos) instanceof TilePipe pipe && pipe.getModule() != null
                 && pipe.getModule().useItem(pipe, player, stack))
@@ -178,18 +178,63 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
     }
 
-    private static InteractionResult wrenchModule(TilePipe pipe, Level level, BlockPos pos, Player player,
-            InteractionHand hand) {
+    /**
+     * A wrench on a pipe (new over 4.2.2, docs/TRANSPORT.md 3.2, decided 2026-10-31). In order:
+     * <ol>
+     * <li>sneaking on a pipe with a module takes the module off;</li>
+     * <li>a click on a connected arm disconnects that side;</li>
+     * <li>a click on the centre (or a gate or facade) on a side the wrench disconnected reconnects it;</li>
+     * <li>otherwise the module's {@code onWrench} turns it, if it has one that handles the click;</li>
+     * <li>otherwise a click on the centre face of a connected side disconnects it.</li>
+     * </ol>
+     * A plug is left alone. A disconnected side is blocked like a plugged one, on both pipes, and keeps no item.
+     */
+    private static InteractionResult wrenchPipe(TilePipe pipe, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult) {
         if (!WrenchHelper.canWrench(player, hand, pos))
             return InteractionResult.PASS;
-        if (!level.isClientSide()) {
-            if (player.isShiftKeyDown()) {
+        if (pipe.getModule() != null && player.isShiftKeyDown()) {
+            if (!level.isClientSide()) {
                 ItemStack module = pipe.removeModule();
                 if (!module.isEmpty())
                     player.getInventory().placeItemBackInInventory(module, Prediction.SERVER_ONLY);
-            } else if (!pipe.getModule().onWrench(pipe, player)) {
-                return InteractionResult.PASS;
+                WrenchHelper.wrenchUsed(player, hand, pos);
             }
+            return InteractionResult.SUCCESS;
+        }
+
+        PipeParts.RaytraceResult hit = PipeParts.doRayTrace(pipe, hitResult.getLocation(), hitResult.getDirection());
+        if (hit != null && hit.hitPart() == PipeParts.Part.Plug)
+            return InteractionResult.PASS;
+        Direction side;
+        Boolean disconnect = null;
+        if (hit != null && hit.hitPart() == PipeParts.Part.Pipe && hit.sideHit() != null) {
+            // An arm: the hit position picks the side, whichever face of the arm was clicked.
+            side = hit.sideHit();
+            disconnect = true;
+        } else {
+            // The centre, a gate or a facade; a hit on no part counts as the centre face clicked.
+            side = hit != null && hit.hitPart() == PipeParts.Part.Facade ? hit.sideHit() : hitResult.getDirection();
+            if (pipe.isWrenchDisconnected(side))
+                disconnect = false;
+        }
+
+        if (disconnect == null) {
+            if (pipe.getModule() != null) {
+                if (level.isClientSide())
+                    return InteractionResult.SUCCESS;
+                if (pipe.getModule().onWrench(pipe, player)) {
+                    WrenchHelper.wrenchUsed(player, hand, pos);
+                    return InteractionResult.SUCCESS;
+                }
+            }
+            if (!pipe.isPipeConnected(side))
+                return InteractionResult.PASS;
+            disconnect = true;
+        }
+
+        if (!level.isClientSide()) {
+            pipe.setWrenchDisconnected(side, disconnect);
             WrenchHelper.wrenchUsed(player, hand, pos);
         }
         return InteractionResult.SUCCESS;

@@ -59,7 +59,7 @@ public final class PipeFluidHandler implements ResourceHandler<FluidResource> {
     public int insert(int index, FluidResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
         if (amount == 0 || !(pipe.getLevel() instanceof ServerLevel level) || pipe.isRemoved()
-                || pipe.kind != PipeType.FLUID || PipeConnections.hasSide(pipe.getPluggedMask(), side))
+                || pipe.kind != PipeType.FLUID || PipeConnections.hasSide(pipe.getBlockedMask(), side))
             return 0;
         BlockPos neighbour = pipe.getBlockPos().relative(side);
         if (!level.isLoaded(neighbour)
