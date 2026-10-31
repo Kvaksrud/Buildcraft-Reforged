@@ -212,8 +212,10 @@ public final class BuildcraftGameTests {
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             QuarryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            AdvancedCraftingTableTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             WorkbenchHopperTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
@@ -413,6 +415,11 @@ public final class BuildcraftGameTests {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, SiliconRecipeTests.MAX_TICKS)));
         }
+        // #73 advanced crafting table: a laser under the table and a chest beside it, in the padded area.
+        for (String name : AdvancedCraftingTableTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, AdvancedCraftingTableTests.MAX_TICKS)));
+        }
         // #59 flow records: running lines watched for 300 ticks, in the padded area like item routing.
         for (String name : FlowRecordTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
@@ -432,6 +439,11 @@ public final class BuildcraftGameTests {
         for (String name : FillerTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, FillerTests.MAX_TICKS)));
+        }
+        // #77 architect: a 3 x 3 x 3 marked area beside the table, scanned into the server's library.
+        for (String name : ArchitectTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, ArchitectTests.MAX_TICKS)));
         }
         // #69 auto workbench and #70 hopper: hoppers, chests, pipes and an engine around them, in the padded area.
         for (String name : WorkbenchHopperTests.TESTS.keySet()) {

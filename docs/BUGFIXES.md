@@ -448,6 +448,24 @@ have (not applicable). The two below were applied.
 | Decision | Accepted (31 Oct 2026, #72): the recipe's own count is the balance number, and the fix makes the table honour it. A tag input removes exactly its count of items in the tag. |
 | Applied in | #72 |
 
+Triage for #73 (`silicon/TileAdvancedCraftingTable`, `gui/GuiAdvancedCraftingTable`,
+`gui/ContainerAdvancedCraftingTable`): `git log 4.2.2..origin/7.1.x` lists 48 commits on the three files. They are the
+1.7 port and the 6.x/7.x refactors (`TileLaserTableBase`, Forge fake player `424a976cd`, packet security `f541cb0cd`,
+style and headers); `082794a7d` adds the On/Off actions that 4.2.2 already has, and `f67d1a29b` (double chests in
+`InventoryIterator`) is covered by `Utils.getInventory` in the port (not applicable). None changes the crafting. The
+7.1.x `locateAndBindIngredients`, `craftItem` and progress bar are the 4.2.2 code. The one below was applied.
+
+#### Advanced Crafting Table progress arrow drawn past its end (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | none (7.1.x draws the same) |
+| Upstream issue | none |
+| Class | `silicon/gui/GuiAdvancedCraftingTable` (`drawGuiContainerBackgroundLayer`) |
+| Symptom | The arrow is 24 px, scaled by the stored energy over one craft's 500 MJ. The table asks lasers for up to ten crafts' worth, so the arrow could be drawn up to 241 px wide, across the GUI and past the texture's edge. Found by reading the code, not reproduced in a 1.6.4 instance. |
+| Decision | Accepted (1 Nov 2026, #73): a drawing error; no balance number or layout changes. The arrow stops at 24 px. |
+| Applied in | #73 |
+
 ### builders
 
 #### BuildCraft#2331: filler corrupts the world on reload

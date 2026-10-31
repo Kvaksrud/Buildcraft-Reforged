@@ -157,7 +157,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
 | Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client. The 4.2.2 chipset, gate and pipe wire recipes and the module recipes ship (#74, `assembly/`); plugs and facades wait for #61. JEI category (#74). GameTests `assembly_*`, `silicon_*`. |
-| Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
+| Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [x] | [ ] | [ ] | Separate block, no metadata. Vanilla crafting recipes with laser power, 5000 FE a craft (MJ × 10); template matching by `c` ore tag. Crafting recipe `OWO/OCO/ORO` with a Redstone Chipset. Model not yet seen in a client. GameTests `advanced_crafting_*`. |
 | Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_red_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_red_chipset`. GameTests `silicon_*`. |
 | Redstone Iron Chipset (`redstoneChipset.1`) | `ItemRedstoneChipset (meta 1)` | `redstone_iron_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_iron_chipset`. GameTests `silicon_*`. |
 | Redstone Golden Chipset (`redstoneChipset.2`) | `ItemRedstoneChipset (meta 2)` | `redstone_gold_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_gold_chipset`. GameTests `silicon_*`. |
@@ -169,7 +169,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Assembly Table (GUI id 0, block meta) | `GuiAssemblyTable / ContainerAssemblyTable` | `assembly_table_block` menu | #72 | [x] | [ ] | [ ] | Menu, data slots and the selection GUI return tested by GameTests `assembly_*`; the screen not yet seen in a client. |
-| Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [ ] | [ ] | [ ] |  |
+| Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [x] | [ ] | [ ] | Menu slots and data slots tested by GameTest `advanced_crafting_laser`; the screen not yet seen in a client. |
 
 ## transport (`BuildCraftTransport`)
 
@@ -315,13 +315,13 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Template (`templateItem`) | `ItemBptTemplate` | `template_item` | #77 | [ ] | [ ] | [ ] |  |
-| Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [ ] | [ ] | [ ] | Library id + author + name in data components. File format, rotation, mirroring and library files (`core/blueprints`) done in #75; PORTING-NOTES "Blueprint file format (#75)". |
+| Template (`templateItem`) | `ItemBptTemplate` | `template_item` | #77 | [x] | [ ] | [ ] | Library id, name and author in the `buildcraftreforged:blueprint` component (`BptItemData`); clean/used icon by the item model's `has_component` condition. GameTest `architect_scan_template`; icons and tooltip not checked in game. |
+| Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [x] | [ ] | [ ] | Library id + author + name in the `buildcraftreforged:blueprint` component (`BptItemData`), PORTING-NOTES "Architect table and blueprint items (#77)". GameTests `architect_scan_blueprint`, `architect_facing_turns_capture`; icons and tooltip not checked in game. File format, rotation, mirroring and library files (`core/blueprints`) done in #75; PORTING-NOTES "Blueprint file format (#75)". |
 | Land Mark (`markerBlock`) | `BlockMarker, TileMarker` | `marker_block` | #29 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Path Mark (`pathMarkerBlock`) | `BlockPathMarker, TilePathMarker` | `path_marker_block` | #30 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderFiller`; breaks and places as the owner and skips a refused spot; status panel (missing materials, red light). GameTests `filler_*`; models, lasers and GUI not checked in game. |
 | Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [ ] | [ ] | [ ] |  |
-| Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [ ] | [ ] | [ ] |  |
+| Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderArchitect`; 200-tick scan into the world's library; facing turns the capture; status panel. GameTests `architect_*`; model, lasers and GUI not checked in game. |
 | Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [ ] | [ ] | [ ] |  |
 
 ### Actions (builders, `BuildersActionProvider`: one per filler pattern)
@@ -340,7 +340,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [ ] | [ ] | [ ] |  |
+| Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [x] | [ ] | [ ] | 4.2.2 slots, progress arrow and name field; one PacketGuiReturn per typed character; status ledger added. Name packet checked by GameTest `architect_scan_blueprint`; screen and typing not checked in game. |
 | Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [ ] | [ ] | [ ] |  |
 | Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [x] | [ ] | [ ] | 4.2.2 slots, pattern widget and arrows; status ledger added. GUI return checked by GameTest `filler_actions_gui_and_save`; screen not checked in game. |
 | Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [ ] | [ ] | [ ] |  |

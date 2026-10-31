@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#c:gametest/advanced_crafting",
+    "#c:gametest/advanced_crafting"
+  ],
+  "result": {
+    "id": "minecraft:echo_shard"
+  }
+}

@@ -3,6 +3,7 @@
     "buildcraftreforged:spring_oil",
     "buildcraftreforged:laser_block",
     "buildcraftreforged:assembly_table_block",
+    "buildcraftreforged:assembly_workbench_block",
     "buildcraftreforged:refinery_block",
     "buildcraftreforged:engine_wood",
     "buildcraftreforged:engine_stone",
@@ -11,6 +12,7 @@
     "buildcraftreforged:flood_gate_block",
     "buildcraftreforged:machine_block",
     "buildcraftreforged:filler_block",
+    "buildcraftreforged:architect_block",
     "buildcraftreforged:block_hopper"
   ]
 }
