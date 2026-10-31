@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "w": "minecraft:crafting_table",
+    "g": "buildcraftreforged:wooden_gear_item"
+  },
+  "pattern": [
+    " g ",
+    "gwg",
+    " g "
+  ],
+  "result": {
+    "id": "buildcraftreforged:auto_workbench_block"
+  }
+}

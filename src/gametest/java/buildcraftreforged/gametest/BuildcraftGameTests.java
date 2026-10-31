@@ -215,6 +215,7 @@ public final class BuildcraftGameTests {
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            WorkbenchHopperTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -431,6 +432,11 @@ public final class BuildcraftGameTests {
         for (String name : FillerTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, FillerTests.MAX_TICKS)));
+        }
+        // #69 auto workbench and #70 hopper: hoppers, chests, pipes and an engine around them, in the padded area.
+        for (String name : WorkbenchHopperTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, WorkbenchHopperTests.MAX_TICKS)));
         }
         // #45 oil fields: wells, lakes and spouts up to 20 blocks out, in a wider padded area.
         for (String name : OilFieldTests.TESTS.keySet()) {

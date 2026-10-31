@@ -1,0 +1,17 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "buildcraftreforged:block/block_hopper"
+      }
+    },
+    {
+      "when": {
+        "blocked": "true"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/status_light"
+      }
+    }
+  ]
+}

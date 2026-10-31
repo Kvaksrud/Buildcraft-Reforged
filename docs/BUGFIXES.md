@@ -372,6 +372,50 @@ pump schematic and blueprints are P6 (not applicable here; #78 should not copy t
 | Decision | Not applicable: Forge's fluid block classes and metadata levels are gone. The gate places the fluid's source state (`FluidUtils.getFluidBlock`), which is always a full block. |
 | Applied in | — |
 
+#### BuildCraft#1786: auto workbench crafts as a home-made player
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`424a976cd05b49f849fb07573bc784bf83ea1710`](https://github.com/BuildCraft/BuildCraft/commit/424a976cd05b49f849fb07573bc784bf83ea1710) ("now uses Forge fake player, close #1786", 13 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1786](https://github.com/BuildCraft/BuildCraft/issues/1786) |
+| Class | `factory/TileAutoWorkbench` (`InternalPlayer`) |
+| Symptom | 4.2.2 crafts through its own `EntityPlayer` subclass named "[BuildCraft]", built in the tile's world. Crafting handlers and other mods see a player that no fake-player check recognises and that belongs to no one. |
+| Decision | Accepted (decided 2026-11-01, #69): the craft runs as the owner's NeoForge fake player (`BuildCraftPlayer.get`, #27), or the "[BuildCraft]" default profile for a workbench no player placed. Container items the craft leaves in that player's inventory are still dropped above the workbench, as 4.2.2 did. |
+| Applied in | #69 |
+
+#### Auto workbench ignores stack-sensitive container items (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`d8d42a3d1715140f598785c3bcdd379c0c3ba0f8`](https://github.com/BuildCraft/BuildCraft/commit/d8d42a3d1715140f598785c3bcdd379c0c3ba0f8) ("Use ItemStack sensitive version of hasContainerItem", 13 Jun 2014, 6.0 line) |
+| Upstream issue | — |
+| Class | `factory/TileAutoWorkbench` (`findRecipe`, `isItemValidForSlot`), `core/gui/slots/SlotWorkbench` |
+| Symptom | 4.2.2 asks `Item.hasContainerItem()`, so an item that leaves a container only for some stacks slips into the grid and loses its container item when crafted. |
+| Decision | Accepted (decided 2026-11-01, #69): the port asks the stack (`Item.getCraftingRemainder(stack)`), the only form 26.x offers. |
+| Applied in | #69 |
+
+#### Chute does not mark itself changed (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`86e2fde283994fdcadb7ac2f8adc77ead7fe3ec6`](https://github.com/BuildCraft/BuildCraft/commit/86e2fde283994fdcadb7ac2f8adc77ead7fe3ec6) ("make hoppers use markDirty properly", 9 Nov 2014, 6.1 line) |
+| Upstream issue | — |
+| Class | `factory/TileHopper` |
+| Symptom | 4.2.2's chute never registers itself as its inventory's listener, so moving items does not mark the tile changed. 1.6.4 saved every loaded chunk anyway; 26.x saves only chunks marked changed, so the move would be lost on reload. |
+| Decision | Accepted (decided 2026-11-01, #70): `TileHopper` registers as its `SimpleInventory`'s listener in the constructor; the auto workbench does the same for its result slot, and its crafting grid marks the tile changed. No 4.2.2 behaviour changes. |
+| Applied in | #70 |
+
+#### Auto workbench rewrites of 6.x and 7.x (not applicable)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`6b3526e739d7d80c8deb7ef0c295fe359ff8cd3d`](https://github.com/BuildCraft/BuildCraft/commit/6b3526e739d7d80c8deb7ef0c295fe359ff8cd3d), [`bd4b856106628cabd360553f63d436ac8ce2691a`](https://github.com/BuildCraft/BuildCraft/commit/bd4b856106628cabd360553f63d436ac8ce2691a) (6.3, retry and rebalance only on change), [`204ebfead0b49aea933111677957d7120a5437c0`](https://github.com/BuildCraft/BuildCraft/commit/204ebfead0b49aea933111677957d7120a5437c0) (7.0 algorithm rewrite "to stop dupe bugs"), [`36f477a1ce7464d417172b9dadcd84c1bbaf75e3`](https://github.com/BuildCraft/BuildCraft/commit/36f477a1ce7464d417172b9dadcd84c1bbaf75e3), [`ab1fdd4d51d1f6a7439126598394917dc68b6887`](https://github.com/BuildCraft/BuildCraft/commit/ab1fdd4d51d1f6a7439126598394917dc68b6887), [`9417e8a59b68f379682b292ad7a9a5203de1920f`](https://github.com/BuildCraft/BuildCraft/commit/9417e8a59b68f379682b292ad7a9a5203de1920f) |
+| Upstream issue | [BuildCraft#2670](https://github.com/BuildCraft/BuildCraft/issues/2670), [BuildCraft#3216](https://github.com/BuildCraft/BuildCraft/issues/3216), [BuildCraft#3307](https://github.com/BuildCraft/BuildCraft/issues/3307) |
+| Class | `factory/TileAutoWorkbench` |
+| Symptom | The 6.3 commits are optimisations. The 7.0 rewrite replaced 4.2.2's template grid with a buffer that takes any items (with power and stamping), and #2670, #3216 and #3307 are bugs of that rewrite (items falling out, fuzzy matching, crafting only after the GUI was opened). |
+| Decision | Not applicable (decided 2026-11-01, #69): the port keeps 4.2.2's template grid and cadence, which none of these bugs touch; the optimisations fail policy point 2's spirit of no behaviour change and are not needed at one recipe lookup per 16 ticks. |
+| Applied in | — |
+
 ### silicon
 
 Triage for #72 (`silicon/TileAssemblyTable`, `BlockLaserTable`, `gui/GuiAssemblyTable`, `gui/ContainerAssemblyTable`,
