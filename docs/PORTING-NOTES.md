@@ -3357,3 +3357,45 @@ New code from `docs/TRANSPORT.md` 10, 11 and Q17; the 4.2.2 `PipeStructureCobble
   and `plug_facade_laser_crafting` (8 plugs and 6 stone facades made under lasers).
 - **Not checked without a client:** the Structure Pipe and Basic Extractor models and items, the stripes and the
   item slide, the JEI entries for plugs and facades (one per facade, the recipe pages).
+
+## Filtered Buffer (#62)
+
+Ported `transport/BlockFilteredBuffer`, `TileFilteredBuffer`, `gui/ContainerFilteredBuffer` and
+`gui/GuiFilteredBuffer`. Changed (additive): `TransportRegistry` (block, item, block entity, menu, item capability),
+`TransportClient` (screen), the pickaxe tag. Decided 2026-11-01.
+
+- **Filter rule as 4.2.2.** Buffer slot *n* takes an item only when filter slot *n* holds the same item; a damageable
+  item matches at any damage, anything else needs equal damage (always 0 now, so it is the item alone). Data
+  components are not compared, as 4.2.2 ignored NBT. `canPlaceItem` is the rule, so it holds for the item capability,
+  the vanilla hopper and the GUI alike.
+- **Every face, every slot.** 4.2.2's tile was a plain `IInventory`, so pipes and hoppers reach all nine buffer slots
+  from any side, in and out. `TileBuildCraft.registerItemHandler` gives the plain-`Container` wrapper, which checks
+  `canPlaceItem` on insert. Extraction takes anything. The filters are not part of the capability.
+- **Filters** are a second `SimpleInventory` of stack size 1, set through phantom slots. `SlotPhantomLockable` refuses
+  changes (fill, adjust, middle-click clear) while the buffer slot under it holds items. Filters do not drop when the
+  block breaks; the buffer slots do (`TileBuildCraft.preRemoveSideEffects`).
+- **`SlotValidated` is still not ported** (Railcraft licence header, see "GUI base classes and ledgers (#25)"). The
+  container has a private nested `SlotValidated` whose `mayPlace` asks `canPlaceItem`, which is all the 4.2.2 class
+  did. Shift-click goes through `BuildCraftContainer.tryShiftItem`, which skips phantom slots and asks `mayPlace`.
+- **Reach.** `stillValid` uses vanilla's 8-block reach check; 4.2.2 only checked that the tile was still there.
+- **GUI.** `GuiFilteredBuffer` is a `GuiBuildCraft` (4.2.2: a plain `GuiContainer`) for the 1.6.4 drawing calls,
+  without ledgers: 175 x 169 on `filtered_buffer_gui.png`, the title centred at y 10, and the grey cover from
+  (176, 0) over each buffer slot whose filter is empty. Slots at 4.2.2's positions: filters (8, 27), buffer (8, 61),
+  inventory (8, 86), hotbar (8, 144).
+- **Block.** Iron (metal sound and colour, pickaxe), hardness 5, a full cube with `filtered_buffer_all` on every face.
+  A click with a pipe in hand passes so the pipe is placed; sneaking passes; any other click opens the GUI. No status
+  panel: the buffer does no work.
+- **Save.** `inventoryStorage` and `inventoryFilters` compounds, each with `items` (4.2.2's tags).
+- **Names.** Block and item `filtered_buffer_block`, block entity `filtered_buffer`, menu `filtered_buffer_block`.
+  Recipe as 4.2.2: planks around a Diamond Transport Pipe, a chest and a piston (`wdw/wcw/wpw`).
+- **Not ported:** 1.6.4's `addCreativeItems` (the creative tab entry replaces it). `TriggerInventoryLevel` already
+  registers 4.2.2's `buildcraft.filteredBuffer.*` tags (#31); the inventory triggers work on the buffer as on any
+  inventory.
+- **Tests.** GameTests (`FilteredBufferTests`, padded area): `filtered_buffer_filters_insert` (an Extractor line and a
+  vanilla hopper feed cobblestone, dirt and a worn pickaxe; only the filtered items go in, each into its column; side
+  capability inserts and the 64 cap), `filtered_buffer_pipe_extracts` (an Extractor line empties a buffer into a chest;
+  a vanilla hopper below a second buffer empties it; the filters stay) and `filtered_buffer_menu_save_and_recipe`
+  (slot positions, locked and unlocked filters, a filter holds one item, shift-click into the right column only, save
+  and load, the recipe, the registry name, drops on break).
+- **Not checked without a client:** the block and item models, the GUI (layout, title, the grey covers), clicks
+  through the real network path (the tests open the menu on the server), and the recipe in the crafting grid.

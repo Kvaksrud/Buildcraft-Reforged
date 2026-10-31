@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "buildcraftreforged:block/filtered_buffer_all"
+  }
+}
