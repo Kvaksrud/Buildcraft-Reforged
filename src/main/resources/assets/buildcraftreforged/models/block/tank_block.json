@@ -1,0 +1,7 @@
+{
+  "parent": "buildcraftreforged:block/template_tank",
+  "textures": {
+    "top": "buildcraftreforged:block/tank_top",
+    "side": "buildcraftreforged:block/tank_bottom_side"
+  }
+}

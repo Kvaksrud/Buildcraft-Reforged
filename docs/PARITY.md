@@ -135,7 +135,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [ ] | [ ] | [ ] |  |
 | Frame (`frameBlock`) | `BlockFrame` | `frame_block` | #67 | [ ] | [ ] | [ ] | Waterloggable; removed with its quarry (section 19.3). |
 | Quarry (`machineBlock`) | `BlockQuarry, TileQuarry` | `machine_block` | #67 | [ ] | [ ] | [ ] | Rule gives `machine_block`; section 6's example says `quarry`. #67 picks one and updates this row. |
-| Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [ ] | [ ] | [ ] |  |
+| Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
 | Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [ ] | [ ] | [ ] |  |
 | Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [ ] | [ ] | [ ] |  |
 | Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [ ] | [ ] | [ ] |  |

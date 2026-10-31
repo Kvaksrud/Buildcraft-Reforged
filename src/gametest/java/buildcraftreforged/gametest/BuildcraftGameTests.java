@@ -56,6 +56,9 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> STATUS_PANEL_WITHOUT_GUI = function("status_panel_without_gui");
     private static final ResourceKey<Consumer<GameTestHelper>> LASER_FEEDS_TARGET = function("laser_feeds_target");
     private static final ResourceKey<Consumer<GameTestHelper>> LASER_TARGET_SEARCH = function("laser_target_search");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_STACKING = function("tank_stacking");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_TRANSFER = function("tank_transfer");
+    private static final ResourceKey<Consumer<GameTestHelper>> TANK_BUCKETS = function("tank_buckets");
 
     private BuildcraftGameTests() {
     }
@@ -90,6 +93,9 @@ public final class BuildcraftGameTests {
             registry.register(STATUS_PANEL_WITHOUT_GUI, StatusTests::panelWithoutGui);
             registry.register(LASER_FEEDS_TARGET, LaserTests::feedsTarget);
             registry.register(LASER_TARGET_SEARCH, LaserTests::targetSearch);
+            registry.register(TANK_STACKING, TankTests::stacking);
+            registry.register(TANK_TRANSFER, TankTests::transfer);
+            registry.register(TANK_BUCKETS, TankTests::buckets);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -154,6 +160,10 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         event.registerTest(id("laser_target_search"), new FunctionGameTestInstance(LASER_TARGET_SEARCH,
                 new TestData<>(environment, EMPTY_STRUCTURE, 160, 0, true)));
+        for (ResourceKey<Consumer<GameTestHelper>> tank : List.of(TANK_STACKING, TANK_TRANSFER, TANK_BUCKETS)) {
+            event.registerTest(tank.identifier(), new FunctionGameTestInstance(tank,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        }
     }
 
     /**

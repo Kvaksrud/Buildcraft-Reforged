@@ -1056,3 +1056,52 @@ Ported: `silicon/BlockLaser`, `silicon/TileLaser`, `core/EntityLaser`, `core/Ent
 - `LaserTests` (GameTests `laser_feeds_target`, `laser_target_search`) has the smallest target, a test-only block
   `gametest_laser_target` that wants 400 FE; they check delivery at 40 FE/t, the beam's head, tail, length and angle,
   the payload round trip, the gate actions, the facing and range limits and an unpowered laser.
+
+## Tank (#64)
+
+- **Blocks and items.** `factory/BlockTank` (a `BaseEntityBlock` with `BlockBuildCraft`'s ticker, as the markers) and
+  `factory/TileTank`, registered in `FactoryRegistry` as `tank_block` (block entity `tank`). `Material.glass` and
+  `setHardness(0.5F)` become glass sound, the hat instrument, strength 0.5, no occlusion, no spawns, not a redstone
+  conductor, no suffocation. Recipe as 4.2.2 (eight glass); the block drops itself and its fluid is lost, as in 4.2.2.
+  `FactoryRegistry` now carries the MMPL header and registers its capabilities from a `RegisterCapabilitiesEvent`
+  listener added in `register(modBus)`.
+- **Textures.** 4.2.2 `getBlockTexture` drew the sides with `tank_stacked_side` when the block below was a tank. Models
+  cannot look at neighbours, so the block state has `joined_below`, set on placement and by `updateShape`, and picks
+  `tank_block` or `tank_block_stacked` (both on `block/template_tank`, a 2..14 × 0..16 × 2..14 cuboid; UVs follow the
+  element, as 1.6.4's did the block bounds). `shouldSideBeRendered` (no top or bottom face between two tanks) is
+  `skipRendering` with `cullface` on the top and bottom faces.
+- **Fluid capability.** `TileTank` is itself a one-slot `ResourceHandler<FluidResource>` for the whole stack:
+  `Capabilities.Fluid.BLOCK` → the tile. The slot is 4.2.2 `getTankInfo`'s composite tank (bottom tank's fluid plus
+  every tank above with the same fluid; capacity up to the first tank with another fluid), which `getTankInfo` now
+  returns as a detached `Tank`. `insert` is 4.2.2 `fill` (refused if the bottom holds another fluid, then bottom tank
+  first and up), `extract` is `drain(FluidStack)` (bottom tank only). Each `Tank` journals itself, so one transaction
+  over several tanks rolls back as one. The 4.2.2 `fill`/`drain`/`canFill`/`canDrain` stay as plain methods. Fixes
+  from BUGFIXES: `canFill`/`canDrain` answer from the bottom tank (upstream aa24a99d9), and `drain(FluidStack)`
+  compares with the bottom tank (upstream 08edcf175).
+- **Stacking.** `moveFluidBelow` each server tick, as 4.2.2. `hasUpdate` is also set by `setChanged`, which every tank
+  change (and every committed transaction) calls, then the 4.2.2 throttle sends the tile state every
+  `2 * updateFactor` ticks.
+- **Buckets.** `onBlockActivated` → `useItemOn` over `FluidUtils.handleRightClick(tile, player, hand, true, true)`
+  (#24), so any container with the item fluid capability works, creative mode keeps the container, and an emptied
+  container goes to the inventory (see BUGFIXES, BuildCraft#2353). As in 4.2.2 a filled container always uses the
+  click, so a full tank never lets a bucket place its fluid; an empty container on an empty tank passes the click on.
+- **Light.** 4.2.2 relit the client from `getFluidLightLevel` (`FluidType.getLightLevel(stack)` now). The tile writes
+  it into the chunk's auxiliary light manager on both sides and `BlockTank.getLightEmission` reads it, as
+  `TileBuildCraft` does for active machines.
+- **Comparator** (new, plan section 6): BuildCraft 7.1's formula, composite amount × 15 / composite capacity, the same
+  for every tank in the stack. Each tank checks it every server tick and calls `updateNeighbourForOutputSignal` when it
+  changes, so a comparator beside any tank follows changes anywhere in the stack.
+- **Renderer** (`factory/render/RenderTank`, registered in `FactoryRenderers`): the render state copies the fluid,
+  `colorRenderCache` and capacity; `submit` applies 4.2.2's translate/scale and submits `FluidRenderer.renderFluid` at
+  stage `amount / capacity × (DISPLAY_STAGES - 1)` in `RenderTypes.entityTranslucent` on the block atlas, with the
+  block's light. 4.2.2 enabled face culling; the render type here draws both sides, because `FluidRenderer`'s winding
+  is not checked in game yet.
+- **Not ported:** `BptBlockTank` (deprecated in 4.2.2; blueprints are P6).
+- **GameTests** (`TankTests`): `tank_stacking` (states, bottom/top lookup, fill from the top tank up through the stack,
+  composite view, another fluid refused, comparator value, breaking the middle tank), `tank_transfer` (aborted
+  transaction across two tanks, fluid falling into the lower tank, a comparator block following it, draining through the
+  upper tank), `tank_buckets` (fill, empty, empty-on-empty passes, a stack of two buckets returns the empty one, a full
+  tank keeps the bucket, creative keeps the bucket, lava lights the tank).
+- **Not checked without a client:** the two models and textures, face culling between stacked tanks, the render layer
+  (picked from the textures' transparency), the fluid renderer (geometry, colour, light), the item model, the light
+  update on the client after a sync.
