@@ -214,6 +214,7 @@ public final class BuildcraftGameTests {
             SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -430,6 +431,11 @@ public final class BuildcraftGameTests {
         for (String name : FillerTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, FillerTests.MAX_TICKS)));
+        }
+        // #45 oil fields: wells, lakes and spouts up to 20 blocks out, in a wider padded area.
+        for (String name : OilFieldTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name), new TestData<>(environment, Level.OVERWORLD,
+                    EMPTY_STRUCTURE, OilFieldTests.MAX_TICKS, 0, true, Rotation.NONE, false, 1, 1, false, OilFieldTests.PADDING)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {

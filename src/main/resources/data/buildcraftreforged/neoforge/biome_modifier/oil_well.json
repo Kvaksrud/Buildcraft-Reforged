@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#buildcraftreforged:has_oil_fields",
+  "features": "buildcraftreforged:oil_well",
+  "step": "lakes"
+}

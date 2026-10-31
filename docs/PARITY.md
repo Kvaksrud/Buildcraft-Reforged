@@ -46,7 +46,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Wrench (`wrenchItem`) | `ItemWrench` | `wrench_item` | #28 | [x] | [ ] | [ ] | Plus `c:tools/wrench` tag both ways (section 6). |
-| Oil spring (`spring.oil`) | `BlockSpring + ItemSpring (meta 1)` | `spring_oil` | #45 | [ ] | [ ] | [ ] | Lives with oil worldgen; normal hardness, drops nothing (section 19.2). |
+| Oil spring (`spring.oil`) | `BlockSpring + ItemSpring (meta 1)` | `spring_oil` | #45 | [x] | [ ] | [x] | Lives with oil worldgen (`energy/BlockSpring`); obsidian hardness, drops nothing (section 19.2). GameTests `oil_spring_flows`, `oil_well_spring`; bedrock look not seen in a client. |
 | Water spring (`spring.water`) | `BlockSpring + ItemSpring (meta 0)` | dropped | — | — | — | — | Dropped with its worldgen and config entry (section 3, Dropped). |
 | Wooden Gear (`woodenGearItem`) | `ItemBuildCraft` | `wooden_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
 | Stone Gear (`stoneGearItem`) | `ItemBuildCraft` | `stone_gear_item` | #18, #21 | [x] | [ ] | [ ] | `ItemBuildCraft` since #21. |
@@ -103,9 +103,9 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Desert Oil Field biome | `BiomeGenOilDesert` | replaced | #45 | [ ] | [ ] | [ ] | Placed feature in vanilla deserts, no biome id (section 6). |
-| Ocean Oil Field biome | `BiomeGenOilOcean` | replaced | #45 | [ ] | [ ] | [ ] | Placed feature in vanilla oceans, no biome id (section 6). |
-| Oil wells and spouts | `OilPopulate` | replaced | #45 | [ ] | [ ] | [ ] | Capped at ground level (section 19.3). |
+| Desert Oil Field biome | `BiomeGenOilDesert` | replaced | #45 | [x] | [ ] | [x] | Oil field regions inside vanilla deserts (`GenLayerBiomeReplacer` noise, ×30 as config `biomes.oilFieldMultiplier`), no biome id (section 6). GameTests `oil_field_regions`, `oil_biome_modifier`; not seen in a generated world. |
+| Ocean Oil Field biome | `BiomeGenOilOcean` | replaced | #45 | [x] | [ ] | [x] | As above, inside vanilla oceans. |
+| Oil wells and spouts | `OilPopulate` | replaced | #45 | [x] | [ ] | [x] | Feature `buildcraftreforged:oil_well`, placed feature and biome modifier as data. Capped at ground level, on the sea floor under water (section 19.3). GameTests `oil_well_medium`, `oil_well_large`, `oil_lake`, `oil_well_ocean`; fields in generated worlds not seen. |
 | Water springs | `SpringPopulate` | dropped | — | — | — | — | Section 3, Dropped. |
 
 ### Triggers (energy, `TileEngine.getTriggers`)

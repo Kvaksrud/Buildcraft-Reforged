@@ -177,6 +177,27 @@ policy point 2. `00a72e8f20` (BuildCraft#2502) undoes a `getTankInfo` change 4.2
 | Decision | Pending: no upstream issue, and not reproduced in a 1.6.4 instance (policy point 1). The port keeps 4.2.2's behaviour. |
 | Applied in | — |
 
+Triage for #45 (`energy/worldgen/OilPopulate`, `GenLayerBiomeReplacer`, `GenLayerAddOil*`, `BiomeGenOil*`,
+`core/BlockSpring`), decided 31 Oct 2026: `git log` on the 5.0.x, 6.0.x and 6.4.x lines for `OilPopulate` lists the
+1.7 port, header and style commits plus the ones below. None was applied. `d5055969b0` ("Oil spouts wasn't visible
+above the ocean surface"), `de38b80e6f` ("Fix oil worldgen for stone-like blocks"), `bf9bfc5c50` ("fix air checks in
+oil generation") and `7af1f9ed05` (BuildCraft#2102) repair block, air and update-flag checks the 1.7 port broke; 4.2.2
+has the working checks, which the port keeps (not applicable). `aa65b484ac` (BuildCraft#1458) and `a698f56719`
+(`chunkX` passed twice to `TerrainGen.populate`) concern the terrain-gen event, which a placed feature does not fire
+(not applicable). `928cc436dd` (BuildCraft#2145, an oil-less Desert Oil Field in 6.1.5) fixes biome-id config
+introduced after 4.2.2 (not applicable). The spout cap is a plan addition (section 19.3), not a fix.
+
+#### Oil generation writes into chunks that are not generated yet (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | — |
+| Class | `energy/worldgen/OilPopulate` (`generateSurfaceDeposit`, `getTopBlock`, `surfaceDeviation`) |
+| Symptom | 4.2.2 places a large well's lake with a radius of up to 44 blocks around a point 8 to 23 blocks into the chunk, and reads ground heights 8 blocks around it, so it reaches up to three chunks away. In 1.6.4 that loads or generates those chunks from inside population (cascading generation and lag); 26.x refuses writes more than one chunk from the generating chunk and crashes on reads beyond its region. |
+| Decision | Accepted: reads and writes are clipped to the chunk and the eight around it (outside reads see air), and the well lies anywhere in its own chunk so the clip box reaches 16 blocks or more on every side. Lake tendrils seldom pass 20 blocks, so only the largest lakes are cut. No balance number changes. |
+| Applied in | #45 |
+
 ### factory
 
 #### BuildCraft#2353: liquid dupe with the tank
