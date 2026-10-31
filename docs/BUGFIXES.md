@@ -86,6 +86,35 @@ bucket mapping introduced by the 1.7 port; the 4.2.2 code does not have them (no
 | Decision | Not applicable: PLAN.md section 19.2 replaces the explosion with fire, so the block is replaced by fire in one call and there is no explosion to order. |
 | Applied in | — |
 
+Triage for #36 (`energy/TileEngine`, `BlockEngine`, `ItemEngine`, `TileEngineWithInventory`), decided 31 Oct 2026:
+`git log` since 4.2.2 on the 6.0 line lists the 1.7 port, header, style, network and MJ API (`IBatteryObject`)
+commits, the creative engine and 5.x's per-part collision boxes and ray traces (`ca1eb0b4ee`, `5d762c6f6d`,
+`84b1d58320`, which fix boxes 4.2.2 does not have: not applicable). `42d0e641b8` (BuildCraft#1584) replaces casts to
+`TileEngine` with `instanceof` checks; the port already uses `instanceof` everywhere (not applicable). The two fixes
+PLAN.md section 3 accepted in advance are below.
+
+#### BuildCraft#1827: engines facing each other pass power back and forth
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`527cc7d6d465149e78b65e47a0170359cd45b7fd`](https://github.com/BuildCraft/BuildCraft/commit/527cc7d6d465149e78b65e47a0170359cd45b7fd) ("do not send power where power is received, close #1827", 18 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1827](https://github.com/BuildCraft/BuildCraft/issues/1827) |
+| Class | Upstream: `transport/PipeTransportPower`. Here: `energy/TileEngine` (`isPoweredTile`) |
+| Symptom | Power goes back where it came from. Upstream fixed it in the power pipe (no power sent to a side that delivers power); in 4.2.2 the same loop exists between two engines facing each other, each a receptor for the other's pulses. |
+| Decision | Accepted (PLAN.md section 3): the upstream commit's pipe code is replaced by the rewrite (section 8), so the rule is applied to engines instead. `isPoweredTile` rejects a neighbour that is an `IPowerEmitter` emitting towards this engine, as `PowerEnergyHandler` already refuses Forge Energy on an emitting side. Engines in a chain still pass power on. GameTest `engine_pushes_into_fe_and_engines`. |
+| Applied in | #36 |
+
+#### BuildCraft#1771: engines do not keep their orientation in blueprints
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`30e4d493b3ea6e551d60e18d5e66a7393cff20c4`](https://github.com/BuildCraft/BuildCraft/commit/30e4d493b3ea6e551d60e18d5e66a7393cff20c4) ("fixed engines orientation, for #1771", 10 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1771](https://github.com/BuildCraft/BuildCraft/issues/1771) |
+| Class | `energy/BptBlockEngine` (`rotateLeft`; `SchematicEngine` upstream) |
+| Symptom | Rotating a blueprint turned engines around the DOWN axis, the wrong way, so built engines faced the wrong side. |
+| Decision | Accepted (PLAN.md section 3): the orientation is `BlockEngine.FACING`, and `BlockEngine.rotate`/`mirror` turn it with the structure as vanilla blocks do, which is what the P6 schematic layer uses (`BlockState.rotate`). `BptBlockEngine` is not ported. |
+| Applied in | #36 |
+
 ### factory
 
 #### BuildCraft#2353: liquid dupe with the tank
@@ -142,6 +171,38 @@ bucket mapping introduced by the 1.7 port; the 4.2.2 code does not have them (no
 | Symptom | Upstream: when the quarry digs out a chest (a dungeon chest, for example), the chest's contents vanish. In 4.2.2 `TileQuarry` collects `getBlockDropped` and then calls `setBlockToAir`; whether the chest's own `breakBlock` spills the contents and the quarry's "collect lost items" pass picks them up is not clear from reading. |
 | Decision | Pending: reproduce in 1.6.4 during #67 (quarry) and #66 (mining well). With the fake player of section 6, breaking goes through `BlockEvent.BreakEvent` and the block's normal removal, which may settle it on its own; the inventory contents must end up in the quarry output either way. |
 | Applied in | — |
+
+### silicon
+
+Triage for #72 (`silicon/TileAssemblyTable`, `BlockLaserTable`, `gui/GuiAssemblyTable`, `gui/ContainerAssemblyTable`,
+`api/recipes/AssemblyRecipe`): `git log 4.2.2..origin/7.1.x` lists 101 commits, almost all the 6.x/7.x rewrite of the
+tables (`TileLaserTableBase`, `AssemblyRecipeManager`, recipe ids, robots, models) and style. Of the rest:
+`e1bb0732286b2441a031812777bdc3814b1d3691` and `bb3bf76bb4a20214a39ac89a67494b5e38089d5a` add null checks for
+recipes or saved stacks that cannot be found; the port's lookups skip what they cannot find already (not applicable).
+`8d3cc1773` ("fixed assembly table networking/GUI", 6.3) repairs the 6.x command packets, which the port does not
+have (not applicable). The two below were applied.
+
+#### Assembly table drops the whole output after a partial insert (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`7acb8b45925613a1c5040c76ebf316bf9ed18782`](https://github.com/BuildCraft/BuildCraft/commit/7acb8b45925613a1c5040c76ebf316bf9ed18782) ("made progress with robot recipes and boards, #1732", 27 May 2014, 6.0 line) |
+| Upstream issue | none |
+| Class | `silicon/TileAssemblyTable` (`updateEntity`) |
+| Symptom | When an inventory or pipe next to the table takes part of the output, 4.2.2 still drops `currentRecipe.output.copy()`, the whole output, on top: items are duplicated. Upstream drops `remaining`. |
+| Decision | Accepted (31 Oct 2026, #72): a dupe, no balance change. The drop is `remaining`. |
+| Applied in | #72 |
+
+#### Assembly table takes too few items for an Ore Dictionary input (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`cc0298ce5bc255ee2209c8995c81fd3ca4312aca`](https://github.com/BuildCraft/BuildCraft/commit/cc0298ce5bc255ee2209c8995c81fd3ca4312aca) ("Clean up Recipe API", 1 Dec 2013, 5.0 line), which replaced the loop |
+| Upstream issue | none |
+| Class | `silicon/TileAssemblyTable` (`useItems`) |
+| Symptom | For an Ore Dictionary input of count `n`, 4.2.2 loops `for (num = 0; num < required; num++)` while counting `required` down inside the loop, so it removes about half of `n` from each ore stack. No 4.2.2 recipe needs more than one of an ore input (the pipe wires take one dye), so it never showed in the base mod; recipes from other mods or data packs would craft for less. |
+| Decision | Accepted (31 Oct 2026, #72): the recipe's own count is the balance number, and the fix makes the table honour it. A tag input removes exactly its count of items in the tag. |
+| Applied in | #72 |
 
 ### builders
 

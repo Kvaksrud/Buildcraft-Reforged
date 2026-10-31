@@ -9,8 +9,8 @@
  * Modified by Buildcraft Reforged, 2026: block ids and metadata become BlockState; the options come from
  * BuildCraftConfiguration; Forge fluid blocks become
  * LiquidBlock; the drop list comes from loot tables with the BuildCraft player as breaker; the single-block explosion
- * is rebuilt from destroyBlock, particles and sound; the BuildCraft player is a marked seam for the owner-profile fake
- * player (#27).
+ * is rebuilt from destroyBlock, particles and sound; blocks are broken as a fake player (the machine owner's, #27, see
+ * BuildCraftPlayer) after BreakBlockEvent allows it, and breakBlock says whether it broke the block.
  */
 package buildcraftreforged.core.utils;
 
@@ -33,7 +33,6 @@ import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.material.Fluid;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import org.jspecify.annotations.Nullable;
@@ -41,16 +40,20 @@ import org.jspecify.annotations.Nullable;
 public class BlockUtil {
 
     /**
-     * SEAM(#27): the player BuildCraft machines break and place blocks as; 4.2.2's
-     * {@code CoreProxy.proxy.getBuildCraftPlayer(world)}. #27 replaces this with the fake player carrying the owner's
-     * game profile, so claim mods see the owner. Every break path in this class asks this method for its player; place
-     * paths (builder, filler, pump) must ask it too when they are ported.
+     * 4.2.2's {@code CoreProxy.proxy.getBuildCraftPlayer(world)}: the "[BuildCraft]" fake player, for callers with no
+     * machine at hand. Machines use their owner's player instead, BuildCraftPlayer.get(tile), and pass it to the
+     * overloads below that take a Player.
      */
     public static Player getBuildCraftPlayer(ServerLevel world) {
-        return FakePlayerFactory.getMinecraft(world);
+        return BuildCraftPlayer.get(world, null);
     }
 
     public static @Nullable List<ItemStack> getItemStackFromBlock(ServerLevel world, int i, int j, int k) {
+        return getItemStackFromBlock(world, i, j, k, getBuildCraftPlayer(world));
+    }
+
+    /** The drops of the block, with player as breaker. Does not ask BreakBlockEvent; see BuildCraftPlayer.canBreak. */
+    public static @Nullable List<ItemStack> getItemStackFromBlock(ServerLevel world, int i, int j, int k, Player player) {
         BlockPos pos = new BlockPos(i, j, k);
         BlockState state = world.getBlockState(pos);
 
@@ -59,22 +62,38 @@ public class BlockUtil {
 
         // 4.2.2 fired ForgeEventFactory.fireBlockHarvesting here; the loot tables now take the breaker and NeoForge's
         // BlockDropsEvent fires when the drops are spawned through Block.dropResources, which breakBlock does not use.
-        List<ItemStack> dropsList = Block.getDrops(state, world, pos, world.getBlockEntity(pos), getBuildCraftPlayer(world), ItemStack.EMPTY);
+        List<ItemStack> dropsList = Block.getDrops(state, world, pos, world.getBlockEntity(pos), player, ItemStack.EMPTY);
 
         return new ArrayList<ItemStack>(dropsList);
     }
 
-    public static void breakBlock(Level world, int x, int y, int z) {
-        breakBlock(world, x, y, z, BuildCraftConfiguration.itemLifespan.get());
+    public static boolean breakBlock(Level world, int x, int y, int z) {
+        return breakBlock(world, x, y, z, BuildCraftConfiguration.itemLifespan.get());
     }
 
-    public static void breakBlock(Level world, int x, int y, int z, int forcedLifespan) {
+    public static boolean breakBlock(Level world, int x, int y, int z, int forcedLifespan) {
+        Player player = world instanceof ServerLevel serverLevel ? getBuildCraftPlayer(serverLevel) : null;
+        return breakBlock(world, x, y, z, forcedLifespan, player);
+    }
+
+    /** Breaks the block as player (the machine owner's, from BuildCraftPlayer.get(tile)) with the configured lifespan. */
+    public static boolean breakBlock(Level world, int x, int y, int z, @Nullable Player player) {
+        return breakBlock(world, x, y, z, BuildCraftConfiguration.itemLifespan.get(), player);
+    }
+
+    /**
+     * Breaks the block as player and drops what it drops. False, with the block left alone, when BreakBlockEvent was
+     * cancelled for player (a protected or claimed block); 4.2.2 broke blocks without asking. A null player (client
+     * side) asks no one.
+     */
+    public static boolean breakBlock(Level world, int x, int y, int z, int forcedLifespan, @Nullable Player player) {
         BlockPos pos = new BlockPos(x, y, z);
 
-        // SEAM(#27): 4.2.2 broke blocks without asking anyone. #27 fires BlockEvent.BreakEvent for
-        // getBuildCraftPlayer(world) here and returns without breaking when it is cancelled.
+        if (player != null && !BuildCraftPlayer.canBreak(player, world, pos))
+            return false;
+
         if (!world.isEmptyBlock(pos) && BuildCraftConfiguration.dropBrokenBlocks.get() && world instanceof ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.BLOCK_DROPS)) {
-            List<ItemStack> items = getItemStackFromBlock(serverLevel, x, y, z);
+            List<ItemStack> items = getItemStackFromBlock(serverLevel, x, y, z, player != null ? player : getBuildCraftPlayer(serverLevel));
 
             for (ItemStack item : items) {
                 float var = 0.7F;
@@ -91,6 +110,7 @@ public class BlockUtil {
         }
 
         world.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+        return true;
     }
 
     public static boolean canChangeBlock(Level world, int x, int y, int z) {
