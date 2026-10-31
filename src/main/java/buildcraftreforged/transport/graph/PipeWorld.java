@@ -23,6 +23,14 @@ public interface PipeWorld {
         byte getConnectionMask();
 
         @Nullable PipeModuleType getModuleType();
+
+        /**
+         * Whether the pipe's module lets a routing walk leave by {@code side} (docs/TRANSPORT.md 4.2 step 4; the
+         * Director allows only its facing). Read live by the walk, so a facing change needs no rebuild.
+         */
+        default boolean allowsOutput(Direction side) {
+            return true;
+        }
     }
 
     /** The loaded, live pipe at {@code pos}, or null. A removed or unloaded pipe is absent. */

@@ -7,6 +7,7 @@ import buildcraftreforged.api.transport.IPipeTile;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeWorld;
+import buildcraftreforged.transport.module.PipeModule;
 import buildcraftreforged.transport.route.PipeBudget;
 import buildcraftreforged.transport.route.PipeItemHandler;
 import net.minecraft.core.BlockPos;
@@ -14,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,6 +39,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Loading, removal (including chunk unload), a mask change and a plug or module change invalidate the cached
  * network around the pipe ({@link PipeNetworks}, docs/TRANSPORT.md 3.4).
  *
+ * <p>The module ({@link PipeModule}, docs/TRANSPORT.md 8) is saved with its settings; only its type reaches the client.
+ * It hears about connection updates, decides which sides the routing walk may leave by, and is dropped as its item
+ * when the pipe is broken.
+ *
  * <p>Item pipes take pushes through the item capability and route them at once ({@link PipeItemHandler},
  * docs/TRANSPORT.md 6.2); every pipe keeps its throughput {@link PipeBudget} (5). Fluid locks and flow records of 3.1
  * belong to #51 and #59. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
@@ -50,7 +56,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     public final PipeType kind;
     private byte connectionMask;
     private byte pluggedMask;
-    private @Nullable PipeModuleType moduleType;
+    private @Nullable PipeModule module;
     private boolean connectionsDirty = true;
     private final BlockCapabilityCache<?, ?>[] endpointCaches = new BlockCapabilityCache<?, ?>[6];
     private final PipeBudget budget = new PipeBudget();
@@ -70,7 +76,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     }
 
     public @Nullable PipeModuleType getModuleType() {
-        return moduleType;
+        return module == null ? null : module.type;
+    }
+
+    public @Nullable PipeModule getModule() {
+        return module;
     }
 
     public int getTier() {
@@ -89,7 +99,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     }
 
     public PipeConnections.PipeEnd end() {
-        return new PipeConnections.PipeEnd(kind, pluggedMask, moduleType);
+        return new PipeConnections.PipeEnd(kind, pluggedMask, getModuleType());
     }
 
     /** Plugs (#61) call this. A plugged side never connects, on either pipe. */
@@ -101,12 +111,37 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         }
     }
 
-    /** Module fitting (#55) calls this. The module decides Isolator and ban rules. */
-    public void setModuleType(@Nullable PipeModuleType module) {
-        if (module != moduleType) {
-            moduleType = module;
-            onConfigurationChanged();
-        }
+    /** Fits a new module of {@code type} with default settings, or removes the module for null. */
+    public void setModuleType(@Nullable PipeModuleType type) {
+        if (type != getModuleType())
+            setModule(type == null ? null : PipeModule.create(type));
+    }
+
+    /**
+     * Fits {@code newModule} (null removes the module). The module decides Isolator and ban rules, so connections are
+     * recomputed and the network is rebuilt.
+     */
+    public void setModule(@Nullable PipeModule newModule) {
+        if (newModule == module)
+            return;
+        boolean server = level != null && !level.isClientSide();
+        if (module != null && server)
+            module.onRemoved(this);
+        module = newModule;
+        if (module != null && server)
+            module.onInstalled(this);
+        onConfigurationChanged();
+        if (server)
+            sendNetworkUpdate();
+    }
+
+    /** Removes the module and returns its item with its settings (empty when there is none or it has no item). */
+    public ItemStack removeModule() {
+        if (module == null || level == null)
+            return ItemStack.EMPTY;
+        ItemStack stack = module.toItem(level.registryAccess());
+        setModule(null);
+        return stack;
     }
 
     private void onConfigurationChanged() {
@@ -149,7 +184,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         if (connectionsDirty)
             updateConnections();
         // Sources are ticked per network (PipeSources), so a source makes sure its network exists.
-        if (moduleType != null && moduleType.isSource() && level instanceof ServerLevel serverLevel)
+        if (module != null && module.type.isSource() && level instanceof ServerLevel serverLevel)
             PipeNetworks.get(serverLevel, worldPosition);
     }
 
@@ -179,6 +214,9 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
                     != PipeConnections.hasSide(mask, side))
                 neighbour.scheduleConnectionUpdate();
         }
+
+        if (module != null)
+            module.onNeighbourChange(this);
     }
 
     private boolean computeConnection(Direction side) {
@@ -264,6 +302,26 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return itemHandlers[index];
     }
 
+    /** The module decides which sides the routing walk may leave by (the Director, docs/TRANSPORT.md 8.4). */
+    @Override
+    public boolean allowsOutput(Direction side) {
+        return module == null || module.allowsOutput(this, side);
+    }
+
+    /** Breaking the pipe drops the module as its item, with its settings. */
+    @Override
+    public void destroy() {
+        super.destroy();
+        Level world = level;
+        if (world != null && !world.isClientSide() && module != null) {
+            ItemStack stack = module.toItem(world.registryAccess());
+            module.onRemoved(this);
+            module = null;
+            if (!stack.isEmpty())
+                Block.popResource(world, worldPosition, stack);
+        }
+    }
+
     @Override
     public boolean isSolidOnSide(Direction side) {
         // SEAM(#61): facades.
@@ -276,14 +334,18 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.putByte("plugs", pluggedMask);
-        output.storeNullable("module", PipeModuleType.CODEC, moduleType);
+        output.storeNullable("module", PipeModuleType.CODEC, getModuleType());
+        if (module != null)
+            module.save(output.child("module_settings"));
     }
 
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         pluggedMask = input.getByteOr("plugs", (byte) 0);
-        moduleType = input.read("module", PipeModuleType.CODEC).orElse(null);
+        module = input.read("module", PipeModuleType.CODEC).map(PipeModule::create).orElse(null);
+        if (module != null)
+            module.load(input.childOrEmpty("module_settings"));
         scheduleConnectionUpdate();
     }
 
@@ -291,12 +353,20 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     public void writePacketPayload(RegistryFriendlyByteBuf data) {
         super.writePacketPayload(data);
         data.writeByte(connectionMask);
+        PipeModuleType type = getModuleType();
+        data.writeByte(type == null ? -1 : type.ordinal());
     }
 
     @Override
     public void readPacketPayload(RegistryFriendlyByteBuf data) {
         super.readPacketPayload(data);
         connectionMask = (byte) (data.readByte() & 63);
+        // The client keeps a module of the synced type with default settings: enough to know what using the pipe does.
+        int type = data.readByte();
+        PipeModuleType[] types = PipeModuleType.values();
+        PipeModuleType synced = type >= 0 && type < types.length ? types[type] : null;
+        if (synced != getModuleType())
+            module = synced == null ? null : PipeModule.create(synced);
     }
 
     /** Client: the new mask picks another cached model and shape, so refresh the model data and re-mesh. */

@@ -4,10 +4,18 @@ import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.core.BlockBuildCraft;
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.DefaultProps;
+import buildcraftreforged.core.WrenchHelper;
+import buildcraftreforged.transport.module.PipeModule;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Prediction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -25,6 +33,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -105,6 +114,49 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
         super.neighborChanged(state, level, pos, block, orientation, movedByPiston);
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TilePipe pipe)
             pipe.scheduleConnectionUpdate();
+    }
+
+    /**
+     * Modules (docs/TRANSPORT.md 8.1, Q18): a wrench turns the module (its {@code onWrench}), a sneaking wrench takes it
+     * off and hands back its item with the settings. A block item is placed as usual; anything else falls through to
+     * {@link #useWithoutItem}, which opens the module's GUI (4.2.2 {@code PipeItemsEmerald.blockActivated}). Module
+     * items fit themselves ({@code ItemPipeModule.useOn}).
+     */
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult) {
+        if (!(level.getBlockEntity(pos) instanceof TilePipe pipe) || pipe.getModule() == null)
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+        if (WrenchHelper.isWrench(stack)) {
+            if (!WrenchHelper.canWrench(player, hand, pos))
+                return InteractionResult.PASS;
+            if (!level.isClientSide()) {
+                if (player.isShiftKeyDown()) {
+                    ItemStack module = pipe.removeModule();
+                    if (!module.isEmpty())
+                        player.getInventory().placeItemBackInInventory(module, Prediction.SERVER_ONLY);
+                } else if (!pipe.getModule().onWrench(pipe, player)) {
+                    return InteractionResult.PASS;
+                }
+                WrenchHelper.wrenchUsed(player, hand, pos);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        if (stack.getItem() instanceof BlockItem)
+            return InteractionResult.PASS;
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+            BlockHitResult hitResult) {
+        PipeModule module = level.getBlockEntity(pos) instanceof TilePipe pipe ? pipe.getModule() : null;
+        MenuProvider menu = module == null ? null : module.getMenuProvider((TilePipe) level.getBlockEntity(pos));
+        if (menu == null)
+            return super.useWithoutItem(state, level, pos, player, hitResult);
+        if (!level.isClientSide())
+            player.openMenu(menu, pos);
+        return InteractionResult.SUCCESS;
     }
 
     @Override

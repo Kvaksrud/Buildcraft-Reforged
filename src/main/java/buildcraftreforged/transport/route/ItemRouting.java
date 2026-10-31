@@ -11,6 +11,7 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
+import java.util.function.Predicate;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -38,8 +39,9 @@ public final class ItemRouting {
     private ItemRouting() {
     }
 
+    /** The live item handler of an endpoint, or null when the block no longer has one. */
     @SuppressWarnings("unchecked")
-    static @Nullable ResourceHandler<ItemResource> handler(PipeNetwork.Endpoint endpoint) {
+    public static @Nullable ResourceHandler<ItemResource> handler(PipeNetwork.Endpoint endpoint) {
         return endpoint.cache() == null ? null : (ResourceHandler<ItemResource>) endpoint.cache().getCapability();
     }
 
@@ -69,6 +71,15 @@ public final class ItemRouting {
      */
     public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
             ResourceHandler<ItemResource> source) {
+        return extract(level, network, node, facing, source, resource -> true);
+    }
+
+    /**
+     * {@link #extract(ServerLevel, PipeNetwork, int, Direction, ResourceHandler)} from the slots whose resource passes
+     * {@code filter} only (the Filtered Extractor, docs/TRANSPORT.md 8.3). SOURCE_EMPTY when no slot matches.
+     */
+    public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
+            ResourceHandler<ItemResource> source, Predicate<ItemResource> filter) {
         ResourceRouter.Settings settings = settings();
         long now = level.getGameTime();
         long items = ROUTER.available(network.nodes[node], now, settings) / ITEM_COST;
@@ -79,7 +90,7 @@ public final class ItemRouting {
         TransferResult result = TransferResult.SOURCE_EMPTY;
         for (int slot = 0; slot < source.size(); slot++) {
             ItemResource resource = source.getResource(slot);
-            if (resource.isEmpty())
+            if (resource.isEmpty() || !filter.test(resource))
                 continue;
             int want = (int) Math.min(items, source.getAmountAsInt(slot));
             if (want <= 0)

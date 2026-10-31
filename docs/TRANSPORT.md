@@ -548,6 +548,11 @@ Director module on a power pipe carries it (Q7, decided).
 | Filtered Colour Tag | `PipeItemsEmzuli` | yes | no | no |
 | Isolator | `PipeItemsSandstone`, `PipeFluidsSandstone` | yes | yes | no |
 
+As built (#55, 2026-10-31): the hooks are `PipeModule` methods (`onInstalled`, `onRemoved`, `onNeighbourChange`,
+`allowsOutput`, `tickSource`, `onWrench`, `getMenuProvider`, `save`/`load`); `isSink` and `isSource` stay on
+`PipeModuleType`; `filterCandidates`, `onEntered` and `actions()` come with #56, #57 and #60. A sneaking wrench puts
+the module item in the player's inventory rather than on the ground. See `docs/PORTING-NOTES.md`, "Pipe modules".
+
 "Same item" below means `ItemStack.isSameItem` (data components ignored). 4.2.2 compared id and damage, but ignored
 damage for items without subtypes (`StackHelper.isMatchingItem`), and flattening turned subtypes into separate items.
 

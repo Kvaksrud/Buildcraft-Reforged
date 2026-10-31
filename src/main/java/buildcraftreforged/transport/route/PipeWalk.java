@@ -42,9 +42,9 @@ public final class PipeWalk {
             return node.module == PipeModuleType.VOID;
         }
 
-        /** Whether the pipe's module lets the walk leave by {@code side}. #55 makes the Director say no here (8.4). */
+        /** Whether the pipe's module lets the walk leave by {@code side}: the Director allows only its facing (8.4). */
         default boolean allowsOutput(PipeNode node, Direction side) {
-            return true;
+            return node.pipe.allowsOutput(side);
         }
 
         /** A simulated insert into this endpoint accepts at least one unit (4.2 step 4). */

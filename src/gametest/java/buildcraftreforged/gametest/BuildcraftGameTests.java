@@ -128,6 +128,7 @@ public final class BuildcraftGameTests {
             for (PipeMaterial material : PipeMaterial.values()) {
                 registry.register(throughput(material), helper -> ItemRoutingTests.throughput(helper, material));
             }
+            ModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -219,6 +220,11 @@ public final class BuildcraftGameTests {
         for (PipeMaterial material : PipeMaterial.values()) {
             event.registerTest(throughput(material).identifier(), new FunctionGameTestInstance(throughput(material),
                     padded(environment, Level.OVERWORLD, ItemRoutingTests.WINDOW_END + 20)));
+        }
+        // #55 modules: lines of pipes and chests, in the padded area like item routing.
+        for (String name : ModuleTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, ModuleTests.MAX_TICKS)));
         }
     }
 

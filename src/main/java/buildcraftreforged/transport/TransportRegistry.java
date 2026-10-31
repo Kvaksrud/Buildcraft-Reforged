@@ -7,20 +7,31 @@ import buildcraftreforged.core.ItemBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
+import buildcraftreforged.transport.module.ContainerFilteredExtractor;
+import buildcraftreforged.transport.module.ItemPipeModule;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Registry entries of the transport module, the registration half of 4.2.2's BuildCraftTransport. Add entries here as the module
@@ -47,6 +58,23 @@ public final class TransportRegistry {
         }
     }
 
+    private static final Map<PipeModuleType, DeferredItem<ItemPipeModule>> MODULE_ITEMS = new EnumMap<>(PipeModuleType.class);
+
+    /** The module items (docs/TRANSPORT.md 8.1). #56 and #57 add theirs with {@link #module}. */
+    public static final DeferredItem<ItemPipeModule> extractorModule = module(PipeModuleType.EXTRACTOR, "moduleExtractor");
+    public static final DeferredItem<ItemPipeModule> filteredExtractorModule =
+            module(PipeModuleType.FILTERED_EXTRACTOR, "moduleFilteredExtractor");
+    public static final DeferredItem<ItemPipeModule> directorModule = module(PipeModuleType.DIRECTOR, "moduleDirector");
+
+    /** A module item's settings, kept when the module is taken off a pipe (Q18). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<CustomData>> moduleSettings =
+            REGISTERS.dataComponents.registerComponentType("module_settings",
+                    builder -> builder.persistent(CustomData.CODEC).networkSynchronized(CustomData.STREAM_CODEC));
+
+    /** 4.2.2 {@code GuiIds.PIPE_EMERALD_ITEM}. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerFilteredExtractor>> filteredExtractorMenu =
+            REGISTERS.menus.register("filtered_extractor", () -> IMenuTypeExtension.create(ContainerFilteredExtractor::new));
+
     /** 4.2.2 registered TileGenericPipe as one tile class for every pipe; here one type is valid for every pipe block. */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TilePipe>> pipeTile = REGISTERS.blockEntityTypes
             .register("pipe", () -> new BlockEntityType<>(TilePipe::new,
@@ -70,6 +98,27 @@ public final class TransportRegistry {
                 ItemBuildCraft::new, properties -> properties.overrideDescription("item." + unlocalizedName));
         CreativeTabBuildCraft.MACHINES.add(item);
         return item;
+    }
+
+    private static DeferredItem<ItemPipeModule> module(PipeModuleType type, String unlocalizedName) {
+        DeferredItem<ItemPipeModule> item = REGISTERS.items.registerItem(RegistryNames.of(unlocalizedName),
+                properties -> new ItemPipeModule(type, properties),
+                properties -> properties.overrideDescription("item." + unlocalizedName));
+        CreativeTabBuildCraft.MACHINES.add(item);
+        MODULE_ITEMS.put(type, item);
+        return item;
+    }
+
+    /** The item of a module type, or null for a type that has none yet. */
+    public static @Nullable Item getModuleItem(PipeModuleType type) {
+        DeferredItem<ItemPipeModule> item = MODULE_ITEMS.get(type);
+        return item == null ? null : item.get();
+    }
+
+    /** The module's name (its item's), also the title of the module's GUI. */
+    public static Component moduleName(PipeModuleType type) {
+        Item item = getModuleItem(type);
+        return item == null ? Component.literal(type.getSerializedName()) : item.getName(new ItemStack(item));
     }
 
     private static void registerPipe(PipeDefinition definition) {
