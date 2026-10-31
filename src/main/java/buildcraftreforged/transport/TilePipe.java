@@ -7,6 +7,7 @@ import buildcraftreforged.api.transport.IPipeTile;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeWorld;
+import buildcraftreforged.transport.module.ModuleDirector;
 import buildcraftreforged.transport.module.PipeModule;
 import buildcraftreforged.transport.route.PipeBudget;
 import buildcraftreforged.transport.route.PipeEnergyHandler;
@@ -115,8 +116,13 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return powerState;
     }
 
-    /** The Power Limiter's FE/t (docs/TRANSPORT.md 7.4, Q7), or 0 for none. */
+    /**
+     * The Power Limiter's FE/t (docs/TRANSPORT.md 7.4, Q7), or 0 for none: a fitted Director's mode, else what
+     * {@link #setPowerLimit} set.
+     */
     public int getPowerLimit() {
+        if (kind == PipeType.POWER && module instanceof ModuleDirector director)
+            return director.getPowerLimit();
         return powerLimit;
     }
 
@@ -131,7 +137,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     /** The power budget's refill per tick: the tier's FE/t, lowered by the Power Limiter if one is set. */
     public long getPowerRefill() {
         int tier = getTierStats().powerPerTick();
-        return powerLimit > 0 ? Math.min(tier, powerLimit) : tier;
+        int limit = getPowerLimit();
+        return limit > 0 ? Math.min(tier, limit) : tier;
     }
 
     public PipeConnections.PipeEnd end() {

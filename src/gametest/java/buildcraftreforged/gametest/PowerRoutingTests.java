@@ -8,8 +8,11 @@ import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.energy.BlockEngine;
 import buildcraftreforged.transport.PipeFlow;
 import buildcraftreforged.transport.PipeMaterial;
+import buildcraftreforged.transport.PipeModuleType;
+import buildcraftreforged.transport.PowerMode;
 import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
+import buildcraftreforged.transport.module.ModuleDirector;
 import buildcraftreforged.transport.route.PowerRouting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -191,9 +194,10 @@ final class PowerRoutingTests {
 
     /**
      * Section 7.4, Power Limiter (Q7): a Director on a power pipe lowers its refill. A gold line (1 280 FE/t) with a 160
-     * FE/t limit on one pipe passes 160 FE/t; a limit above the tier changes nothing. The saturated pipe is overloaded
-     * after 60 ticks; the receivers asked for more than it passed (Q21). The Pipe Contents flow (#60) reads the same. An
-     * idle line whose sink wants power requests energy without any push (asked directly), and nothing flows there.
+     * FE/t limit (a Director in mode M16) on one pipe passes 160 FE/t; a limit above the tier changes nothing. The
+     * saturated pipe is overloaded after 60 ticks; the receivers asked for more than it passed (Q21). The Pipe Contents
+     * flow (#60) reads the same. An idle line whose sink wants power requests energy without any push (asked directly),
+     * and nothing flows there.
      */
     static void limiter(GameTestHelper helper) {
         helper.setBlock(at(0, 0), sourceBlock);
@@ -204,7 +208,10 @@ final class PowerRoutingTests {
         }
         helper.setBlock(at(0, 4), sinkBlock);
         Sink sink = helper.getBlockEntity(at(0, 4), Sink.class);
-        tile(helper, 0, 2).setPowerLimit(160);
+        // The Director on a power pipe is the Power Limiter (Q7): its mode caps the pipe.
+        TilePipe limitedPipe = tile(helper, 0, 2);
+        limitedPipe.setModuleType(PipeModuleType.DIRECTOR);
+        ((ModuleDirector) limitedPipe.getModule()).setPowerMode(limitedPipe, PowerMode.M16);
         tile(helper, 0, 3).setPowerLimit(100_000);
         pipe(helper, 2, 1, PipeMaterial.GOLD);
         helper.setBlock(at(2, 2), sinkBlock);
