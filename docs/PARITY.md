@@ -89,9 +89,9 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37 | [ ] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36. |
-| Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38 | [ ] | [ ] | [ ] |  |
-| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44 | [ ] | [ ] | [ ] |  |
+| Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37, #39 | [ ] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36; renderer, base/trunk/chamber textures and the `buildcraftreforged:engine` item model type in #39. |
+| Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
+| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
 | Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [x] | [ ] | [ ] | `FluidType` `oil` plus source fluid `oil` and flowing fluid `flowing_oil`. Density 800, viscosity 1500, ticks every 7. |
 | Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [x] | [ ] | [ ] | As above: `fuel` and `flowing_fuel`, ticks every 5. |
 | Oil (block) (`blockOil`) | `BlockBuildcraftFluid` | `block_oil` | #42 | [x] | [ ] | [ ] | Nether: fire instead of explosion (section 19.2). Flow, buckets and the Nether rule pass GameTests; textures and drips not seen in a client. |

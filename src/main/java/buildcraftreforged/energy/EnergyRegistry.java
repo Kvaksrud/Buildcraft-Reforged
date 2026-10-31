@@ -25,6 +25,7 @@ import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.fluids.BCFluid;
 import com.mojang.serialization.MapCodec;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -64,6 +65,11 @@ public final class EnergyRegistry {
     /** Every engine's block entity type, for the capabilities. Declared before any engine() field. */
     private static final List<DeferredHolder<BlockEntityType<?>, ? extends BlockEntityType<? extends TileEngine>>> ENGINE_TILES =
             new ArrayList<>();
+
+    /** Every engine's block entity type, for the engine renderer (EnergyProxyClient). */
+    public static List<DeferredHolder<BlockEntityType<?>, ? extends BlockEntityType<? extends TileEngine>>> engineTiles() {
+        return Collections.unmodifiableList(ENGINE_TILES);
+    }
 
     // Engines (#37, #38, #44) go here, below ENGINE_TILES:
     // public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);
