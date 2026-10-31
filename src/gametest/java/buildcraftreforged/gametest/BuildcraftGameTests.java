@@ -1,6 +1,7 @@
 package buildcraftreforged.gametest;
 
 import buildcraftreforged.BuildcraftReforged;
+import buildcraftreforged.transport.PipeMaterial;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.core.Holder;
@@ -71,6 +72,11 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_BREAK = function("owner_break");
     private static final ResourceKey<Consumer<GameTestHelper>> OWNER_PLACE = function("owner_place");
 
+    private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_CHEST_TO_CHEST = function("item_routing_chest_to_chest");
+    private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_HOPPER_PUSH = function("item_routing_hopper_push");
+    private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_BRANCHING = function("item_routing_branching");
+    private static final ResourceKey<Consumer<GameTestHelper>> ITEM_ROUTING_BUDGETS = function("item_routing_budgets");
+
     private BuildcraftGameTests() {
     }
 
@@ -115,6 +121,13 @@ public final class BuildcraftGameTests {
             registry.register(OWNER_RECORDED_AND_SAVED, OwnerTests::recordedAndSaved);
             registry.register(OWNER_BREAK, OwnerTests::breakAsOwner);
             registry.register(OWNER_PLACE, OwnerTests::placeAsOwner);
+            registry.register(ITEM_ROUTING_CHEST_TO_CHEST, ItemRoutingTests::chestToChest);
+            registry.register(ITEM_ROUTING_HOPPER_PUSH, ItemRoutingTests::hopperPush);
+            registry.register(ITEM_ROUTING_BRANCHING, ItemRoutingTests::branching);
+            registry.register(ITEM_ROUTING_BUDGETS, ItemRoutingTests::budgets);
+            for (PipeMaterial material : PipeMaterial.values()) {
+                registry.register(throughput(material), helper -> ItemRoutingTests.throughput(helper, material));
+            }
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -197,6 +210,20 @@ public final class BuildcraftGameTests {
             event.registerTest(owner.identifier(), new FunctionGameTestInstance(owner,
                     new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
         }
+        // Item routing builds lines longer than the 5-block spacing between tests, so it uses the padded area too.
+        for (ResourceKey<Consumer<GameTestHelper>> routing : List.of(ITEM_ROUTING_CHEST_TO_CHEST, ITEM_ROUTING_HOPPER_PUSH,
+                ITEM_ROUTING_BRANCHING, ITEM_ROUTING_BUDGETS)) {
+            event.registerTest(routing.identifier(), new FunctionGameTestInstance(routing,
+                    padded(environment, Level.OVERWORLD, 120)));
+        }
+        for (PipeMaterial material : PipeMaterial.values()) {
+            event.registerTest(throughput(material).identifier(), new FunctionGameTestInstance(throughput(material),
+                    padded(environment, Level.OVERWORLD, ItemRoutingTests.WINDOW_END + 20)));
+        }
+    }
+
+    private static ResourceKey<Consumer<GameTestHelper>> throughput(PipeMaterial material) {
+        return function("item_routing_throughput_" + material.getSerializedName());
     }
 
     /**

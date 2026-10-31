@@ -6,6 +6,7 @@ import buildcraftreforged.core.ItemBlockBuildCraft;
 import buildcraftreforged.core.ItemBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
+import buildcraftreforged.core.TileBuildCraft;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -105,5 +107,11 @@ public final class TransportRegistry {
 
     public static void register(IEventBus modBus) {
         REGISTERS.register(modBus);
+        modBus.addListener(RegisterCapabilitiesEvent.class, TransportRegistry::registerCapabilities);
+    }
+
+    /** docs/TRANSPORT.md 6.2: item pipes take pushes through the item capability ({@code TilePipe.getItemHandler}). */
+    private static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        TileBuildCraft.registerItemHandler(event, pipeTile.get());
     }
 }
