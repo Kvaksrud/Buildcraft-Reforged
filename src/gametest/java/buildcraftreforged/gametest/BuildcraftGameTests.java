@@ -217,6 +217,7 @@ public final class BuildcraftGameTests {
             SchematicTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            LibraryTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             WorkbenchHopperTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             StructurePipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
@@ -453,6 +454,11 @@ public final class BuildcraftGameTests {
         for (String name : ArchitectTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, ArchitectTests.MAX_TICKS)));
+        }
+        // #80 blueprint library: a library block, its owner and a visitor, against the server's library.
+        for (String name : LibraryTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, LibraryTests.MAX_TICKS)));
         }
         // #69 auto workbench and #70 hopper: hoppers, chests, pipes and an engine around them, in the padded area.
         for (String name : WorkbenchHopperTests.TESTS.keySet()) {

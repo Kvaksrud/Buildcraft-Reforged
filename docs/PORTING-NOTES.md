@@ -3357,3 +3357,69 @@ New code from `docs/TRANSPORT.md` 10, 11 and Q17; the 4.2.2 `PipeStructureCobble
   and `plug_facade_laser_crafting` (8 plugs and 6 stone facades made under lasers).
 - **Not checked without a client:** the Structure Pipe and Basic Extractor models and items, the stripes and the
   item slide, the JEI entries for plugs and facades (one per facade, the recipe pages).
+
+## Blueprint library (#80)
+
+Ported `builders/BlockBlueprintLibrary`, `TileBlueprintLibrary`, `gui/ContainerBlueprintLibrary` and
+`gui/GuiBlueprintLibrary`. Not ported as classes: `network/PacketLibraryAction` and the library half of
+`PacketHandlerBuilders` (the commands ride on `PacketGuiReturn`, see below), `BuildersProxy.getOwner` (the tile's
+owner), `GuiIds.BLUEPRINT_LIBRARY` routing (the menu type) and `addCreativeItems`. Changed (additive):
+`BuildersRegistry`, `BuildersScreens`, the axe tag, `BuildcraftGameTests`. Decided 2026-11-01.
+
+- **Names.** Block `library_block` (4.2.2 `libraryBlock`), block entity `blueprint_library`, menu `library_block`.
+  Lang keys are 4.2.2's (`tile.libraryBlock`, `gui.del`, `gui.lock`, `gui.unlock`).
+- **Block.** `Material.wood`: wood colour and sound, axe, burns in lava; hardness 5; drops itself. The model is a
+  column, `library_topbottom` on top and bottom and `library_side` around (4.2.2's `getIcon`). 4.2.2 had no recipe
+  (commented out) and no creative tab; the block is in the machines tab so it can be had, as the architect table.
+  A plain click opens the GUI unless the library is locked and the player is not its owner; sneaking passes.
+- **Whose list.** As 4.2.2 (`BuildersProxy.getOwner`): the library shows its owner's `BptPlayerIndex`, the player who
+  placed it (#27), by UUID through `BuildCraftBuilders.getPlayerIndex(server, uuid)`. A library placed without a player
+  uses the list of `Util.NIL_UUID`, shared by all such libraries as 4.2.2's owner "" was. Entries are the server
+  library's (`getBptRootIndex(server)`); a new list starts with every file of the library (#75). There is no client
+  library: 4.2.2's GUI made a client `BptPlayerIndex` it never read.
+- **Paging.** 12 rows (`LIBRARY_PAGE_SIZE`). ">" shows the entries after the last row; past the end the page is empty
+  and the next ">" starts at the first, as 4.2.2. "<" shows the 12 entries before the first row, or the first page when
+  fewer are left (4.2.2 moved one entry forward; docs/BUGFIXES.md). Any page change clears the selection. Entries whose
+  file is gone or cannot be read, 1.6.4 files included, are skipped as 4.2.2 skipped them; they appear once #13
+  imports them.
+- **Store (top row).** A blueprint or template item in the top-right slot counts 1 to 100 (`progressIn`) and moves to
+  the top-left slot when that is empty; if the item holds a library entry it is added to the owner's list and the page
+  is shown again from its first row (4.2.2 called `setCurrentPage(true)` then `(false)` for this).
+- **Copy (bottom row).** An item in the bottom-left slot counts to 100 (`progressOut`) and comes out bottom right as the
+  selected entry (id, name, author) or, with nothing selected, as a clean item of the same kind (4.2.2's erase). A copy
+  is a blueprint item for a blueprint entry and a template item for a template entry, whatever the blank was
+  (docs/BUGFIXES.md). Taking an input out resets its count. The counts are `DataSlot`s, not saved, as 4.2.2.
+- **Delete** removes the selected entry from the owner's list only; the file and the library number stay, so items
+  holding it still work and other players' lists keep it, as 4.2.2.
+- **Inventory.** Four slots, 4.2.2's tag `stack` (`Utils.writeStacksToNBT`); `canPlaceItem` false as
+  `isItemValidForSlot`, so pipes and hoppers put nothing in; the GUI slots take anything, as 1.6.4's `Slot`. The lock
+  is saved as `locked`; the owner is TileBuildCraft's `owner`/`ownerId`.
+- **Sync.** `writePacketPayload` sends the 12 names (each cut to 64 characters; the GUI shows 14 as 4.2.2), the
+  selected row, the lock and the owner's UUID (so the GUI knows whether to show the owner's buttons).
+- **GUI.** 176 × 225 on `library_rw.png`, which 4.2.2 shipped but did not use (it drew the architect's
+  `template_gui.png`; docs/BUGFIXES.md). `library_r.png`, the read-only layout, is not used: 4.2.2 shipped every player
+  the read-write slots. Buttons "<" and ">" for everyone; "Del" and "Lock"/"Unlock" only for the owner (4.2.2's
+  commented-out owner check). A row click selects it. No status ledger: the library is not a machine.
+- **Requests.** Each button or row click is a `PacketGuiReturn` whose extra data is a VarInt command (`COMMAND_NEXT` 1,
+  `COMMAND_PREV` 2, `COMMAND_LOCK_UPDATE` 3, `COMMAND_DELETE` 4, and `COMMAND_SELECT` 5 followed by a VarInt row; 4.2.2
+  sent `LIBRARY_ACTION` and `LIBRARY_SELECT`). `PacketHandler` checks the open menu, the position and reach; the menu
+  is valid only while the library may be opened by the player, so locking closes a visitor's GUI. `readGuiData` then
+  refuses a command outside 1 to 5, a row outside 0 to 11, trailing bytes, a sender who may not open the library, and
+  a lock or delete from anyone but the owner, before anything changes. A row past the end of the page is ignored, as
+  4.2.2. 4.2.2 took any command for any library from any client, wherever it stood.
+
+### Tests
+
+GameTests (`LibraryTests`, padded area): `library_store_copy_delete` (a stored entry not yet on the owner's list:
+the item moves after 100 ticks, not before, and the entry joins the list; found by paging and selected, a clean
+template comes out as a blueprint item with the entry's id, name and author; with nothing selected an item comes out
+clean; an input taken out resets its count; delete takes the entry off the list and the page, and the file and library
+entry stay), `library_paging` (14 more entries: ">" then "<" gives the first page again, ">" past the end gives an empty
+page and then the first) and `library_refuses_forged_requests` (a visitor with the menu open may page and select, but
+a delete or lock of the owner's list is refused and changes nothing; no player, row 12, row -1, a select without a row,
+command 6 and trailing bytes are refused; after the owner locks, the visitor's menu fails `checkMenuAccess`, its select
+is refused and the library does not open for it; the owner deletes).
+
+**Not checked without a client:** the block model and item icon, the GUI (layout on `library_rw.png`, the two progress
+arrows, the row highlight, row clicks, the owner-only buttons and the Lock/Unlock label), and opening, closing on lock,
+and the GUI return reaching the server over a real connection.

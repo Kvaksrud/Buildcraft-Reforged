@@ -20,5 +20,6 @@ final class BuildersScreens {
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(BuildersRegistry.fillerMenu.get(), GuiFiller::new);
         event.register(BuildersRegistry.architectMenu.get(), GuiTemplate::new);
+        event.register(BuildersRegistry.libraryMenu.get(), GuiBlueprintLibrary::new);
     }
 }
