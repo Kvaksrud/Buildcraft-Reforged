@@ -4,6 +4,7 @@ import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
 import buildcraftreforged.transport.flow.FlowRecordsPayload;
+import buildcraftreforged.transport.gui.GuiFilteredBuffer;
 import buildcraftreforged.transport.gui.GuiGateInterface;
 import buildcraftreforged.transport.render.BasicExtractorRenderer;
 import buildcraftreforged.transport.render.FacadeItemRenderer;
@@ -69,5 +70,6 @@ public final class TransportClient {
         event.register(TransportRegistry.filteredExtractorMenu.get(), GuiFilteredExtractor::new);
         event.register(TransportRegistry.sorterMenu.get(), GuiSorter::new);
         event.register(TransportRegistry.filteredColourTagMenu.get(), GuiFilteredColourTag::new);
+        event.register(TransportRegistry.filteredBufferMenu.get(), GuiFilteredBuffer::new);
     }
 }

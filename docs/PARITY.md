@@ -199,7 +199,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
 | Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61, #144 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). Assembly recipe per facade (`assembly/pipe_facade`, type `buildcraftreforged:assembly_facades`, #144); JEI subtype per state. GameTests `plug_facade_*`. |
 | Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61, #144 | [ ] | [ ] | [ ] | Assembly recipe `assembly/pipe_plug` (#144). GameTests `plug_facade_*`. |
-| Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [ ] | [ ] | [ ] |  |
+| Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [x] | [ ] | [ ] | Item capability on every face, filtered by column. GameTests `filtered_buffer_*`. |
 
 ### Pipes (transport, `BuildCraftTransport.buildPipe`, superseded by section 8)
 
@@ -307,7 +307,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Gate interface (`GuiIds.GATES` 51) | `GuiGateInterface / ContainerGateInterface` | gate menu | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
 | Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [x] | [ ] | [ ] | GameTest `module_filtered_extractor_menu`. |
 | Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [x] | [ ] | [ ] | GameTest `module_filtered_colour_tag_menu`. |
-| Filtered Buffer (`GuiIds.FILTERED_BUFFER` 60) | `GuiFilteredBuffer / ContainerFilteredBuffer` | `filtered_buffer_block` menu | #62 | [ ] | [ ] | [ ] |  |
+| Filtered Buffer (`GuiIds.FILTERED_BUFFER` 60) | `GuiFilteredBuffer / ContainerFilteredBuffer` | `filtered_buffer_block` menu | #62 | [x] | [ ] | [ ] | GameTest `filtered_buffer_menu_save_and_recipe`. |
 
 ## builders (`BuildCraftBuilders`)
 

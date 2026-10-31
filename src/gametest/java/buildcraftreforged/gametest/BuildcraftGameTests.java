@@ -219,6 +219,7 @@ public final class BuildcraftGameTests {
             ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             WorkbenchHopperTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            FilteredBufferTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             StructurePipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BasicExtractorTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             PlugFacadeRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
@@ -458,6 +459,11 @@ public final class BuildcraftGameTests {
         for (String name : WorkbenchHopperTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, WorkbenchHopperTests.MAX_TICKS)));
+        }
+        // #62 filtered buffer: chests, pipes and hoppers around buffers, in the padded area.
+        for (String name : FilteredBufferTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, FilteredBufferTests.MAX_TICKS)));
         }
         // #45 oil fields: wells, lakes and spouts up to 20 blocks out, in a wider padded area.
         for (String name : OilFieldTests.TESTS.keySet()) {

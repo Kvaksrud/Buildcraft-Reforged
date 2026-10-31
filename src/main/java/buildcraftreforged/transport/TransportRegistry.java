@@ -7,7 +7,10 @@ import buildcraftreforged.api.transport.IPipe;
 import buildcraftreforged.core.triggers.BCAction;
 import buildcraftreforged.core.triggers.BCTrigger;
 import buildcraftreforged.core.utils.EnumColor;
+import buildcraftreforged.transport.gui.ContainerFilteredBuffer;
 import buildcraftreforged.transport.gui.ContainerGateInterface;
+import buildcraftreforged.core.BlockBuildCraft;
+import net.minecraft.world.level.material.MapColor;
 import buildcraftreforged.transport.triggers.ActionEnergyPulser;
 import buildcraftreforged.transport.triggers.ActionExtractionPreset;
 import buildcraftreforged.transport.triggers.ActionPipeColor;
@@ -117,6 +120,26 @@ public final class TransportRegistry {
 
     static {
         CreativeTabBuildCraft.MACHINES.add(basicExtractorItem);
+    }
+
+    /** 4.2.2 {@code filteredBufferBlock} (#62). BlockFilteredBuffer's constructor: Material.iron, setHardness(5F). */
+    public static final DeferredBlock<BlockFilteredBuffer> filteredBuffer = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("filteredBufferBlock"), BlockFilteredBuffer::new,
+            properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.filteredBufferBlock")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    public static final DeferredItem<ItemBlockBuildCraft> filteredBufferItem = REGISTERS.items.registerItem(
+            RegistryNames.of("filteredBufferBlock"), properties -> new ItemBlockBuildCraft(filteredBuffer.get(), properties),
+            properties -> properties.overrideDescription("tile.filteredBufferBlock"));
+    /** 4.2.2 registered TileFilteredBuffer as "net.minecraft.src.buildcraft.transport.TileFilteredBuffer". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileFilteredBuffer>> filteredBufferTile =
+            REGISTERS.blockEntityTypes.register("filtered_buffer",
+                    () -> new BlockEntityType<>(TileFilteredBuffer::new, filteredBuffer.get()));
+    /** 4.2.2 {@code GuiIds.FILTERED_BUFFER}. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerFilteredBuffer>> filteredBufferMenu =
+            REGISTERS.menus.register("filtered_buffer_block", () -> IMenuTypeExtension.create(ContainerFilteredBuffer::new));
+
+    static {
+        CreativeTabBuildCraft.MACHINES.add(filteredBufferItem);
     }
 
     private static final Map<PipeModuleType, DeferredItem<ItemPipeModule>> MODULE_ITEMS = new EnumMap<>(PipeModuleType.class);
@@ -405,6 +428,8 @@ public final class TransportRegistry {
     /** docs/TRANSPORT.md 6.2: item pipes take pushes through the item capability ({@code TilePipe.getItemHandler}). */
     private static void registerCapabilities(RegisterCapabilitiesEvent event) {
         TileBuildCraft.registerItemHandler(event, pipeTile.get());
+        // #62: 4.2.2's TileFilteredBuffer was a plain IInventory, so its storage is open on every face.
+        TileBuildCraft.registerItemHandler(event, filteredBufferTile.get());
         // docs/TRANSPORT.md 6.2, 7.4: power pipes take pushes through the energy capability.
         event.registerBlockEntity(Capabilities.Energy.BLOCK, pipeTile.get(), TilePipe::getEnergyHandler);
         // docs/TRANSPORT.md 6.2, 7.2: fluid pipes take pushes through the fluid capability.

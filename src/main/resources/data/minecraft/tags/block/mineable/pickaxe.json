@@ -13,6 +13,7 @@
     "buildcraftreforged:machine_block",
     "buildcraftreforged:filler_block",
     "buildcraftreforged:architect_block",
-    "buildcraftreforged:block_hopper"
+    "buildcraftreforged:block_hopper",
+    "buildcraftreforged:filtered_buffer_block"
   ]
 }

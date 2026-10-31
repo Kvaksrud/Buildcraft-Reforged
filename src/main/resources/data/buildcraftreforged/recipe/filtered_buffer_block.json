@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "w": "#minecraft:planks",
+    "d": "buildcraftreforged:pipe_items_diamond",
+    "c": "minecraft:chest",
+    "p": "minecraft:piston"
+  },
+  "pattern": [
+    "wdw",
+    "wcw",
+    "wpw"
+  ],
+  "result": {
+    "id": "buildcraftreforged:filtered_buffer_block"
+  }
+}

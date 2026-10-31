@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "buildcraftreforged:block/filtered_buffer_block"
+    }
+  }
+}

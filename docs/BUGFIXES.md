@@ -416,6 +416,34 @@ pump schematic and blueprints are P6 (not applicable here; #78 should not copy t
 | Decision | Not applicable (decided 2026-11-01, #69): the port keeps 4.2.2's template grid and cadence, which none of these bugs touch; the optimisations fail policy point 2's spirit of no behaviour change and are not needed at one recipe lookup per 16 ticks. |
 | Applied in | — |
 
+### transport
+
+Triage for #62 (`transport/BlockFilteredBuffer`, `TileFilteredBuffer`, `gui/GuiFilteredBuffer`,
+`gui/ContainerFilteredBuffer`): `git log 4.2.2..origin/7.1.x` over the four files lists 30 commits, nearly all the
+1.7 port, header, style and API refactors. Three change behaviour; they and one fix found while porting are below.
+
+#### Filtered Buffer does not mark itself changed (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | — |
+| Class | `transport/TileFilteredBuffer` |
+| Symptom | Neither of the buffer's two `SimpleInventory` fields has the tile as listener, so items moved in or out and filters set in the GUI do not mark the tile changed. 1.6.4 saved every loaded chunk anyway; 26.x saves only chunks marked changed, so the change would be lost on reload. Same cause as the chute entry under factory. |
+| Decision | Accepted (decided 2026-11-01, #62): the tile registers as listener of both inventories in its constructor. No 4.2.2 behaviour changes. |
+| Applied in | #62 |
+
+#### Filtered Buffer changes of 6.x and 7.x (rejected and not applicable)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`cdc7ea054b16ea5628be542dc8896b4abbefe080`](https://github.com/BuildCraft/BuildCraft/commit/cdc7ea054b16ea5628be542dc8896b4abbefe080) ("filtered buffer wasn't sending blockInteraction event", 6.0), [`98d2e2e2e6ff5137b5cb13a659d4327e258e18ab`](https://github.com/BuildCraft/BuildCraft/commit/98d2e2e2e6ff5137b5cb13a659d4327e258e18ab) (storage saved at the top level, reading the old tag for pre-6.0 saves), [`a0a81e2503fdc1784bd671e710132ae2de0353c8`](https://github.com/BuildCraft/BuildCraft/commit/a0a81e2503fdc1784bd671e710132ae2de0353c8) ("improve comparator support", 7.0) |
+| Upstream issue | — |
+| Class | `transport/BlockFilteredBuffer`, `transport/TileFilteredBuffer` |
+| Symptom | `cdc7ea054` posts 6.x's `BlockInteractionEvent`, an API event 4.2.2 does not have. `98d2e2e2e` moves the storage tag for 6.x schematics and keeps reading the 4.2.2 layout. `a0a81e250` gives the block a comparator output counting only filtered slots. |
+| Decision | Not applicable for `cdc7ea054` (no such event in 4.2.2 or here; NeoForge's own interaction events fire as for any block) and `98d2e2e2e` (the port keeps 4.2.2's `inventoryStorage` and `inventoryFilters` tags; there are no old saves). Rejected for `a0a81e250` (decided 2026-11-01, #62): a comparator output is a feature 4.2.2 did not have (policy point 2). |
+| Applied in | — |
+
 ### silicon
 
 Triage for #72 (`silicon/TileAssemblyTable`, `BlockLaserTable`, `gui/GuiAssemblyTable`, `gui/ContainerAssemblyTable`,
