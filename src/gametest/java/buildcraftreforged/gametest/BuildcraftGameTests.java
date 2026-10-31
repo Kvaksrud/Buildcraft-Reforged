@@ -54,6 +54,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> TIER_PIPES_CAPS = function("tier_pipes_caps");
     private static final ResourceKey<Consumer<GameTestHelper>> STATUS_SYNC_WHILE_OPEN = function("status_sync_while_open");
     private static final ResourceKey<Consumer<GameTestHelper>> STATUS_PANEL_WITHOUT_GUI = function("status_panel_without_gui");
+    private static final ResourceKey<Consumer<GameTestHelper>> LASER_FEEDS_TARGET = function("laser_feeds_target");
+    private static final ResourceKey<Consumer<GameTestHelper>> LASER_TARGET_SEARCH = function("laser_target_search");
 
     private BuildcraftGameTests() {
     }
@@ -86,8 +88,11 @@ public final class BuildcraftGameTests {
             registry.register(TIER_PIPES_CAPS, TierPipeTests::caps);
             registry.register(STATUS_SYNC_WHILE_OPEN, StatusTests::syncWhileOpen);
             registry.register(STATUS_PANEL_WITHOUT_GUI, StatusTests::panelWithoutGui);
+            registry.register(LASER_FEEDS_TARGET, LaserTests::feedsTarget);
+            registry.register(LASER_TARGET_SEARCH, LaserTests::targetSearch);
         });
         FluidTankTests.register(event);
+        LaserTests.register(event);
     }
 
     @SubscribeEvent
@@ -145,6 +150,10 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
         event.registerTest(id("status_panel_without_gui"), new FunctionGameTestInstance(STATUS_PANEL_WITHOUT_GUI,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("laser_feeds_target"), new FunctionGameTestInstance(LASER_FEEDS_TARGET,
+                new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        event.registerTest(id("laser_target_search"), new FunctionGameTestInstance(LASER_TARGET_SEARCH,
+                new TestData<>(environment, EMPTY_STRUCTURE, 160, 0, true)));
     }
 
     /**
