@@ -322,7 +322,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderFiller`; breaks and places as the owner and skips a refused spot; status panel (missing materials, red light). GameTests `filler_*`; models, lasers and GUI not checked in game. |
 | Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [ ] | [ ] | [ ] |  |
 | Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderArchitect`; 200-tick scan into the world's library; facing turns the capture; status panel. GameTests `architect_*`; model, lasers and GUI not checked in game. |
-| Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [ ] | [ ] | [ ] |  |
+| Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [x] | [ ] | [ ] | Owner's list in the world's library (by UUID); store, copy (entry's kind), delete from the list, paging, lock; owner-only lock and delete. GameTests `library_*`; model and GUI not checked in game. |
 
 ### Actions (builders, `BuildersActionProvider`: one per filler pattern)
 
@@ -343,7 +343,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [x] | [ ] | [ ] | 4.2.2 slots, progress arrow and name field; one PacketGuiReturn per typed character; status ledger added. Name packet checked by GameTest `architect_scan_blueprint`; screen and typing not checked in game. |
 | Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [ ] | [ ] | [ ] |  |
 | Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [x] | [ ] | [ ] | 4.2.2 slots, pattern widget and arrows; status ledger added. GUI return checked by GameTest `filler_actions_gui_and_save`; screen not checked in game. |
-| Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [ ] | [ ] | [ ] |  |
+| Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [x] | [ ] | [ ] | 4.2.2 slots, progress arrows, 12 rows and buttons on `library_rw.png` (4.2.2 drew `template_gui.png`); Del and Lock for the owner only; one PacketGuiReturn per command, validated (GameTest `library_refuses_forged_requests`). Screen not checked in game. |
 
 ## New in Buildcraft Reforged
 

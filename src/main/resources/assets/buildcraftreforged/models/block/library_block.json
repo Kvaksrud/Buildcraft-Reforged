@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "buildcraftreforged:block/library_topbottom",
+    "side": "buildcraftreforged:block/library_side"
+  }
+}

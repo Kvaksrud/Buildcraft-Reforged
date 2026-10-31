@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "buildcraftreforged:block/library_block" }
+  }
+}

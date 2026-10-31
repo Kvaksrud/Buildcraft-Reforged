@@ -523,5 +523,71 @@ style and headers); `082794a7d` adds the On/Off actions that 4.2.2 already has, 
 | Decision | Accepted (1 Nov 2026, #76): the default rotation turns the wall sign's facing, as it does a standing sign's 16 steps. Unit test `BptBlocksTest.leverRepeaterAndSignsTurnTheirFacingOnly`. |
 | Applied in | #76 |
 
+#### BuildCraft#1812: taking an item out of the blueprint library crashes the server
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`4b475d9fefdd6c1a4af1ea2499b0dcc70da3a1e2`](https://github.com/BuildCraft/BuildCraft/commit/4b475d9fefdd6c1a4af1ea2499b0dcc70da3a1e2) ("fixed crash when removing prematurely removing blueprint from library", 15 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1812](https://github.com/BuildCraft/BuildCraft/issues/1812) |
+| Class | `builders/TileBlueprintLibrary` (`decrStackSize`, `getStackInSlotOnClosing`, `updateEntity`) |
+| Symptom | Only `setInventorySlotContents` resets the store and copy counts. An item taken out of an input slot with the mouse leaves its count running; at 100 `updateEntity` reads the missing item (`stack[1].getItemDamage()`, `stack[2].itemID`) and throws a NullPointerException on the server tick. |
+| Decision | Accepted (1 Nov 2026, #80): an input slot that is emptied by taking or closing resets its count, as upstream. GameTest `library_store_copy_delete`. |
+| Applied in | #80 |
+
+#### Blueprint library "<" moves one entry forward (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — (5.0 rewrote the library's paging) |
+| Upstream issue | none |
+| Class | `builders/TileBlueprintLibrary` (`setCurrentPage(boolean)`) |
+| Symptom | Both page buttons call `getNextPage`; for "<" it starts after the first row, so the page moves one entry forward instead of back. `getPrevPage` is never called. |
+| Decision | Accepted (1 Nov 2026, #80): "<" shows the 12 entries before the first row, or the first page when fewer are left. ">" and the empty page past the end are 4.2.2's. GameTest `library_paging`. |
+| Applied in | #80 |
+
+#### Blueprint library GUI drawn with the architect's texture (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | none |
+| Class | `builders/gui/GuiBlueprintLibrary` (`TEXTURE`) |
+| Symptom | The GUI binds `template_gui.png`, the architect table's, although 4.2.2 ships `library_rw.png` with the list area, the four slots at the container's positions and the two arrows the code draws from (176, 0) and (176, 16). The slots and list are drawn over the wrong picture. |
+| Decision | Accepted (1 Nov 2026, #80): the GUI uses `library_rw.png`. No layout changes: the positions are 4.2.2's code. Not checked in game (no client in the port's tests). |
+| Applied in | #80 |
+
+#### Blueprint library copies onto an item of the wrong kind (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | none |
+| Class | `builders/TileBlueprintLibrary` (`updateEntity`) |
+| Symptom | A copy keeps the blank's item id and only changes the damage, so a template item can hold a blueprint's library number and a blueprint item a template's; the builder then reads the entry as the wrong kind. |
+| Decision | Accepted (1 Nov 2026, #80): the copy is a blueprint item for a blueprint entry and a template item for a template entry. With nothing selected the blank still comes out clean and of its own kind. GameTest `library_store_copy_delete`. |
+| Applied in | #80 |
+
+#### Blueprint library takes any command from any client (PLAN.md section 19.2)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — (accepted in advance, PLAN.md section 19.2) |
+| Upstream issue | none |
+| Class | `builders/network/PacketHandlerBuilders` (`onLibraryAction`, `onLibrarySelect`), `builders/TileBlueprintLibrary` |
+| Symptom | The server applies a library packet to the library at the packet's coordinates without checking that the sender has its GUI open, stands near it, or may open it: anyone could page, select, lock, unlock or delete in any loaded library, locked or not, and select a negative row. The lock was checked only when the GUI opened, so a visitor who had it open kept using it. The GUI's owner check around Del and Lock was commented out, so any visitor could take entries off the owner's list or lock other visitors out. |
+| Decision | Accepted (1 Nov 2026, #80): requests go through `PacketHandler.checkMenuAccess`; the menu is valid only while the player may open the library, so locking closes a visitor's GUI; rows are 0 to 11; lock and delete are the owner's, and the GUI shows those buttons to the owner only. GameTest `library_refuses_forged_requests`. |
+| Applied in | #80 |
+
+#### Blueprint library fixes of 5.x and 6.x (not applicable or rejected)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`658e10b12d`](https://github.com/BuildCraft/BuildCraft/commit/658e10b12dfd143d04361d574bd30aedacfaae97) (slot limit 1), [`42d0e641b8`](https://github.com/BuildCraft/BuildCraft/commit/42d0e641b861267f6fc0fec11dd16c630ddd9b15) (ClassCastException), [`48cb35c124`](https://github.com/BuildCraft/BuildCraft/commit/48cb35c1246a0f0c4938e7b05827f47a28fb4574) (output slots) |
+| Upstream issue | [BuildCraft#1710](https://github.com/BuildCraft/BuildCraft/issues/1710), [BuildCraft#1584](https://github.com/BuildCraft/BuildCraft/issues/1584) |
+| Class | `builders/TileBlueprintLibrary`, `BlockBlueprintLibrary`, `gui/ContainerBlueprintLibrary` |
+| Symptom | #1710: stacked blueprints in the 5.x library; 4.2.2's blueprint and template items stack to 1. #1584: the block cast whatever block entity it found; the port checks the type with `instanceof`. The output-slot change makes the two right-hand slots take nothing from the player. |
+| Decision | Not applicable (#1710, #1584): 4.2.2 cannot stack these items, and the port has no unchecked cast. Rejected (output slots): a GUI behaviour change, not a bug (policy point 2). Decided 1 Nov 2026, #80, from `git log 4.2.2..6.0.x` over the four library classes (the 5.x/6.x rewrite's other commits change the network layer the port replaces). |
+| Applied in | — |
+
 Upstream `git log 4.2.2..origin/7.1.x` over `api/bptblocks` and the module `BptBlock*` classes was not reviewed in #76:
 5.0 replaced them with the `Schematic*` classes, so the per-class triage of P7 (#81) covers them.

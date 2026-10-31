@@ -22,6 +22,7 @@ import buildcraftreforged.builders.filler.pattern.PatternFlatten;
 import buildcraftreforged.builders.filler.pattern.PatternHorizon;
 import buildcraftreforged.builders.filler.pattern.PatternPyramid;
 import buildcraftreforged.builders.filler.pattern.PatternStairs;
+import buildcraftreforged.builders.gui.ContainerBlueprintLibrary;
 import buildcraftreforged.builders.gui.ContainerFiller;
 import buildcraftreforged.builders.gui.ContainerTemplate;
 import buildcraftreforged.builders.triggers.BuildersActionProvider;
@@ -38,6 +39,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
@@ -96,6 +98,21 @@ public final class BuildersRegistry {
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerTemplate>> architectMenu =
             REGISTERS.menus.register("architect_block", () -> IMenuTypeExtension.create(ContainerTemplate::new));
 
+    /** BlockBlueprintLibrary's constructor: Material.wood (wood sound and colour, axe, burns), setHardness(5F). */
+    public static final DeferredBlock<BlockBlueprintLibrary> libraryBlock = REGISTERS.blocks.registerBlock(RegistryNames.of("libraryBlock"),
+            BlockBlueprintLibrary::new, properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.libraryBlock")
+                    .mapColor(MapColor.WOOD).instrument(NoteBlockInstrument.BASS).sound(SoundType.WOOD).ignitedByLava()));
+    /** 4.2.2 had no recipe for the library and left it out of the creative tab; it is in the tab so it can be had. */
+    public static final DeferredItem<ItemBlockBuildCraft> libraryBlockItem = blockItem("libraryBlock", libraryBlock);
+
+    /** 4.2.2 GameRegistry.registerTileEntity(TileBlueprintLibrary.class, "net.minecraft.src.builders.TileBlueprintLibrary"). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileBlueprintLibrary>> libraryTile =
+            REGISTERS.blockEntityTypes.register("blueprint_library", () -> new BlockEntityType<>(TileBlueprintLibrary::new, libraryBlock.get()));
+
+    /** 4.2.2 GuiIds.BLUEPRINT_LIBRARY. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerBlueprintLibrary>> libraryMenu =
+            REGISTERS.menus.register("library_block", () -> IMenuTypeExtension.create(ContainerBlueprintLibrary::new));
+
     /** 4.2.2's item damage and "BptName" tag on blueprint and template items (plan section 6). */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<BptItemData>> bptData =
             REGISTERS.dataComponents.registerComponentType("blueprint",
@@ -151,6 +168,8 @@ public final class BuildersRegistry {
         PowerEnergyHandler.registerEnergyHandler(event, fillerTile.get());
         // 4.2.2's TileArchitect was an IInventory; canPlaceItem keeps everything out, as isItemValidForSlot did.
         TileBuildCraft.registerItemHandler(event, architectTile.get());
+        // 4.2.2's TileBlueprintLibrary was an IInventory; canPlaceItem keeps everything out, as isItemValidForSlot did.
+        TileBuildCraft.registerItemHandler(event, libraryTile.get());
     }
 
     public static void register(IEventBus modBus) {
