@@ -282,6 +282,34 @@ public class PipeGateHolder implements IPipe {
         return gate != null;
     }
 
+    /**
+     * 4.2.2 {@code Pipe.hasGate(side)}, the gate's box for the ray trace ({@link PipeParts}): not on a side with a
+     * facade or a plug, nor opposite a pipe's only connection.
+     */
+    public boolean hasGate(Direction side) {
+        if (!hasGate() && gateKind == Gate.GateKind.None)
+            return false;
+        if (container.hasFacade(side))
+            return false;
+        if (container.hasPlug(side))
+            return false;
+
+        int connections = 0;
+        Direction targetOrientation = null;
+        for (Direction o : Direction.values()) {
+            if (container.isPipeConnected(o)) {
+                connections++;
+                if (connections == 1)
+                    targetOrientation = o;
+            }
+        }
+
+        if (connections > 1 || connections == 0)
+            return true;
+
+        return targetOrientation.getOpposite() != side;
+    }
+
     /** 4.2.2 {@code Pipe.canConnectRedstone}. */
     public boolean canConnectRedstone() {
         return hasGate();
@@ -370,7 +398,7 @@ public class PipeGateHolder implements IPipe {
         InvUtils.dropItems(level, stack, pos.getX(), pos.getY(), pos.getZ());
     }
 
-    /** 4.2.2 {@code Pipe.onBlockRemoval}: wires and gate drop with the pipe. Facades and plugs are #61. */
+    /** 4.2.2 {@code Pipe.onBlockRemoval}: wires, gate, facades and plugs drop with the pipe. */
     public void onBlockRemoval() {
         for (IPipe.WireColor color : IPipe.WireColor.values()) {
             if (wireSet[color.ordinal()]) {
@@ -381,6 +409,15 @@ public class PipeGateHolder implements IPipe {
         if (hasGate()) {
             gate.dropGate();
             resetGate();
+        }
+
+        for (Direction direction : Direction.values()) {
+            if (container.hasFacade(direction)) {
+                container.dropFacade(direction);
+            }
+            if (container.hasPlug(direction)) {
+                container.removeAndDropPlug(direction);
+            }
         }
     }
 
@@ -455,7 +492,7 @@ public class PipeGateHolder implements IPipe {
         return false;
     }
 
-    /** 4.2.2 {@code stripEquipment} after facades (#61): wires first, red to yellow, then the gate. */
+    /** 4.2.2 {@code stripEquipment} after the facade ({@code BlockPipe.useWithoutItem}): wires, red to yellow, then the gate. */
     public boolean stripEquipment() {
         for (IPipe.WireColor color : IPipe.WireColor.values()) {
             if (stripWire(color))
@@ -494,7 +531,8 @@ public class PipeGateHolder implements IPipe {
             double along = side.getAxis().choose(x, y, z);
             double face = side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? CoreConstants.PIPE_MAX_POS
                     : CoreConstants.PIPE_MIN_POS;
-            if (Math.abs(along - face) < 0.01 && !container.isPipeConnected(side))
+            if (Math.abs(along - face) < 0.01 && !container.isPipeConnected(side) && !container.hasFacade(side)
+                    && !container.hasPlug(side))
                 return true;
         }
         return false;

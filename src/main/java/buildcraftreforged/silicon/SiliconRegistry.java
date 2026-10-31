@@ -13,10 +13,13 @@ package buildcraftreforged.silicon;
 import buildcraftreforged.api.power.PowerEnergyHandler;
 import buildcraftreforged.core.CreativeTabBuildCraft;
 import buildcraftreforged.core.ItemBlockBuildCraft;
+import buildcraftreforged.core.ItemRedstoneChipset;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.silicon.gui.ContainerAssemblyTable;
+import java.util.List;
+import java.util.stream.IntStream;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -81,9 +84,25 @@ public final class SiliconRegistry {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<AssemblyTableRecipe>> assemblyRecipeSerializer =
             REGISTERS.recipeSerializers.register("assembly", () -> AssemblyTableRecipe.SERIALIZER);
 
+    /**
+     * 4.2.2 ItemRedstoneChipset ("item.redstoneChipset", damage 0 to 4): one item per chipset, by 4.2.2 damage value
+     * (Redstone, Iron, Golden, Diamond, Pulsating).
+     */
+    public static final List<DeferredItem<ItemRedstoneChipset>> redstoneChipset = IntStream.range(0, 5)
+            .mapToObj(chipset -> REGISTERS.items.registerItem(ItemRedstoneChipset.registryName(chipset),
+                    properties -> new ItemRedstoneChipset(chipset, properties),
+                    properties -> properties.overrideDescription(ItemRedstoneChipset.translationKey(chipset))))
+            .toList();
+
     static {
         CreativeTabBuildCraft.MACHINES.add(laserBlockItem);
         CreativeTabBuildCraft.MACHINES.add(assemblyTableBlockItem);
+        redstoneChipset.forEach(CreativeTabBuildCraft.MACHINES::add);
+    }
+
+    /** The chipset with 4.2.2 damage value chipset: 0 Redstone, 1 Iron, 2 Golden, 3 Diamond, 4 Pulsating. */
+    public static ItemRedstoneChipset getChipset(int chipset) {
+        return redstoneChipset.get(chipset).get();
     }
 
     private SiliconRegistry() {

@@ -1449,7 +1449,8 @@ its items.
 | 6 Facades of a block | 3 Cobblestone Structure Pipes, the block | 80000 | #61 |
 
 4.2.2 created one facade recipe per facade-able block at start-up (`addFacade`); with data-driven recipes that is
-either one JSON per block or a recipe type of its own for #61 to decide.
+either one JSON per block or a recipe type of its own. #61 left both plug and facade recipes to #74, since they need
+the Cobblestone Structure Pipe (#54); see "Facades and plugs (#61)" below.
 
 ### Tests
 
@@ -2575,6 +2576,277 @@ along a straight run an icon leaves one pipe exactly as it enters the next, at `
 of a pipe uses its own direction, so a bend can shift icons only at its centre. The spacing drawn is the rate's interval
 rounded to a power of two ticks (`displayInterval`), so small rate changes do not move the icons. Icons are still
 drawn from the flow record, not per item; performance is to be tuned later.
+
+## Facades and plugs (#61)
+
+Ported from 4.2.2 `ItemFacade`, `ItemPlug`, `api/transport/FacadeManager`, `transport/render/FacadeRenderHelper`,
+`FacadeItemRenderer`, `PlugItemRenderer`, and the facade and plug parts of `TileGenericPipe`, `BlockGenericPipe`
+(`Part`, `doRayTrace`, the bounding boxes, `addOrStrip*`, `stripEquipment`), `Pipe` (`hasGate(side)`,
+`onBlockRemoval`) and `PipeRendererWorld.pipePlugRenderer`. Decided 2026-10-31.
+
+- **Items.** `pipe_facade` (4.2.2 `pipeFacade`, key `item.Facade`) and `pipe_plug` (`pipePlug`, key `item.PipePlug`).
+  A facade carries its block state in the `buildcraftreforged:facade` data component (block state codec on disk, the
+  block-state id on the network), in place of the `id` and `meta` NBT tags. Its name is "Facade: <block>" as 4.2.2.
+  The Facades tab lists one facade per facade state (`CreativeTabBuildCraft.addStacks`, additive) and its icon is the
+  stone-brick facade; the plug is in the Machines tab.
+- **Which blocks.** `ItemFacade.isFacadeBlock` is 4.2.2's `initialize` rule on the block's default state, over the
+  whole block registry (plan section 6: no reflection): glass always; never bedrock, grass block, oak leaves, sponge,
+  redstone lamp, jack o'lantern (the locked chest is gone); otherwise `isSolidRender` (4.2.2 `isOpaqueCube`), no block
+  entity, render shape `MODEL` and a full collision cube (4.2.2 `renderAsNormalBlock`), and an item. 4.2.2 made one
+  facade per named metadata; block states replace metadata, so a block gives its default state, and a block with an
+  `axis` property gives Y, X and Z (4.2.2's rotated logs). `FacadeManager.addFacade(BlockState)` adds states that the
+  rule skips (4.2.2's reflective `addFacade(ItemStack)`; the IMC message went with numeric ids). The list is built on
+  first use, after the registries are frozen. Only listed states can be fitted, so a facade item edited to carry a
+  chest does nothing.
+- **Fitting and taking off** are 4.2.2's, as the items' `useOn` (`BlockPipe.useItemOn` passes both items through):
+  the click is classified by `PipeParts.doRayTrace`, a port of 4.2.2's ray trace over the pipe centre and arms, gate
+  boxes, facade slabs and plug caps. A `UseOnContext` has the hit, not the player's eye, so the ray is a short one
+  through the clicked point along the clicked face. A facade goes on the side of the arm or gate clicked, or the face
+  clicked on the centre, replacing (and dropping) another facade there; a facade item used on another block's face
+  puts the facade on the pipe beside that face (4.2.2 `onItemUse`). Sneaking with a facade on a facade, or sneaking
+  with an empty hand on a facade, takes it off; the empty hand then strips wires and the gate as before. A plug goes
+  on the side of the pipe arm, centre face or gate clicked; sneaking with a plug on a plug takes it off. Creative
+  players keep the item. The client answers the same as the server and changes nothing, so the arm swings.
+- **Connections.** A plug blocks its side on both pipes (the rule of #48, `setPlugged`), which also invalidates the
+  network; it now also re-sends the pipe and notifies the neighbours. A facade does not touch connections: 4.2.2's
+  `canPipeConnect` ignored facades and drew a hollow facade around a connected arm.
+- **Shape.** The outline (`getShape`) is the pipe plus 4.2.2's facade slabs (2 px over the whole side) and plug caps;
+  the collision shape leaves the plugs out, as 4.2.2's `addCollisionBoxesToList` did. Shapes with facades or plugs
+  are built on first use and cached by the three masks (`PipeShapes`). A side with a facade is solid
+  (`isSolidOnSide`), and since pipes have dynamic shapes, `isFaceSturdy` sees the slab: torches stand on facades.
+- **Gate.** `PipeGateHolder.hasGate(side)` is 4.2.2's (no gate box on a side with a facade or plug, nor opposite a
+  single connection); `isGateHit` skips such sides; the renderer's `shouldRenderNormalPipeSide` hides the gate there.
+- **Save and sync.** Saved as `facade[0]` … `facade[5]` (block states, 4.2.2 `facadeBlocks[i]` / `facadeMeta[i]`)
+  and the existing `plugs` byte. The pipe's payload now ends with the plug mask and, per side, 0 or the facade's
+  block-state id + 1, so the client draws them and has the same shape. Facades and plugs drop with the pipe
+  (`PipeGateHolder.onBlockRemoval`, 4.2.2 `Pipe.onBlockRemoval`).
+- **Rendering** is in the pipe's `BlockEntityRenderer` (`PipeRendererTESR` → `FacadeRenderHelper`), not the chunk
+  mesh as in 4.2.2's `PipeRendererWorld`. Each facade face takes the sprite of the facade state's model quad on that
+  face (else an unculled quad facing that way, else the particle sprite) and its block tint, on the block atlas, with
+  UVs from the box's place in the block; boxes, the hollow variant, the z-fight offsets and the hidden faces between
+  neighbouring facades are 4.2.2's; supports and plugs use the Cobblestone Structure Pipe texture
+  (`textures/block/pipe_structure_cobblestone.png`, 4.2.2 `pipeStructureCobblestone`, added here; #54 can reuse it).
+  4.2.2's `uvRotate` for logs is gone: the axis state's model already places end and bark faces, but bark on a
+  sideways log facade is not turned within the face. The facade item is the special item model
+  `buildcraftreforged:facade` (`FacadeItemRenderer`: the 1 px facade and a structure stub, 4.2.2's boxes), its base
+  model `item/pipe_facade` with a GUI view of the facade side; the plug item is a JSON box model (4.2.2
+  `PlugItemRenderer`'s box).
+- **Recipes.** The crafting-table turning helper (4.2.2 `FacadeRecipe`: one log facade turns Y → X → Z → Y) is the
+  special recipe `buildcraftreforged:facade_rotation` (`data/buildcraftreforged/recipe/facade_rotation.json`). The
+  Assembly Table recipes (8 plugs from 1 Cobblestone Structure Pipe, 10 000 FE; 6 facades of a block from 3 Cobblestone
+  Structure Pipes and the block, 80 000 FE) are **not** here: the Structure Pipe does not exist yet (#54), and the
+  facade recipe, one per facade state, needs either generated JSON or an assembly recipe type of its own.
+
+- **Wrench disconnect** (new, not 4.2.2; the rule and its order are in docs/TRANSPORT.md 3.2). `TilePipe` keeps a
+  `disconnectedMask` beside `pluggedMask`; `getBlockedMask()` (both) feeds the connection rule and the item, fluid and
+  energy handlers' refusal of blocked sides, while `getPluggedMask()` stays the plug items only (shape, rendering,
+  drops). Saved as `disconnected`, appended to the payload after the facades. `BlockPipe.wrenchPipe` replaces
+  `wrenchModule`: the module still wins on a sneaking click and on centre clicks it handles, an arm click always
+  disconnects. A disconnected side is drawn with no arm and no mark (chosen over drawing a plug, so a plug still
+  reads as an item that drops). A trace that hits no part (a synthetic hit) counts as a centre click on the face.
+
+### For #74 (and #54)
+
+- Plugs: one `buildcraftreforged:assembly` JSON, input `buildcraftreforged:pipe_structure_cobblestone` (or whatever
+  #54 names it) × 1, energy 10000, result `buildcraftreforged:pipe_plug` × 8.
+- Facades: for every stack in `ItemFacade.getAllFacades()`, inputs 3 Structure Pipes and the block's item, energy
+  80000, result that facade × 6. 4.2.2 added rotated log facades to the list without a recipe (the turning recipe makes
+  them); the axis-Y state is the one with a recipe. Since the list depends on the loaded blocks, a recipe type of its own
+  (matching any facade-able block in the table, result built by `ItemFacade.getStack`) is closer to 4.2.2 than JSON
+  per block; the table's `AssemblyRecipeManager` would have to list those recipes for the GUI's 8 slots.
+- JEI: the facades tab lists many stacks; a JEI subtype interpreter on the `facade` component keeps them apart.
+
+### Tests
+
+GameTests (`FacadeTests`, padded area): `facade_rules_and_recipe` (allowed and refused blocks, three log facades,
+the name, the turning recipe and its loading), `facade_place_and_strip` (fitting on the centre, on an arm and from a
+neighbouring block's face, a second identical facade and a grass facade refused, solid side, collision, a torch-sturdy
+face, connections unchanged, stripping with an empty hand and with a facade, drops), `plug_blocks_connection`
+(a plug on an arm cuts both pipes' connection and splits the network; outline with the plug, collision without;
+sneak-use takes it off, drops it and joins the network again) and `facade_plug_save_sync_and_drops` (save and load,
+the client payload, drops when the pipe breaks), and `wrench_disconnects_side` (a wrench on the arm's side face
+disconnects the arm's side with no plug item, the network splits, the state saves and syncs; a wrench on the centre
+face reconnects it and the network joins again). The module wrench tests still pass with module-first order.
+
+Not checked without a client: every picture (facade boxes and sprites, tints, the hollow facade around an arm, the
+structure supports, plugs, gates hidden behind facades and plugs, the facade item in the GUI, hand and on the ground,
+the plug item), the outline box while aiming, and real clicks from a player's eye (the tests click with
+`UseOnContext` hits).
+
+## Chipsets, silicon recipes and the JEI categories (#74)
+
+Ported `core/ItemRedstoneChipset` and the recipe half of `BuildCraftSilicon.loadRecipes` and
+`BuildCraftTransport.postInit`. New: the module recipes (PLAN 8.2), `platform/jei/AssemblyRecipeCategory` and
+`RefineryRecipeCategory`. Recorded 2026-10-31.
+
+- **Chipsets.** The item with five damage values is five items, named after the 4.2.2 icons and custom item stack
+  names: `redstone_red_chipset`, `redstone_iron_chipset`, `redstone_gold_chipset`, `redstone_diamond_chipset`,
+  `redstone_pulsating_chipset` (4.2.2 keys `item.redstoneChipset.0` … `.4`). Registered in `SiliconRegistry`
+  (`redstoneChipset`, a list by damage; `getChipset(damage)`), machines tab, 4.2.2 textures. `ItemRedstoneChipset`
+  keeps `chipsetNames` and holds `chipset` (the damage).
+- **Assembly recipes** are JSON under `data/buildcraftreforged/recipe/assembly/`, one file per output, named after it
+  (`assembly/gate_iron_and`, `assembly/red_pipe_wire`, …): every 4.2.2 recipe of the table in "Assembly table (#72)"
+  except plugs and facades, MJ × 10. Inputs are exact items where 4.2.2 used an `ItemStack` and `c:dyes/<colour>` where
+  it used `dyeRed` …; results carry no components (a blank gate). The table lists recipes by id, so its order is
+  alphabetical, not 4.2.2's registration order; that only shows when more than 8 recipes can be made at once.
+- **Gate AND/OR swap** (4.2.2's twelve shapeless recipes: Redstone Chipset + AND gate = OR gate and back, iron, gold
+  and diamond, normal and autarchic) is vanilla `minecraft:crafting_transmute` (`gate_iron_or_from_and.json` …),
+  which copies the gate's components to the result: a programmed gate keeps its `gate_settings` (and name) through the
+  swap. This answers #60's open question; 4.2.2 gates carried no program, so a blank gate behaves as in 4.2.2.
+- **Module recipes** (new, decided 2026-10-31; PLAN 8.2 "takes the old ingredient"): the 4.2.2 pipe recipe with the
+  glass replaced by a Redstone Chipset, in the Assembly Table, 20 000 FE (a tenth of a Gate), one module per craft:
+  Extractor 2 of `#minecraft:planks` (4.2.2 `plankWood`), Filtered Extractor 2 emeralds, Director 2 iron ingots, Sorter
+  2 diamonds, Pickup 2 obsidian, Void `c:dyes/black` + redstone, Colour Tag 2 lapis blocks, Colour Sorter lapis block +
+  diamond (Daizuli), Filtered Colour Tag lapis block + emerald (Emzuli), Isolator 2 sandstone. The energy and the
+  chipset grade are balance numbers of our own; change them in the JSON (and `SiliconRecipeTests.expected`).
+- **JEI.** Two categories, `buildcraftreforged:assembly` (the table's 12 inputs in a 4 × 3 grid, output, energy in FE;
+  catalyst the Assembly Table) and `buildcraftreforged:refinery` (one or two input fluids, output, FE per cycle and the
+  delay when above one tick; catalyst the Refinery). They read `AssemblyRecipeManager.getRecipes` and
+  `RefineryRecipeManager.getDataRecipes(null)` plus the api lists on the client. JEI starts from
+  `RecipesReceivedEvent` at `LOWEST` priority, after `SiliconScreens` and `FactoryScreens` have kept the client copy.
+  Gates and modules have no categories of their own: they are made in the table and show there, and the AND/OR swaps
+  show in JEI's crafting category.
+- **Tests.** GameTests `silicon_assembly_recipes_load` (all 33 recipes by id: type, energy, inputs, counts, blank
+  output, found by output; nothing else under `assembly/`; chipset keys), `silicon_gate_and_or_crafting` (all twelve
+  swaps, blank and programmed; the plain gate has no swap) and `silicon_chipset_laser_crafting` (a Redstone Chipset,
+  100 000 FE, from one redstone on a table under nine charged lasers, into a chest). `assembly_laser_crafting` and
+  `assembly_queue_and_tags` now check that their test recipes are among the offered outputs, since redstone and iron
+  also offer chipsets.
+- **Not done here:** plug and facade recipes (#61 is not on `main` yet). #61 adds `assembly/pipe_plug` (8 plugs from 1
+  Cobblestone Structure Pipe, 10 000 FE) and the facade recipes (6 facades from 3 Cobblestone Structure Pipes and the
+  block, 80 000 FE; one JSON per block or a recipe type of its own, as noted under #72), and extends
+  `SiliconRecipeTests.expected` and its count. The Advanced Crafting Table's crafting recipe (`OWO/OCO/ORO` with a
+  Redstone Chipset) belongs to #73.
+- **Not checked without a client:** the chipset item textures in the inventory, both JEI categories (layout, fluid
+  rendering, text, catalysts, the tag inputs cycling) and the swaps in JEI's crafting category.
+
+## Blueprint file format (#75)
+
+Ported `core/blueprints/BptBase`, `BptBlueprint`, `BptTemplate`, `BptSlot`, `BptContext`, `BptError`, `BptRootIndex`,
+`BptPlayerIndex` and `core/IBptContributor`. New: `core/blueprints/BlueprintPaths`. Changed (additive):
+`api/blueprints/BptBlock.mirror`. Not ported: `BptDataStream` (the hand-rolled text NBT stream; the 1.6.4 importer,
+#13, ports it), `BptItem`, `BptActionBuild` and the builders (`BptBuilderBase`, `BptBuilderBlueprint`,
+`BptBuilderTemplate`, #78/#79). Decided 2026-10-31.
+
+### In-memory model
+
+- **`BptBase`** keeps the 4.2.2 fields: `contents[x][y][z]` (package-private, `getSlot(x, y, z)` for other packages;
+  null where nothing was captured), `sizeX/Y/Z`, `anchorX/Y/Z` (the architect's position relative to the box minimum,
+  may lie outside the box), `position` (the library number), `name`, `author`, `file` (a `Path`). 4.2.2's `version`
+  string becomes `getBptVersion()` and `getDataVersion()` (the versions the file was read with).
+- **Slots.** `BptSlot extends BptSlotInfo` (#34): a `BlockState state` in place of `blockId` + `meta`, `cpt` (block
+  entity data, filled by `BptBlock.initializeFromWorld` with `saveWithFullMetadata`), `storedRequirements` (the drops
+  of the block when captured) and the builder's `mode`/`stackToUse`. Every slot call goes to
+  `BlueprintManager.getBptBlock(state.getBlock())`, which #76 fills with schematics. `setBlockId` becomes
+  `setBlockState(x, y, z, state)`. `clone` now copies the requirement stacks (4.2.2 shared them).
+- **Capture.** `BptBlueprint.readFromWorld(context, anchorTile, x, y, z)` as 4.2.2: the slot at the position's place in
+  `context.surroundingBox()`, an `IBptContributor` block entity adds its data, then the schematic's
+  `initializeFromWorld`. It reads the context's level (4.2.2 read the anchor tile's, the same one); `anchorTile` may be
+  null and is only handed to the contributor.
+- **Templates.** A template has a slot at every position; a filled one holds stone (`BptTemplate.filledState()`, the
+  block 4.2.2's mask id 1 stood for), an empty one air. The architect's `setBlockId(x, y, z, mask)` is
+  `setMask(x, y, z, mask)`; `isFilled(x, y, z)` reads it.
+- **Rotation.** `rotateLeft(context)` keeps 4.2.2's mapping, (x, y, z) to (sizeZ - 1 - z, y, x), anchors and the
+  context box's turn. In world terms that is clockwise seen from above (east goes south), the direction 4.2.2's metadata
+  tables turned stairs and furnaces, so `BptBlock.rotateLeft` uses `Rotation.CLOCKWISE_90`. New: the slots' own
+  `x, y, z` follow the move (4.2.2 left the old values; the builder overwrites them with world positions anyway).
+- **Mirroring** is new (4.2.2 had none): `mirror(context, Mirror)`. `LEFT_RIGHT` flips z and `FRONT_BACK` flips x, as
+  vanilla structure templates do; the anchor flips with the box and each slot goes through
+  `BptBlock.mirror` (default `BlockState.mirror`). #76 overrides it where vanilla gives no answer.
+- **`equals`** compares class, size, anchor, which slots exist and their block states (4.2.2 compared ids). 4.2.2's
+  inverted class check made it false for any two blueprints (docs/BUGFIXES.md); it now works, so #77's architect
+  reuses the library entry when the same structure is captured again, as 4.2.2 intended.
+- **Contexts.** `BptContext(level, blueprint, box)`; the level may be null when nothing reads the world (turning or
+  mirroring a stored blueprint).
+
+### File format
+
+One gzip-compressed NBT compound per file (`NbtIo.writeCompressed`), extension `.bpt` as in 4.2.2. Tags:
+
+| Tag | Type | Meaning |
+|---|---|---|
+| `DataVersion` | int | The game's data version when saved (`SharedConstants.getCurrentVersion().dataVersion()`). |
+| `BptVersion` | int | Version of this layout, `BptBase.BPT_VERSION` = 1. |
+| `kind` | string | `blueprint` or `template` (4.2.2's `kind:` line). |
+| `sizeX`, `sizeY`, `sizeZ` | int | Box size, each 1 to 4096, volume at most 2^24. |
+| `anchorX`, `anchorY`, `anchorZ` | int | As 4.2.2. |
+| `name`, `author` | string | Optional, as 4.2.2. |
+
+Blueprints add:
+
+| Tag | Type | Meaning |
+|---|---|---|
+| `palette` | list of compounds | Each distinct block state, as vanilla `NbtUtils.writeBlockState` writes it (`{id: "minecraft:oak_stairs", properties: {facing: "north", ...}}`). Replaces the `idMap` section. |
+| `blocks` | int array | One entry per position, x outermost, then y, then z (4.2.2's loop order; index `(x * sizeY + y) * sizeZ + z`): the palette index, or -1 where there is no slot. Replaces the `contents` section's `bId`/`meta`. |
+| `data` | list of `{x, y, z, cpt}` | The slot's `cpt` (block entity data, or what a schematic stores) where it is not empty. |
+| `requirements` | list of `{x, y, z, items}` | `items` is a list of item stacks in the vanilla `ItemStack` codec, where the slot has stored requirements. Replaces the `requirements` section. |
+
+Templates add `mask`, a byte array of presence bits: bit `i % 8` of byte `i / 8` for flat index `i` (same order as
+`blocks`). 4.2.2 wrote a comma-separated id per position.
+
+Reading (`BptBase.readBluePrint(path, number, registries)`, or `loadBluePrint` which logs and returns null as 4.2.2,
+or `readFromNBT(tag, ...)`):
+
+- **Versions.** A `BptVersion` above 1 (written by a newer Buildcraft Reforged) or a `DataVersion` above the game's is
+  refused. An older `DataVersion` runs the palette (`block_state`), each `cpt` that has an `id` (`block_entity`) and each
+  requirement (`item_stack`) through the vanilla data fixers up to the current version, so blueprints survive game
+  updates the way chunks do (tested with 1.16.5's `grass_path` becoming `dirt_path`). A future layout change raises
+  `BPT_VERSION` and keeps reading 1.
+- **Unknown blocks.** A palette block this game does not have fails the load with "can't find block <id>", as 4.2.2's
+  "can't find block of signature" did. Unreadable items fail the same way.
+- **1.6.4 files.** A file that is not gzip and whose first line is a `key:value` header (`version:4.2.2`, or
+  `kind:blueprint` for 3.x files without a version) is refused with `BptBase.LEGACY_MESSAGE`, "1.6.4 blueprint, import
+  not yet available" (plan section 13.5); `isLegacyFile(path)` tells the library which files those are. The file is
+  never changed. #13 reads them with a ported `BptDataStream` and writes this format.
+- Corrupt input (wrong array lengths, palette indexes out of range, data for an empty slot, sizes out of range) is a
+  `BptError`, never an exception that escapes.
+
+Saving: `save(registries)` writes `writeToNBT(registries)` to `file`, creating the folder, and returns the file or null.
+Loading and saving need a `HolderLookup.Provider` (the level's or server's `registryAccess()`) for the item codec.
+
+### Library files and paths (plan section 19.2)
+
+- **Folders.** `BlueprintPaths.clientLibrary()` is `<gamedir>/buildcraft-reforged/blueprints/` and
+  `serverLibrary(server)` is `<world>/buildcraft-reforged/blueprints/`; 4.2.2 used `./blueprints/` under the process's
+  working directory.
+- **`BptRootIndex(baseDir, BlueprintPaths.ROOT_INDEX, registries)`** keeps 4.2.2's `index.txt` semantics: Latin-1 text,
+  line n is blueprint number n, an empty line once a file is gone so item numbers stay valid; `loadIndex`,
+  `importNewFiles` (any `*.bpt` in the folder, in name order), `getBluePrint(number)` (loads lazily, drops the entry if
+  the file cannot be loaded), `getBluePrint(fileName)` (null for an unknown name; 4.2.2 threw), new
+  `getBluePrintFile(number)`, and `storeBluePrint(bpt)` (`<name>.bpt`, `<name>_<n>.bpt` on a clash).
+- **Names.** `storeBluePrint` reduces the name to `[A-Za-z0-9 _-]`, trims it, caps it at 64 characters and falls back to
+  `unnamed` (`BlueprintPaths.sanitizeName`). Index lines are resolved with `BlueprintPaths.resolve`, which refuses
+  separators, `.`/`..` and anything outside the folder; such a line keeps its number but loads nothing.
+- **Players.** `BptPlayerIndex.forPlayer(uuid, rootIndex)` uses `<uuid>.list` in the same folder (4.2.2:
+  `<player name>.list`); the class is otherwise 4.2.2's (a new player starts with every root file; `nextBpt`/`prevBpt`
+  walk names in order).
+
+### For #76, #77, #78, #79 and #80
+
+- #76: override `BptBlock.rotateLeft`/`mirror` only where a state's rotation is not enough; slots already carry
+  `cpt` from `saveWithFullMetadata`, and `buildBlock` writes it back. Requirements are the block's drops at capture.
+- #77: capture with `readFromWorld` over the box, set `anchorX/Y/Z`, turn with `rotateLeft` as `TileArchitect` did,
+  and compare with `equals` before `storeBluePrint`. Templates: `new BptTemplate(...)` and `setMask`.
+- #78/#79: `getSlot`, `getBoxForPos`, `clone` and `rotateLeft` are as 4.2.2; a template slot is filled when its state is
+  not air (4.2.2's `blockId != 0`).
+- #80: build one `BptRootIndex` per side from `BlueprintPaths`, with the side's `registryAccess()`; list 1.6.4 files
+  with `getBluePrintFile` and `BptBase.isLegacyFile` and show `LEGACY_MESSAGE`. 4.2.2's `getBluePrint` drops a file it
+  cannot load from the index; keep that or not for 1.6.4 files, as #80 decides.
+
+### Tests
+
+- Unit (`BptFormatTest`): blueprint save/load round trip (gzip, headers, palette of four states, an empty slot and an
+  air slot kept apart, chest data and requirements, and a second save giving the identical tag); template round trip
+  (27 bits in 4 bytes); `rotateLeft` mapping, sizes, anchor and stairs north to east, four turns being the identity, a
+  turned blueprint surviving a save; mirroring both ways; `equals` and a deep `clone`; 1.6.4 text files refused with
+  the message and junk refused; newer `BptVersion` or `DataVersion`, unknown kind, oversize, short arrays and unknown
+  blocks refused; a 1.16.5 `DataVersion` upgraded through the data fixers; name sanitising and path checks; the root
+  index storing, clashing names, reload with an outside line, a deleted file and a dropped-in 1.6.4 file; the player
+  index by UUID.
+- GameTest `blueprint_capture_and_reread` (`BlueprintTests`): stairs, a chest with five diamonds, stone and
+  cobblestone captured from the world, stored in a library folder, read back from disk, equal to the capture with the
+  chest data intact; the server library path lies under the world folder; the read copy, turned once, placed beside the
+  original gives east-facing stairs and chest, the chest holding the diamonds.
 
 ## Filler and patterns (#79)
 

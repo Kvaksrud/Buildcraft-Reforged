@@ -67,6 +67,31 @@ behaviour are below. No fix was applied.
 | Decision | Not applicable: the gate loop they change is from the 6.x refactor; in 4.2.2 the side is already correct. #60 keeps 4.2.2's `o.getOpposite()` when it ports `Gate`. |
 | Applied in | — |
 
+#### Blueprint equals is always false (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — (5.0 replaced `BptBase` with a new blueprint system) |
+| Upstream issue | none |
+| Class | `core/blueprints/BptBase` (`equals`) |
+| Symptom | The first check reads `if (o == null \|\| !(o.getClass() != getClass())) return false`, so two blueprints of the same class are never equal. `TileArchitect.createBpt` asks `equals` to reuse the last library entry when the same box is captured again; it never does, and each capture adds a file. |
+| Decision | Accepted (31 Oct 2026, #75): the inverted test cannot be what was meant, and the fix changes no balance, recipe or feature; it restores the reuse the architect code was written for. |
+| Applied in | #75 |
+
+#### Cloned blueprint slots share requirement stacks (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | — |
+| Upstream issue | none |
+| Class | `core/blueprints/BptSlot` (`clone`) |
+| Symptom | `clone` copies the requirements list but not its stacks, so a builder that uses up a requirement of its working copy changes the stack in the blueprint it was cloned from. |
+| Decision | Accepted (31 Oct 2026, #75): the clone copies each stack. No behaviour of the library blueprint was meant to change while building. |
+| Applied in | #75 |
+
+Upstream `git log 4.2.2..origin/7.1.x` over `core/blueprints` was not reviewed in #75: 5.0 replaced these classes
+(`BptBase` became `BlueprintBase`, the format changed), so the per-class triage of P7 (#81) covers them.
+
 ### energy
 
 Triage for #42 (`energy/BlockBuildcraftFluid`, `ItemBucketBuildcraft`, `BucketHandler`, `render/EntityDropParticleFX`):

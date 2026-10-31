@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_transmute",
+  "category": "redstone",
+  "input": "buildcraftreforged:autarchic_gate_gold_or",
+  "material": "buildcraftreforged:redstone_red_chipset",
+  "result": {
+    "id": "buildcraftreforged:autarchic_gate_gold_and"
+  }
+}

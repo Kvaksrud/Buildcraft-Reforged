@@ -1,0 +1,18 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 800000,
+  "inputs": [
+    {
+      "item": "buildcraftreforged:redstone_gold_chipset"
+    },
+    {
+      "item": "buildcraftreforged:red_pipe_wire"
+    },
+    {
+      "item": "buildcraftreforged:blue_pipe_wire"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:gate_gold_or"
+  }
+}

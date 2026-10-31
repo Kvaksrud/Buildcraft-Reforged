@@ -1,0 +1,15 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 800000,
+  "inputs": [
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:diamond"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:redstone_diamond_chipset"
+  }
+}
