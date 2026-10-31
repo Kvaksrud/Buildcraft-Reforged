@@ -1486,3 +1486,65 @@ New code from `docs/TRANSPORT.md` 4, 5 and 6, package `buildcraftreforged.transp
 - **#59.** Every successful transfer passes `ResourceRouter.push` where `SEAM(#59)` sits; `TransferResult.route()`
   has the path (node indices), and `route.endpoint()` / `route.sink()` the exit. Record flow there, journaled in the
   same transaction, so simulations record nothing.
+
+## Power (kinesis) routing (#52)
+
+New code from `docs/TRANSPORT.md` 7.4, package `buildcraftreforged.transport.route`; the 4.2.2 `PipeTransportPower`,
+`PipePowerWood` and `PipePowerIron` were read for behaviour only. Recorded 2026-10-31.
+
+- **Intake (6.2, Q6).** Power pipes register `Capabilities.Energy.BLOCK` (`TransportRegistry`, `TilePipe::getEnergyHandler`)
+  and return a `PipeEnergyHandler` per side: amount 0 always, capacity = the pipe's refill (FE/t) so callers that look
+  at it see a live handler, `extract` 0. `insert(amount, transaction)` routes at once and returns what the receivers
+  took. Like the item handler it refuses on a plugged side and on a side facing another power pipe, decided at call
+  time. Every power pipe takes pushes from any adjacent block: engines (#36 already push into any `EnergyHandler`),
+  other mods' generators, a test source. Pipes store nothing, so nothing is lost in them; the only losses are the
+  receivers' own (`PowerHandler` perdition) and whatever no receiver wanted, which stays in the pusher.
+- **Phases.** `PowerRouter.push(network, start, sourcePos, amount, now, burstSeconds, transaction)` is 7.4: a BFS tree
+  from the pushed pipe (one parent each, side order); request phase children first, `request(pipe) = min(budget, sum
+  of children's requests + receivers' simulated insert of Integer.MAX_VALUE)`; send phase root first,
+  `floor(y × request / sum)` per outlet and the remainder 1 FE at a time in side order; deliver with real inserts; sum
+  what was taken up the tree; spend each pipe's `PipeBudget` (cost 1 FE) by what passed it. All in the caller's
+  transaction, so a simulated push is an aborted transaction (6.2) and a real one is atomic with the pusher's extract.
+  `PowerRouting.push(level, network, start, in, amount, transaction)` is the level-side call; `PowerRouting.ROUTER`
+  reads `TilePipe.getBudget()`, `getPowerRefill()` and `getPowerState()`.
+- **Receivers.** Each block is one receiver, through the first of its faces the BFS meets; a machine touching two
+  pipes is not asked twice (that would double its share). The pushing block is never a receiver, on any face (#1827,
+  as #50's source exclusion by block). Endpoints whose capability went away read as null and ask for nothing.
+- **Results.** `PowerRouter.Result(moved, reason, tree)` with the reasons of 6.3: `NO_DESTINATION` when no receiver
+  asked for anything, `NO_CAPACITY` when receivers asked but the budgets gave nothing, else `MOVED` / `PARTIAL`.
+- **Re-entry.** A receiver that pushes back into the same network while a push runs (another mod's cable, for
+  instance) gets 0; the router keeps the set of networks it is routing.
+- **Overload and requests.** `PowerPipeState` (per pipe, journaled, not saved) records FE passed per tick, the 4.2.2
+  overload counter (each closed tick at ≥ 95 % of the refill +1, else −1, 0–60, overloaded at 60; idle ticks are
+  closed lazily) and the last request phase's answer (Q21: demand behind the pipe > what it passed).
+  `PowerRouting.isOverloaded(level, pipe)` and `PowerRouting.requestsEnergy(level, pipe)`; the latter answers from the
+  last phase if it is under `REQUEST_TICKS` (20) old, else asks the receivers behind the pipe directly
+  (`PowerRouter.demand`, any demand at all), so a gate that switches engines off on "no request" switches them on again
+  when a machine needs power.
+- **Tests.** Unit (`PowerRoutingTest`, stub grid): 30/30/40 and 4/3/3 splits, split by requests across branches,
+  budget caps per node, a capped branch leaving the rest to the other, the 5.5 diamond example tick by tick, source
+  exclusion on one face and on two, a block on two pipes counted once, a loop, no receiver / full receiver /
+  empty budget reasons, simulation changes nothing, the tier-1 burst then 80 FE/t, redstone pulses through wood,
+  overload rising to 60 and falling, request recording and `demand`. GameTests (`PowerRoutingTests`, padded area,
+  test blocks `gametest_fe_source`, `gametest_fe_sink`, `gametest_power_machine`): the test engine through five wood
+  pipes into a `PowerHandler` machine (machine got exactly what the engine pushed, in 10 FE pulses, pipes at 0 FE every
+  tick); a 150 FE/t source into a junction with sinks taking 100 and 200 per insert (split 1:2, everything delivered);
+  the caps test for all ten tiers (100 000 FE/t pushed, ticks 21–120 deliver exactly `100 × powerPerTick`); and the
+  limiter (a 160 FE/t limit on a gold line passes 160 FE/t, a limit above the tier changes nothing, the limited pipe
+  is overloaded and requests energy, the gold pipe beside it is not overloaded).
+
+### For #55 (Director as Power Limiter), #59 (flow records) and #60 (gates)
+
+- **#55.** `TilePipe.setPowerLimit(int fePerTick)` (0 = none) lowers the pipe's power refill to
+  `min(tier FE/t, limit)` (`getPowerRefill()`); the budget cap follows (`refill × 20 × burstSeconds`). The pipe does
+  not save it: the Director module on a power pipe owns the mode (#60's `PowerMode`, `maxPower` already in FE/t), and
+  calls `setPowerLimit(mode.maxPower)` when it is fitted, loaded, switched by wrench or the Power Limiter action, and
+  `setPowerLimit(0)` when it is removed. Nothing else is needed from routing.
+- **#59.** Every real push ends at `SEAM(#59)` in `PowerRouter.run`, inside the push's transaction.
+  `Result.tree()` has the BFS `order`, `parent[node]`, `entrySide(node)` (the pipe's side towards its parent, null at
+  the root; the root's entry side is the `in` side of the push), `passed[node]` in FE, and per receiver the endpoint
+  index and FE `delivered`. The record's rate is FE/t; `overload` is `PowerRouting.isOverloaded`. Width uses
+  `getPowerRefill()` or the tier's `powerPerTick` (9.4 says the tier's).
+- **#60.** Pipe Contents on power pipes: ContainsEnergy from the flow record (#59) or, before that,
+  `getPowerState().passed(now, refill) > 0` / the overload counter; RequestsEnergy is `PowerRouting.requestsEnergy`;
+  TooMuchEnergy is `PowerRouting.isOverloaded`.

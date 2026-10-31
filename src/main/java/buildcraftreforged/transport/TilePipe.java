@@ -8,7 +8,9 @@ import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeWorld;
 import buildcraftreforged.transport.route.PipeBudget;
+import buildcraftreforged.transport.route.PipeEnergyHandler;
 import buildcraftreforged.transport.route.PipeItemHandler;
+import buildcraftreforged.transport.route.PowerPipeState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -23,6 +25,7 @@ import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.model.data.ModelData;
 import net.neoforged.neoforge.model.data.ModelProperty;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -38,7 +41,8 @@ import org.jspecify.annotations.Nullable;
  * network around the pipe ({@link PipeNetworks}, docs/TRANSPORT.md 3.4).
  *
  * <p>Item pipes take pushes through the item capability and route them at once ({@link PipeItemHandler},
- * docs/TRANSPORT.md 6.2); every pipe keeps its throughput {@link PipeBudget} (5). Fluid locks and flow records of 3.1
+ * docs/TRANSPORT.md 6.2), power pipes through the energy capability ({@link PipeEnergyHandler}, 6.2 and 7.4); every
+ * pipe keeps its throughput {@link PipeBudget} (5), and power pipes their {@link PowerPipeState}. Fluid locks and flow records of 3.1
  * belong to #51 and #59. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
  * {@link buildcraftreforged.transport.route.ItemRouting}).
  */
@@ -55,6 +59,9 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     private final BlockCapabilityCache<?, ?>[] endpointCaches = new BlockCapabilityCache<?, ?>[6];
     private final PipeBudget budget = new PipeBudget();
     private final PipeItemHandler[] itemHandlers = new PipeItemHandler[6];
+    private final PipeEnergyHandler[] energyHandlers = new PipeEnergyHandler[6];
+    private final PowerPipeState powerState = new PowerPipeState();
+    private int powerLimit;
 
     public TilePipe(BlockPos pos, BlockState state) {
         super(TransportRegistry.pipeTile.get(), pos, state);
@@ -86,6 +93,30 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     /** The throughput budget (docs/TRANSPORT.md 5), in the kind's unit. Not saved. */
     public PipeBudget getBudget() {
         return budget;
+    }
+
+    /** Power pipes: overload, FE passed this tick and the last request phase (docs/TRANSPORT.md 7.4). Not saved. */
+    public PowerPipeState getPowerState() {
+        return powerState;
+    }
+
+    /** The Power Limiter's FE/t (docs/TRANSPORT.md 7.4, Q7), or 0 for none. */
+    public int getPowerLimit() {
+        return powerLimit;
+    }
+
+    /**
+     * Sets the Power Limiter's FE/t, 0 for none (docs/TRANSPORT.md Q7). The Director module on a power pipe (#55) calls
+     * this whenever it is fitted, loaded, removed or switched; this pipe does not save it.
+     */
+    public void setPowerLimit(int fePerTick) {
+        powerLimit = Math.max(0, fePerTick);
+    }
+
+    /** The power budget's refill per tick: the tier's FE/t, lowered by the Power Limiter if one is set. */
+    public long getPowerRefill() {
+        int tier = getTierStats().powerPerTick();
+        return powerLimit > 0 ? Math.min(tier, powerLimit) : tier;
     }
 
     public PipeConnections.PipeEnd end() {
@@ -262,6 +293,16 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         if (itemHandlers[index] == null)
             itemHandlers[index] = new PipeItemHandler(this, side);
         return itemHandlers[index];
+    }
+
+    /** Power pipes expose {@link PipeEnergyHandler} on every side; it refuses sides facing a power pipe or a plug. */
+    public @Nullable EnergyHandler getEnergyHandler(@Nullable Direction side) {
+        if (kind != PipeType.POWER || side == null)
+            return null;
+        int index = side.get3DDataValue();
+        if (energyHandlers[index] == null)
+            energyHandlers[index] = new PipeEnergyHandler(this, side);
+        return energyHandlers[index];
     }
 
     @Override

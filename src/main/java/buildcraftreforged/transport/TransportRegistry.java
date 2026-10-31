@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -113,5 +114,7 @@ public final class TransportRegistry {
     /** docs/TRANSPORT.md 6.2: item pipes take pushes through the item capability ({@code TilePipe.getItemHandler}). */
     private static void registerCapabilities(RegisterCapabilitiesEvent event) {
         TileBuildCraft.registerItemHandler(event, pipeTile.get());
+        // docs/TRANSPORT.md 6.2, 7.4: power pipes take pushes through the energy capability.
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, pipeTile.get(), TilePipe::getEnergyHandler);
     }
 }
