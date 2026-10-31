@@ -15,7 +15,10 @@ public final class PipeNode {
 
     public final long pos;
     public final int tier;
-    /** The module type when the network was built; a module change rebuilds the network. #55 makes this the module. */
+    /**
+     * The module type when the network was built; a module change rebuilds the network. The module object, whose
+     * settings change without a rebuild, is read live through {@link #pipe} ({@code TilePipe.getModule()}).
+     */
     public final @Nullable PipeModuleType module;
     public final byte connectionMask;
     /** The pipe this node was built from, for its budgets and records (#50–#59). Valid while the network is. */

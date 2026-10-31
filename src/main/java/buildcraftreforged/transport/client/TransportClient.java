@@ -32,5 +32,6 @@ public final class TransportClient {
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(TransportRegistry.gateMenu.get(), GuiGateInterface::new);
+        event.register(TransportRegistry.filteredExtractorMenu.get(), GuiFilteredExtractor::new);
     }
 }

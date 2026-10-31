@@ -1,5 +1,6 @@
 {
   "chat.pipe.power.iron.mode": "Switched to %s MJ/t limit",
+  "chat.pipe.power.limiter.mode": "Switched to %s FE/t limit",
   "color.black": "Black",
   "color.blue": "Blue",
   "color.brown": "Brown",
@@ -221,5 +222,8 @@
   "gui.status.heat.yellow": "Yellow",
   "gui.status.heat.red": "Red",
   "gui.status.heat.overheat": "Overheat",
-  "gui.status.heat.countdown": "%s, %s s"
+  "gui.status.heat.countdown": "%s, %s s",
+  "item.moduleDirector": "Director Module",
+  "item.moduleExtractor": "Extractor Module",
+  "item.moduleFilteredExtractor": "Filtered Extractor Module"
 }

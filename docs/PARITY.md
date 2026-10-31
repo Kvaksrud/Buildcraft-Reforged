@@ -206,11 +206,11 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Wooden Transport Pipe (`PipeItemsWood`) | `PipeItemsWood (ItemPipe)` | Extractor module (#55) on an item tier pipe; Basic Extractor block (#58) for the engine-driven setup | #53, #55, #58 | [ ] | [ ] | [ ] | Importer maps it to a Basic Extractor (section 13.5). |
-| Emerald Transport Pipe (`PipeItemsEmerald`) | `PipeItemsEmerald (ItemPipe)` | Filtered Extractor module on an item tier pipe | #53, #55 | [ ] | [ ] | [ ] |  |
+| Emerald Transport Pipe (`PipeItemsEmerald`) | `PipeItemsEmerald (ItemPipe)` | Filtered Extractor module on an item tier pipe | #53, #55 | [x] | [ ] | [ ] |  |
 | Cobblestone Transport Pipe (`PipeItemsCobblestone`) | `PipeItemsCobblestone (ItemPipe)` | plain item tier pipe, tier 2 (stone) | #53 | [ ] | [ ] | [ ] | Cobblestone is not on the ladder; nearest tier is a judgement call for #53. |
 | Stone Transport Pipe (`PipeItemsStone`) | `PipeItemsStone (ItemPipe)` | plain item tier pipe, tier 2 (stone) | #53 | [ ] | [ ] | [ ] |  |
 | Quartz Transport Pipe (`PipeItemsQuartz`) | `PipeItemsQuartz (ItemPipe)` | plain item tier pipe, tier 6 (quartz) | #53 | [ ] | [ ] | [ ] |  |
-| Iron Transport Pipe (`PipeItemsIron`) | `PipeItemsIron (ItemPipe)` | Director module on an item tier pipe | #53, #55 | [ ] | [ ] | [ ] |  |
+| Iron Transport Pipe (`PipeItemsIron`) | `PipeItemsIron (ItemPipe)` | Director module on an item tier pipe | #53, #55 | [x] | [ ] | [ ] |  |
 | Golden Transport Pipe (`PipeItemsGold`) | `PipeItemsGold (ItemPipe)` | plain item tier pipe, tier 5 (gold) | #53 | [ ] | [ ] | [ ] | 4.2.2 speed-up replaced by the tier rate. |
 | Diamond Transport Pipe (`PipeItemsDiamond`) | `PipeItemsDiamond (ItemPipe)` | Sorter module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
 | Obsidian Transport Pipe (`PipeItemsObsidian`) | `PipeItemsObsidian (ItemPipe)` | Pickup module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
@@ -231,7 +231,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Cobblestone Kinesis Pipe (`PipePowerCobblestone`) | `PipePowerCobblestone (ItemPipe)` | plain power tier pipe, tier 2 (stone) | #52, #53 | [ ] | [ ] | [ ] | Judgement call, as for items. |
 | Stone Kinesis Pipe (`PipePowerStone`) | `PipePowerStone (ItemPipe)` | plain power tier pipe, tier 2 (stone) | #52, #53 | [ ] | [ ] | [ ] |  |
 | Quartz Kinesis Pipe (`PipePowerQuartz`) | `PipePowerQuartz (ItemPipe)` | plain power tier pipe, tier 6 (quartz) | #52, #53 | [ ] | [ ] | [ ] |  |
-| Iron Kinesis Pipe (`PipePowerIron`) | `PipePowerIron (ItemPipe)` | plain power tier pipe, tier 3 (iron), with the Power Limiter action | #52, #53, #60 | [ ] | [ ] | [ ] | Section 8.2 has no limiter module; section 8.5 keeps the action. #52 decides where it lives. |
+| Iron Kinesis Pipe (`PipePowerIron`) | `PipePowerIron (ItemPipe)` | Director module on a power tier pipe, as the Power Limiter (TRANSPORT Q7), with the Power Limiter action | #52, #53, #55, #60 | [ ] | [ ] | [ ] | #55 keeps the limit and the wrench; #52 applies it, #60 adds the action. |
 | Golden Kinesis Pipe (`PipePowerGold`) | `PipePowerGold (ItemPipe)` | plain power tier pipe, tier 5 (gold) | #52, #53 | [ ] | [ ] | [ ] |  |
 | Diamond Kinesis Pipe (`PipePowerDiamond`) | `PipePowerDiamond (ItemPipe)` | plain power tier pipe, tier 7 (diamond) | #52, #53 | [ ] | [ ] | [ ] |  |
 | Cobblestone Structure Pipe (`PipeStructureCobblestone`) | `PipeStructureCobblestone (ItemPipe)` | `pipe_structure_cobblestone` | #54 | [ ] | [ ] | [ ] |  |
@@ -305,7 +305,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Diamond pipe (`GuiIds.PIPE_DIAMOND` 50) | `GuiDiamondPipe / ContainerDiamondPipe` | Sorter module menu | #56 | [ ] | [ ] | [ ] |  |
 | Gate interface (`GuiIds.GATES` 51) | `GuiGateInterface / ContainerGateInterface` | gate menu | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
-| Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [ ] | [ ] | [ ] |  |
+| Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [x] | [ ] | [ ] | GameTest `module_filtered_extractor_menu`. |
 | Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [ ] | [ ] | [ ] |  |
 | Filtered Buffer (`GuiIds.FILTERED_BUFFER` 60) | `GuiFilteredBuffer / ContainerFilteredBuffer` | `filtered_buffer_block` menu | #62 | [ ] | [ ] | [ ] |  |
 
@@ -388,9 +388,9 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Extractor module | — | `module_extractor` | #55, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Filtered Extractor module | — | `module_filtered_extractor` | #55, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Director module | — | `module_director` | #55, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Extractor module | — | `module_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Filtered Extractor module | — | `module_filtered_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Director module | — | `module_director` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Sorter module | — | `module_sorter` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Pickup module | — | `module_pickup` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Void module | — | `module_void` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |

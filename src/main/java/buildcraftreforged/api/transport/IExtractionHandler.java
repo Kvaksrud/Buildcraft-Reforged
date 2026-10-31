@@ -13,7 +13,8 @@ import net.minecraft.world.level.Level;
  *
  * <p>Ported from 4.2.2 {@code buildcraft.api.transport.IExtractionHandler}. <b>Plan section 8:</b> the wooden pipe
  * becomes the Extractor module and the Basic Extractor (8.2); P3 decides whether they still ask registered handlers.
- * {@code PipeManager}, the 4.2.2 registry for these handlers, is ported with P3 for that reason.
+ * {@link PipeManager} keeps the registered handlers; the Extractor and Filtered Extractor modules ask it when they
+ * choose a facing (#55). The Basic Extractor is #58.
  */
 public interface IExtractionHandler {
 

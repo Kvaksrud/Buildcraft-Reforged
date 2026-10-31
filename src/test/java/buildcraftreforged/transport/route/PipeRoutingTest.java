@@ -107,7 +107,22 @@ class PipeRoutingTest {
         }
     }
 
-    private record StubPipe(byte mask, @Nullable PipeModuleType module) implements PipeWorld.Pipe {
+    private static final class StubPipe implements PipeWorld.Pipe {
+        final byte mask;
+        final @Nullable PipeModuleType module;
+        /** A Director's facing: the only side the walk may leave by. */
+        @Nullable Direction output;
+
+        StubPipe(byte mask, @Nullable PipeModuleType module) {
+            this.mask = mask;
+            this.module = module;
+        }
+
+        @Override
+        public boolean allowsOutput(Direction side) {
+            return module != PipeModuleType.DIRECTOR || side == output;
+        }
+
         @Override
         public PipeType getPipeType() {
             return PipeType.ITEM;
@@ -157,7 +172,7 @@ class PipeRoutingTest {
                     long pos = BlockPos.asLong(x, 0, z);
                     switch (rows[z].charAt(x)) {
                     case 'C' -> chests.put(pos, new Chest(Integer.MAX_VALUE));
-                    case 'P', 'V' -> pipes.put(pos, null);
+                    case 'P', 'V', 'D' -> pipes.put(pos, null);
                     default -> {
                     }
                     }
@@ -166,7 +181,7 @@ class PipeRoutingTest {
             for (int z = 0; z < rows.length; z++) {
                 for (int x = 0; x < rows[z].length(); x++) {
                     char c = rows[z].charAt(x);
-                    if (c != 'P' && c != 'V')
+                    if (c != 'P' && c != 'V' && c != 'D')
                         continue;
                     long pos = BlockPos.asLong(x, 0, z);
                     byte mask = 0;
@@ -174,7 +189,11 @@ class PipeRoutingTest {
                         long other = BlockPos.offset(pos, side);
                         mask = PipeConnections.with(mask, side, pipes.containsKey(other) || chests.containsKey(other));
                     }
-                    pipes.put(pos, new StubPipe(mask, c == 'V' ? PipeModuleType.VOID : null));
+                    pipes.put(pos, new StubPipe(mask, switch (c) {
+                    case 'V' -> PipeModuleType.VOID;
+                    case 'D' -> PipeModuleType.DIRECTOR;
+                    default -> null;
+                    }));
                 }
             }
             network = new PipeNetworkManager(this).get(pipes.keySet().longIterator().nextLong());
@@ -342,6 +361,63 @@ class PipeRoutingTest {
         assertEquals(grid.node(3, 0), route.sink());
         TransferResult result = grid.push(1, 0, Direction.WEST, 5, 100, true);
         assertEquals(5, result.moved());
+    }
+
+    // Director (docs/TRANSPORT.md 8.4, section 14 #55)
+
+    @Test
+    void directorSendsEverythingOutOfItsFacing() {
+        Grid grid = new Grid(
+                ".C.",
+                "CDC",
+                ".C.");
+        grid.pipes.get(pos(1, 1)).output = Direction.SOUTH;
+        RandomSource random = RandomSource.create(11);
+        for (int i = 0; i < 200; i++) {
+            PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+            assertNotNull(route);
+            assertEquals(pos(1, 2), grid.destination(route));
+        }
+        // The facing is read live: turning it needs no network rebuild.
+        grid.pipes.get(pos(1, 1)).output = Direction.EAST;
+        PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+        assertNotNull(route);
+        assertEquals(pos(2, 1), grid.destination(route));
+    }
+
+    @Test
+    void directorWithRefusingFacingBacksUpToThePreviousJunction() {
+        // The junction (1,1) can go north to a chest or east into the Director, which faces a full chest (2,0): every
+        // walk that enters the Director backs out and ends in the junction's other chest, never east of the Director.
+        Grid grid = new Grid(
+                ".CC.",
+                "CPDC");
+        grid.chest(2, 0).capacity = 0;
+        grid.pipes.get(pos(2, 1)).output = Direction.NORTH;
+        RandomSource random = RandomSource.create(5);
+        for (int i = 0; i < 200; i++) {
+            PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+            assertNotNull(route);
+            assertEquals(pos(1, 0), grid.destination(route));
+        }
+        // Facing a chest that has room, the Director takes about half.
+        grid.pipes.get(pos(2, 1)).output = Direction.EAST;
+        int east = 0;
+        for (int i = 0; i < 2000; i++) {
+            PipeWalk.Route route = grid.walk(1, 1, Direction.WEST, random);
+            assertNotNull(route);
+            long destination = grid.destination(route);
+            assertTrue(destination == pos(1, 0) || destination == pos(3, 1));
+            if (destination == pos(3, 1))
+                east++;
+        }
+        assertEquals(0.5, east / 2000.0, 0.05);
+    }
+
+    @Test
+    void directorWithoutFacingIsADeadEnd() {
+        Grid grid = new Grid("CDC");
+        assertNull(grid.walk(1, 0, Direction.WEST, RandomSource.create(1)));
     }
 
     // Budgets (docs/TRANSPORT.md 5.4), one Extractor-like pull per tick over the path pipes.
