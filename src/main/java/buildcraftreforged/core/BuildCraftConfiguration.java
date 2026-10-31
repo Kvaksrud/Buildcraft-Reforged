@@ -71,6 +71,8 @@ public class BuildCraftConfiguration {
 
     // Transport (PLAN.md section 8, docs/TRANSPORT.md 2.2)
     public static final PipeTierConfig pipeTiers;
+    public static final ModConfigSpec.DoubleValue pipeBurstSeconds;
+    public static final ModConfigSpec.IntValue pipeMaxRouteVisits;
 
     static {
         ModConfigSpec.Builder mainConfiguration = new ModConfigSpec.Builder();
@@ -183,6 +185,12 @@ public class BuildCraftConfiguration {
         // New in Buildcraft Reforged (PLAN.md section 8); filled in by P3
         mainConfiguration.comment("Pipes and transport").push("transport");
         pipeTiers = new PipeTierConfig(mainConfiguration);
+        pipeBurstSeconds = mainConfiguration
+                .comment("How much throughput an idle pipe can save up, in seconds of its tier's rate (docs/TRANSPORT.md 5.2)")
+                .defineInRange("burstSeconds", 1.0, 0.05, 10.0);
+        pipeMaxRouteVisits = mainConfiguration
+                .comment("Most pipes one routing walk may visit before it gives up (docs/TRANSPORT.md 4.4)")
+                .defineInRange("maxRouteVisits", 4096, 64, 65536);
         mainConfiguration.pop();
 
         COMMON_SPEC = mainConfiguration.build();
