@@ -298,9 +298,17 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
             PowerReceiver receptor = ((IPowerReceptor) tile).getPowerReceiver(orientation.getOpposite());
             if (receptor == null)
                 return 0;
-            return extractEnergy(receptor.getMinEnergyReceived(), receptor.getMaxEnergyReceived(), false); // Comment out for constant power
+            return extractEnergy(pulseMinimum(receptor), receptor.getMaxEnergyReceived(), false); // Comment out for constant power
         }
         return extractEnergy(0, maxEnergyExtracted(), false);
+    }
+
+    /**
+     * The smallest pulse this engine waits for: the receiver's minimum, or this engine's whole pulse when it can never
+     * reach that minimum (decided 1 Nov 2026; 4.2.2 sent nothing, so a redstone engine could not drive a quarry).
+     */
+    private float pulseMinimum(PowerReceiver receptor) {
+        return Math.min(receptor.getMinEnergyReceived(), maxEnergyExtracted());
     }
 
     private void sendPower() {
@@ -315,7 +323,7 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
                 if (extracted >= 1) {
                     long needed = receptor.receiveEnergy(PowerHandler.Type.ENGINE, (long) extracted, orientation.getOpposite());
                     meter.energyOut(needed);
-                    extractEnergy(receptor.getMinEnergyReceived(), needed, true); // Comment out for constant power
+                    extractEnergy(pulseMinimum(receptor), needed, true); // Comment out for constant power
                 }
             } else {
                 EnergyHandler handler = getEnergyHandler(orientation);
@@ -731,10 +739,7 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         return StatusReport.Power.produced(meter, (long) energy, (long) getMaxEnergy());
     }
 
-    /**
-     * Why a running engine delivers nothing: no power receiver on its output face, or a receiver whose minimum
-     * intake is more than this engine can send in one pulse (4.2.2 rule kept: a redstone engine cannot feed a quarry).
-     */
+    /** Why a running engine delivers nothing: no power receiver on its output face. */
     @Override
     public StatusReason getStatusReason() {
         if (!isRedstonePowered || !isActive() || energyStage == EnergyStage.OVERHEAT)
@@ -743,11 +748,6 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         BlockEntity tile = getTileBuffer(orientation).getTile();
         if (!isPoweredTile(tile, orientation))
             return StatusReason.NO_POWER_TARGET;
-        if (tile instanceof IPowerReceptor receptor) {
-            PowerReceiver receiver = receptor.getPowerReceiver(orientation.getOpposite());
-            if (receiver != null && receiver.getMinEnergyReceived() > maxEnergyExtracted())
-                return StatusReason.PULSE_TOO_SMALL;
-        }
         return StatusReason.NONE;
     }
 
