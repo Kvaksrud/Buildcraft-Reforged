@@ -143,7 +143,8 @@ final class OwnerTests {
         } finally {
             PROTECTED.remove(claimed);
         }
-        helper.succeedWhen(() -> helper.assertItemEntityPresent(Items.DIRT));
+        // The drop flies off with a random velocity and can leave the 1x1x1 test area, so look around the block.
+        helper.succeedWhen(() -> helper.assertItemEntityPresent(Items.DIRT, FREE, 3.0));
     }
 
     /**
