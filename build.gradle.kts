@@ -120,6 +120,13 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // EnergyTableTest (#46) compares docs/ENERGY-TABLE.md with the table it generates; -PupdateEnergyTable writes it.
+    systemProperty("buildcraftreforged.projectDir", layout.projectDirectory.asFile.absolutePath)
+    inputs.files("docs/ENERGY-TABLE.md")
+    if (providers.gradleProperty("updateEnergyTable").isPresent) {
+        systemProperty("buildcraftreforged.updateEnergyTable", "true")
+        outputs.upToDateWhen { false }
+    }
 }
 
 // Dev client defaults: music off and GUI scale 4. Only keys options.txt does not have yet are written, so what the

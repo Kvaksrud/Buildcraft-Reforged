@@ -11,3 +11,5 @@ The release workflow uploads the top section.
 - Wrench: rotates blocks as in 4.2.2. It is in the `c:tools/wrench` tag, and Buildcraft Reforged blocks accept any
   wrench in that tag.
 - Optional JEI support (an empty plugin for now; the game runs with or without JEI).
+- `docs/ENERGY-TABLE.md`: every engine, machine, recipe and power pipe value in FE with the 4.2.2 MJ value beside it,
+  generated from the code by a unit test that fails when the table is out of date.
