@@ -835,3 +835,59 @@ three NeoForge data maps declared in `api/fuels/FuelDataMaps` and registered by 
   water, ice, and lava from the GameTest data pack behind the same condition (plus an entry for a missing fluid that
   the condition skips), data over code, the multiplier, and oil and fuel at 30/5000 and 60/25000 once #42 has
   registered them.
+
+## Pipe network graph and cache (#49)
+
+New code from `docs/TRANSPORT.md` 3.4, package `buildcraftreforged.transport.graph`. No routing, budgets or source
+ticking yet (#50–#52).
+
+- **Classes.** `PipeNetworkManager` builds and caches networks; it reads the level only through `PipeWorld` (a
+  position → pipe lookup, "is this a loaded non-pipe block", and an endpoint-cache factory), so the whole graph is
+  unit-tested on a stub (`PipeNetworkManagerTest`). `LevelPipeWorld` is the real `PipeWorld`; `PipeNetworks` keeps one
+  manager per `ServerLevel` (created on first `get`, dropped on `LevelEvent.Unload`). `TilePipe` implements
+  `PipeWorld.Pipe` (`getPipeType`, `getTier`, `getConnectionMask`, `getModuleType`).
+- **Network.** `PipeNetwork`: `kind`, `id` (per manager, for logs), `nodes[]`, `endpoints[]`, `sourceNodes[]` (nodes with
+  `PipeModuleType.isSource()`: Extractor, Filtered Extractor, Pickup; sorted by `BlockPos.asLong`), mutable
+  `sourceCursor`, `isValid()`, `indexOf(pos)` / `node(pos)`. Node 0 is the pipe the build started from, then BFS order
+  with neighbours in side order, so the same world always builds the same arrays.
+- **Node.** `PipeNode`: `pos`, `tier`, `module` (the `PipeModuleType` at build time; #55 swaps in the module object),
+  `connectionMask`, `pipe` (the `PipeWorld.Pipe`, i.e. the `TilePipe`, for budgets and records), and `next(side)`: a node
+  index (`PipeNode.isNode`), `PipeNode.NONE` (-1), or an endpoint (`PipeNode.isEndpoint`, `PipeNode.endpointIndex`).
+  A side leads to another node only when both masks have the bit; a connected side towards an unloaded position or
+  towards a pipe block without a live block entity is `NONE`, never an endpoint.
+- **Endpoint.** `PipeNetwork.Endpoint(pos, face, node, side, cache)`: the block, its face towards the pipe (the
+  capability context), the node index and the node's side towards it, and a `BlockCapabilityCache` for the kind's
+  capability (`Capabilities.Item.BLOCK`, `Fluid.BLOCK`, `Energy.BLOCK`). The cache's listener invalidates the network;
+  its validity check is `network.isValid()`, so caches of dropped networks unregister themselves. The cache is read
+  once when it is created, because NeoForge only notifies caches that were read since their last invalidation.
+- **Dirty means unmapped** (a simplification of the 3.4 text, 31 Oct 2026). The manager keeps `byPos` for valid
+  networks only; `invalidate(pos)` drops the networks at `pos` and at its six neighbours and unmaps all their nodes,
+  so there is no separate dirty set that could grow with positions that are no longer pipes. `isDirty(pos)` is "the
+  next `get` builds". Dropping the neighbours' networks too is what makes merging work when only the new pipe has
+  reported a change; it also drops an adjacent network of another kind, which only costs a rebuild.
+- **Invalidation sources** (`PipeNetworks.invalidate(level, pos)`, a no-op on the client and when the level has no
+  manager yet): `TilePipe.onLoad`, `setRemoved` (block break and chunk unload), a connection-mask change in
+  `updateConnections`, `onConfigurationChanged` (plug or module change, even when the mask stays the same), and the
+  endpoint caches. Chest contents, tank levels and energy levels never invalidate. Masks settle on the server tick
+  after a block change (#48), so a network asked for in the same tick as a placement can still be the old shape; it
+  is invalidated again when the mask changes.
+- **Lookups never load chunks or create block entities**: `LevelPipeWorld.getPipe` uses
+  `LevelChunk.getBlockEntity(pos, CHECK)` behind `isLoaded`. `IMMEDIATE` would replace a removed pipe's block entity
+  with a fresh one during a build.
+- **Structure pipes** have no network: `get` returns null for them (TRANSPORT 11).
+
+### For #50 (item walk), #51 (fluids) and #52 (power)
+
+- Get the network with `PipeNetworks.get(serverLevel, pos)` (null when the position holds no loaded pipe, or a structure
+  pipe). It is cheap when cached. Do not keep a network across ticks without checking `isValid()`; get it again.
+- Walk with `network.nodes[i].next(side)`; `in` sides and paths are node indices. Destinations are
+  `network.endpoints[PipeNode.endpointIndex(next)]`; read the handler live with `endpoint.cache().getCapability()`
+  (cast to the kind's handler type; null when the block lost it, which the next tick's rebuild removes). Never call
+  `getCapability` from an invalidation listener.
+- Per-pipe state (budgets, fluid locks, flow records, overflow) stays on the block entity: `(TilePipe) node.pipe`.
+- The source tick (TRANSPORT 6.1) is not here: `PipeNetworkManager.networks()` lists the valid networks built so far,
+  in build order, but a network is only built when something asks for it. The tick has to make sure every source pipe's
+  network exists (for example source pipes ask for theirs when they load or when their module is fitted) and then
+  walk `networks()` with `sourceNodes` / `sourceCursor`, at `LevelTickEvent.Post` on the server.
+- `PipeModuleType.isSource()` decides `sourceNodes`; when #55 replaces the type with module objects, keep that method
+  (or its equivalent) and rebuild the network on a module change (`onConfigurationChanged` already invalidates).
