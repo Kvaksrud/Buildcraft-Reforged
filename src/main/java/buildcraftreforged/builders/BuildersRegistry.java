@@ -158,5 +158,7 @@ public final class BuildersRegistry {
         modBus.addListener(BuildersRegistry::registerCapabilities);
         // 4.2.2 BuildCraftBuilders.init
         ActionManager.registerActionProvider(new BuildersActionProvider());
+        // 4.2.2 BuildCraftBuilders.load (and the other modules' load): blueprint schematics (#76)
+        BuildersSchematics.register();
     }
 }

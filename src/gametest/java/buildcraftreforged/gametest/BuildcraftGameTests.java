@@ -214,6 +214,7 @@ public final class BuildcraftGameTests {
             SiliconRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             AdvancedCraftingTableTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            SchematicTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
@@ -437,6 +438,11 @@ public final class BuildcraftGameTests {
         for (String name : BlueprintTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, BlueprintTests.MAX_TICKS)));
+        }
+        // #76 schematics: a 5 x 3 x 3 mixed structure captured and built turned beside it.
+        for (String name : SchematicTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, SchematicTests.MAX_TICKS)));
         }
         // #79 filler: a 3 x 3 x 3 marked area beside the filler, in the padded area.
         for (String name : FillerTests.TESTS.keySet()) {
