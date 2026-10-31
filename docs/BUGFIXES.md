@@ -525,3 +525,78 @@ style and headers); `082794a7d` adds the On/Off actions that 4.2.2 already has, 
 
 Upstream `git log 4.2.2..origin/7.1.x` over `api/bptblocks` and the module `BptBlock*` classes was not reviewed in #76:
 5.0 replaced them with the `Schematic*` classes, so the per-class triage of P7 (#81) covers them.
+
+#### The builder builds nothing (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | none (5.0 rewrote the builder; 6.0 brought back a working one) |
+| Upstream issue | none |
+| Class | `builders/TileBuilder` (`doWork`, `iterateBpt`), `core/EntityRobot` (`build`) |
+| Symptom | `doWork` sets up the box, the lasers and the robot, but the line that hands the robot the next block (`builderRobot.scheduleContruction(bluePrintBuilder.getNextBlock(...))`) and the two `markEndOfBlueprint` calls are commented out, so a 4.2.2 builder spends its power and places nothing. Had a template block reached the robot, `EntityRobot.build` would have thrown `RuntimeException("NOT IMPLEMENTED")` where the template's stack is used. Found by reading the code, not reproduced in a 1.6.4 instance. |
+| Decision | Accepted (1 Nov 2026, #78): the robot gets the next block and the end-of-blueprint mark, as the commented lines say, and a template's stack is placed through the item's own use on the target (the filler's way, #79). The plan's done-when for P6 is a house that builds. GameTests `builder_*`. |
+| Applied in | #78 |
+
+#### BuildCraft#1789: the builder waits for ever at an unbreakable block
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`68205d0ca28697bfd9c89e2883eca3dcb7112ffe`](https://github.com/BuildCraft/BuildCraft/commit/68205d0ca28697bfd9c89e2883eca3dcb7112ffe) ("fixed handling of unbreakable blocks, #1789", 12 May 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1789](https://github.com/BuildCraft/BuildCraft/issues/1789) |
+| Class | `core/blueprints/BptBuilderBlueprint`, `BptBuilderTemplate` (`internalGetNextBlock`), `core/EntityRobot` (`build`) |
+| Symptom | A slot whose world block cannot be changed (bedrock; 4.2.2's `canChangeBlock` also refuses lava and oil) is handed to the robot, which leaves it at the head of its queue and waits for it for ever, so the build stops there. |
+| Decision | Accepted in advance (PLAN.md section 3, unbreakable block handling), applied 1 Nov 2026 (#78): the builders pass over such a slot, as upstream's fix does, and the robot drops a target that became unchangeable after it was queued, giving its items back. GameTest `builder_template_with_materials` (bedrock in the cleared space). |
+| Applied in | #78 |
+
+#### BuildCraft#1652: the builder works outside the world's height
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`1ba976baff25fb1d76c0078a65732883d5a05576`](https://github.com/BuildCraft/BuildCraft/commit/1ba976baff25fb1d76c0078a65732883d5a05576) ("added provision for world bounds when building, fix #1652", 30 Apr 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1652](https://github.com/BuildCraft/BuildCraft/issues/1652) |
+| Class | `core/blueprints/BptBuilderBlueprint`, `BptBuilderTemplate` (constructors) |
+| Symptom | A blueprint placed near the top or bottom of the world gets slots above or below it; their requirements are taken and the placement fails, so the items are lost. |
+| Decision | Accepted (1 Nov 2026, #78): slots outside the level's build height are left out of every list, as upstream's fix does with 0 and the world height. Not covered by a GameTest (the test area is far from the limits). |
+| Applied in | #78 |
+
+#### The builder takes requirements from the blueprint slot and past its last slot (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | none (5.0 replaced `useRequirements`) |
+| Upstream issue | none |
+| Class | `core/blueprints/BptBuilderBlueprint` (`useRequirements`) |
+| Symptom | The loop runs to `i <= size`, one slot past the inventory, and its `isBuildingMaterial` check has an empty body, so the blueprint slot counts as building material and a requirement that the last slot does not finish reads `getStackInSlot(28)` (an `ArrayIndexOutOfBoundsException` in `TileBuilder`). `checkRequirements` skips the blueprint slot, so the two disagree. Found by reading the code, not reproduced in a 1.6.4 instance. |
+| Decision | Accepted (1 Nov 2026, #78): `useRequirements` stops at the last slot and skips what is not building material, as `checkRequirements` does. GameTests `builder_*` (the blueprint item stays in its slot). |
+| Applied in | #78 |
+
+#### A template rebuilds every filled spot that does not hold stone (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | none (6.0's `SchematicMask` counts a filled spot as built when it is not soft) |
+| Upstream issue | none |
+| Class | `core/blueprints/BptBuilderTemplate` (`internalGetNextBlock`) |
+| Symptom | A filled spot counts as built only when the world's block id equals the slot's, which for a template is 1, stone (the mask value). Any other block there, including what the builder itself placed from a template with cobblestone, is broken and replaced, and its item spent again. The code carries the note "I have no idea what this code is supposed to do". Found by reading the code, not reproduced in a 1.6.4 instance. |
+| Decision | Accepted (1 Nov 2026, #78): a filled spot counts as built when it holds a block that is not soft, as upstream's 6.0 template does. Empty spots keep 4.2.2's rule (anything but air is cleared). GameTest `builder_template_with_materials`. |
+| Applied in | #78 |
+
+#### The builder's queued blocks are lost with the robot (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | none |
+| Upstream issue | none |
+| Class | `builders/TileBuilder` (`iterateBpt`, `destroy`), `core/EntityRobot` (`setDead`) |
+| Symptom | The builder takes a block's items when it queues the block for its robot (up to 20 ahead). Taking the blueprint out or breaking the builder kills the robot with its queue, and the items taken for those blocks are gone. |
+| Decision | Accepted (1 Nov 2026, #78): the queued blocks' items go back into the builder's slots (or drop beside it) before the robot goes and before the builder's inventory is dropped. A chunk unloading with the builder in it still loses the queue, as in 4.2.2: the robot is not saved. Not covered by a GameTest. |
+| Applied in | #78 |
+
+Upstream `git log 4.2.2..origin/7.1.x` over `builders/TileBuilder`, `BlockBuilder`, `gui/GuiBuilder`, `ContainerBuilder`,
+`core/blueprints/BptBuilderBase`, `BptBuilderBlueprint`, `BptBuilderTemplate` and `core/EntityRobot`, reviewed in #78:
+besides the two entries above, `71d7d96c2` (place and break events for the builder, BuildCraft#2476) is covered by
+the owner's fake player (#27); `b30995aea` (build order, BuildCraft#1620), `7edc5a930` (BuildCraft#2967), `790d05d4c`
+(BuildCraft#3316), `1d9341e22`, `e2a0a7eab` (BuildCraft#2853), `ac59ef27e` (BuildCraft#2929), `b429080af`
+(BuildCraft#3837, #3839) and the "major builder improvements" fix the 6.x and 7.x builders (schematic dependencies,
+robots, fluids, the builder's requirement scrollbar), whose code 4.2.2 does not have; `fc62748f6` (stack sizes up to
+99k), `d732d4ee1` (scrollbar), `a1867f528` (Ore Dictionary) and `ee349e00b` (a mode that leaves air) are features.

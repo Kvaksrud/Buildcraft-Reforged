@@ -23,5 +23,6 @@ public final class BuildersRenderers {
         event.registerBlockEntityRenderer(BuildersRegistry.pathMarkerTile.get(), context -> new RenderMarker<>());
         event.registerBlockEntityRenderer(BuildersRegistry.fillerTile.get(), context -> new RenderFiller());
         event.registerBlockEntityRenderer(BuildersRegistry.architectTile.get(), context -> new RenderArchitect());
+        event.registerBlockEntityRenderer(BuildersRegistry.builderTile.get(), context -> new RenderBuilder());
     }
 }

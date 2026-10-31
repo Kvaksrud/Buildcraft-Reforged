@@ -3244,6 +3244,103 @@ stairs, now east, where `rotateLeft` puts them).
 stripes box rendering, the GUI (layout, progress arrow, clicking the name field, typing, the blinking cursor, the status
 ledger), and a wrench from another mod.
 
+## Builder (#78)
+
+Ported `builders/BlockBuilder`, `TileBuilder`, `gui/GuiBuilder`, `gui/ContainerBuilder`, `core/IBuilderInventory`,
+`core/EntityRobot` and `core/blueprints/BptBuilderBase`, `BptBuilderBlueprint`, `BptBuilderTemplate`. New:
+`builders/render/RenderBuilder`, `BuildCraftPlayer.placeAs`, `BptSlot.usedItems`. Changed (additive):
+`BuildersRegistry`, `BuildersSchematics` (the builder's `BptBlockRotateInventory`), `BuildersScreens`,
+`BuildersRenderers`, the pickaxe tag. Decided 2026-11-01.
+
+- **Names.** Block `builder_block` (4.2.2 `builderBlock`), block entity `builder`, menu `builder_block`. Lang keys are
+  4.2.2's (`tile.builderBlock`, `gui.building.resources`, `gui.needed`).
+- **Block.** As the architect table (#77): `Material.iron`, hardness 5, metal sound, pickaxe, drops itself; `FACING`
+  (horizontal) turned to the player on placement, west by default (4.2.2's metadata 0 built without turning, as west
+  does); 4.2.2's wrench cycle through any wrench in `c:tools/wrench` and `IRotatableBlock`; a plain click opens the GUI.
+  Model: `builder_front` on the front, `builder_top` on top, `builder_side` elsewhere, plus the status red light
+  (`blocked`). 4.2.2 left the builder out of the creative tab and commented its recipe out; it is in the machines tab,
+  with no recipe, as the architect table.
+- **What it builds.** Slot 0 holds a blueprint or template item; the builder loads its entry from the server's library
+  (`BuildCraftBuilders.getBptRootIndex(server).getBluePrint(ItemBptBase.getBptId(stack))`, a clone), puts its anchor on
+  itself and turns it to its facing as 4.2.2 did (the build goes away from the front: front west, no turn; north, one
+  `rotateLeft`; east, two; south, three). The architect turned the capture to its own front, so a house captured by a
+  table facing west comes out turned by the builder's facing. Path markers next to the builder lay a path, as 4.2.2: the
+  markers are removed and dropped, the path's lasers come up and the blueprint is built along it.
+- **Order** (4.2.2's `BptBuilderBlueprint`). A clear list top layer first (every slot whose world block is not what the
+  blueprint wants and is not soft), then a primary list of solid blocks (`isSolidRender`, 4.2.2 `isOpaqueCube`) bottom
+  layer first, then a secondary list of the rest bottom layer first; `ignoreBuilding` slots (the upper door half, the
+  bed head) are never built, their lower half places them. Once everything is built, every built slot's
+  `postProcessing` runs (pipes reload their module settings); a slot whose block is not there is passed over. A template
+  (`BptBuilderTemplate`) clears its empty spots that hold anything, then fills its filled spots that hold nothing or a
+  soft block, one item from the building slots each (docs/BUGFIXES.md: 4.2.2 wanted stone there).
+- **The robot** (`core/EntityRobot`) is no longer an entity. It keeps 4.2.2's queue of up to 20 blocks, its wait (20 -
+  queue + 2 ticks per block) and its wandering inside the box (destinations among the soft blocks next to it, speed from
+  its laser's power average); the builder ticks it and sends its position, destination, motion and laser with its
+  network payload, and the client moves it along. 4.2.2 never handed it a block (docs/BUGFIXES.md "The builder builds
+  nothing"); `doWork` now queues `getNextBlock` each time the robot has room.
+- **Owner** (plan section 6, #27). The robot clears and places as the builder's owner's fake player: clearing asks
+  `canBreak` and sets air without drops (4.2.2 `setBlockToAir`); a blueprint slot needs `canBreak` on any block in the
+  way and is placed through `BuildCraftPlayer.placeAs`, which captures what the schematic's `buildBlock` sets (both door
+  halves), fires `EntityPlaceEvent` or `EntityMultiPlaceEvent` and restores everything when refused; a template slot is
+  placed with `BuildCraftPlayer.useItemOn` on the target, as the filler does. A refused slot is skipped (never retried)
+  and its items go back into the building slots, or drop on the builder when they are full. A built BuildCraft machine
+  that has no owner (#76 strips it from the capture) gets the builder's owner. Unchangeable blocks (bedrock, lava, oil)
+  are passed over (BuildCraft#1789) and nothing is built outside the world's height (BuildCraft#1652).
+- **Materials.** As 4.2.2: slots 1 to 27 (`isBuildingMaterial(i)`: not slot 0), the requirements of a slot taken all
+  at once when it is queued, a requirement matching an item of the same kind and, unless the item is damageable, the
+  same components (4.2.2: damage). An emptied stack is replaced by its crafting remainder (a used water bucket leaves
+  the bucket; 4.2.2's `useItem` did it in place). **New, asked for in #78's task:** the inventories on the six sides of
+  the builder are building material too, after its own slots, in the order down, up, north, south, west, east, each as
+  a hopper sees it (`HopperBlockEntity.getContainerAt`: a double chest whole); a sided inventory gives only what it lets
+  out on the side facing the builder, another builder only its building slots. Item handlers that are not a
+  `Container` (another mod's capability-only inventory) are not read.
+- **Creative.** As 4.2.2: in a world whose game type is creative (the server's default game type, not the player's)
+  a blueprint is built without materials. Templates always take items. The GameTest world is creative, so
+  `BuilderTests` run in their own environment, `buildcraftreforged:builder_survival`, whose setup and teardown functions
+  (`gametest_data/.../function/builder_survival_*.mcfunction`) run `defaultgamemode survival` and `creative`.
+- **Power.** FE: `configure(250, 250, 250, 250)` (4.2.2 25 MJ each), 250 FE per step (4.2.2 `useEnergy(25, 25)`),
+  one step a tick at most, a step only while the robot has room. The stored energy is not saved, as in 4.2.2. Energy
+  and item capabilities on every side (4.2.2 `IPowerReceptor`, `IInventory`; every slot, slot 0 included, as 4.2.2's
+  `isItemValidForSlot` was true).
+- **Status panel.** State "Idle" without a blueprint or template in slot 0, "Done" once built and the robot's queue is
+  empty, "Blocked" with Reason "missing materials" and the red light while the last step found blocks to build and not
+  their items (new `BptBuilderBase.missingMaterials`), "No power", else "Working". Power line: FE drawn. As 4.2.2, a
+  builder waiting for materials still spends 250 FE a step.
+- **GUI.** `ContainerBuilder` keeps 4.2.2's slots (the blueprint at 80, 27; 27 building slots at y 72; the player's at
+  140 and 198). `GuiBuilder` is 176 x 225 on `builder.png`, or on the 256-wide `builder_blueprint.png` with the
+  "Needed" list (7 x 4 stacks at x 179) while slot 0 holds a blueprint. The list is `neededItems` (most first, then by
+  item id, 4.2.2's order), at most 28 stacks, sent with the builder's network payload (4.2.2 read the client's own
+  builder, which on a server had no blueprint); counts above 64 are drawn as they are. The status ledger is added.
+- **Render.** `RenderBuilder` draws the stripes box (as `RenderArchitect`), the path lasers (`RenderLaser`), the
+  robot's energy laser to the block at the head of its queue (`RenderEnergyLaser`) and the robot as 4.2.2's
+  `RenderRobot` did: an unlit 8 x 8 x 8 cube with `textures/entity/robot.png` (copied from 4.2.2's `entities/robot.png`).
+- **Save and sync.** Tags as 4.2.2: `Items`, `box`, `path` (list of `BlockIndex`), `done`. The blueprint builder and
+  the robot are not saved, as in 4.2.2: after a reload the builder starts the blueprint over, clearing nothing that is
+  already right. Network payload: 4.2.2's box, then the path, the robot and the needed stacks, sent at most every other
+  tick while something the client draws changed.
+- **Not ported:** `GuiIds.BUILDER` routing (the menu type replaces it), `addCreativeItems`, the `EntityRobot` entity
+  registration and `RenderRobot` (folded into `RenderBuilder`). `TileQuarry` keeps its own `QuarryFrameBuilder` (#67).
+
+### Tests
+
+GameTests (`BuilderTests`, padded area, survival batch): a house (3 x 3 stone floor, an oak door facing north, oak
+stairs facing north, a chest facing north with three diamonds) captured with the architect's place west of it and
+stored in the server's library.
+`builder_blueprint_with_materials` (a builder facing west builds it beside itself: every block and facing, both door
+halves, the diamonds in the chest; the stone from a chest next to the builder, the rest from its slots, nothing left
+over; the needed list starts with stone; Done and the box gone; the menu's 64 slots and the blueprint slot at 80, 27),
+`builder_blueprint_turned` (facing north it builds behind itself, turned once: door, stairs and chest face east where
+a point east of the architect's place lands south of the builder), `builder_template_with_materials` (a ring template:
+dirt in the empty spots cleared, bedrock passed over, eight cobblestone placed, two left), `builder_missing_materials`
+(four stone for nine: four built, Blocked with "missing materials" and the red light; five more and it is Done, light
+off) and `builder_protected_block` (a stand-in claim refuses breaking a dirt block and placing in one corner: both
+skipped, seven stone placed, the two refused stone given back, the claim saw the owner's UUID).
+
+**Not checked without a client:** the block model and its facing, the red light, the item icon, the stripes box, the
+path lasers, the robot (cube, texture, movement, laser) and the GUI (both backgrounds, slot layout, the needed list
+and its tooltips, the status ledger). Not covered by a test: path markers, a bed or pipes built by the builder, the
+creative rule, a builder broken while its robot has a queue, and real claim mods.
+
 ## Auto workbench and hopper (#69, #70)
 
 Ported `factory/BlockAutoWorkbench`, `TileAutoWorkbench`, `gui/ContainerAutoWorkbench`, `gui/GuiAutoCrafting`,

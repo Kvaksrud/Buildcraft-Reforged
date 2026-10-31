@@ -160,6 +160,7 @@ public final class BuildersSchematics {
         BlueprintManager.registerSchematic(BuildersRegistry.markerBlock, BptBlockWallSide::new);
         BlueprintManager.registerSchematic(BuildersRegistry.pathMarkerBlock, BptBlockWallSide::new);
         BlueprintManager.registerSchematic(BuildersRegistry.fillerBlock, BptBlockMachine::new);
+        BlueprintManager.registerSchematic(BuildersRegistry.builderBlock, BptBlockRotateInventory::new);
 
         // 4.2.2 BuildCraftEnergy.load
         family(BlockEngine.class, BptBlockEngine::new);
