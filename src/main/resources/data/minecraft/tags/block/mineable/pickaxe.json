@@ -1,6 +1,7 @@
 {
   "values": [
     "buildcraftreforged:laser_block",
-    "buildcraftreforged:assembly_table_block"
+    "buildcraftreforged:assembly_table_block",
+    "buildcraftreforged:refinery_block"
   ]
 }

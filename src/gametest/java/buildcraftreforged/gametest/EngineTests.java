@@ -13,6 +13,10 @@ import buildcraftreforged.core.status.MachineStatus;
 import buildcraftreforged.energy.BlockEngine;
 import buildcraftreforged.energy.TileEngine;
 import buildcraftreforged.energy.TileEngine.EnergyStage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -191,6 +195,62 @@ final class EngineTests {
                 helper.assertTrue(engine.getMeter().energyOutPerSecond() > 0, "nothing on the meter");
             });
         });
+    }
+
+    /**
+     * #39 renderer: what RenderEngine reads reaches the client. A running engine's payload carries the stage (trunk
+     * colour) and the pumping flag (which starts the client's piston), the facing is the block state, and every texture
+     * the renderer, the item model and the block models name is a 64 x 32 (or 16 x 16 particle) file in the jar.
+     */
+    static void renderState(GameTestHelper helper) {
+        BlockPos receptorPos = ENGINE.east();
+        helper.setBlock(receptorPos, receptorBlock);
+        TestEngine engine = placeEngine(helper, ENGINE, Direction.EAST);
+        engine.energy = 600;
+        helper.setBlock(ENGINE.below(), Blocks.REDSTONE_BLOCK);
+
+        helper.runAfterDelay(1, () -> {
+            helper.assertTrue(engine.isPumping, "a powered engine facing a receptor is not pumping");
+            TestEngine client = clientCopy(helper, engine);
+            helper.assertValueEqual(client.energyStage, EnergyStage.YELLOW, "synced stage at 60 %");
+            helper.assertTrue(client.isPumping, "the client does not see the engine pumping");
+            helper.assertValueEqual(client.getOrientation(), Direction.EAST, "facing the client renders");
+            assertClose(helper, client.getPistonSpeed(), 0.08F, "client piston speed");
+            helper.assertValueEqual(client.getTextureFile(), TileEngine.WOOD_TEXTURE, "base texture");
+
+            // Overheat draws the red trunk and stops the client's piston.
+            engine.energyStage = EnergyStage.OVERHEAT;
+            TestEngine hot = clientCopy(helper, engine);
+            helper.assertValueEqual(hot.energyStage, EnergyStage.OVERHEAT, "synced overheat");
+            assertClose(helper, hot.getPistonSpeed(), 0, "client piston speed when overheated");
+
+            for (Identifier texture : List.of(TileEngine.WOOD_TEXTURE, TileEngine.STONE_TEXTURE, TileEngine.IRON_TEXTURE,
+                    id("textures/block/chamber.png"), id("textures/block/trunk_blue.png"), id("textures/block/trunk_green.png"),
+                    id("textures/block/trunk_yellow.png"), id("textures/block/trunk_red.png"))) {
+                assertPng(helper, texture, 64, 32);
+            }
+            for (String engineName : List.of("wood", "stone", "iron")) {
+                assertPng(helper, id("textures/block/engine_" + engineName + "_bottom.png"), 16, 16);
+                helper.assertTrue(resource(id("models/block/engine_" + engineName + ".json")) != null,
+                        "no block model for engine_" + engineName);
+            }
+            helper.succeed();
+        });
+    }
+
+    private static void assertPng(GameTestHelper helper, Identifier texture, int width, int height) {
+        byte[] png = resource(texture);
+        helper.assertTrue(png != null && png.length > 24, "missing texture " + texture);
+        ByteBuffer header = ByteBuffer.wrap(png, 16, 8);
+        helper.assertValueEqual(header.getInt() + "x" + header.getInt(), width + "x" + height, "size of " + texture);
+    }
+
+    private static byte @Nullable [] resource(Identifier location) {
+        try (InputStream in = EngineTests.class.getResourceAsStream("/assets/" + location.getNamespace() + "/" + location.getPath())) {
+            return in == null ? null : in.readAllBytes();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     /**

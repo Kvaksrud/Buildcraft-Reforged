@@ -6,6 +6,7 @@ import buildcraftreforged.api.power.PowerEnergyHandler;
 import buildcraftreforged.api.power.PowerHandler;
 import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.energy.BlockEngine;
+import buildcraftreforged.transport.PipeFlow;
 import buildcraftreforged.transport.PipeMaterial;
 import buildcraftreforged.transport.TilePipe;
 import buildcraftreforged.transport.TransportRegistry;
@@ -191,7 +192,8 @@ final class PowerRoutingTests {
     /**
      * Section 7.4, Power Limiter (Q7): a Director on a power pipe lowers its refill. A gold line (1 280 FE/t) with a 160
      * FE/t limit on one pipe passes 160 FE/t; a limit above the tier changes nothing. The saturated pipe is overloaded
-     * after 60 ticks; the receivers asked for more than it passed (Q21).
+     * after 60 ticks; the receivers asked for more than it passed (Q21). The Pipe Contents flow (#60) reads the same. An
+     * idle line whose sink wants power requests energy without any push (asked directly), and nothing flows there.
      */
     static void limiter(GameTestHelper helper) {
         helper.setBlock(at(0, 0), sourceBlock);
@@ -204,6 +206,8 @@ final class PowerRoutingTests {
         Sink sink = helper.getBlockEntity(at(0, 4), Sink.class);
         tile(helper, 0, 2).setPowerLimit(160);
         tile(helper, 0, 3).setPowerLimit(100_000);
+        pipe(helper, 2, 1, PipeMaterial.GOLD);
+        helper.setBlock(at(2, 2), sinkBlock);
 
         long[] start = new long[1];
         helper.runAtTickTime(WINDOW_START, () -> start[0] = sink.handler.stored);
@@ -217,6 +221,14 @@ final class PowerRoutingTests {
             helper.assertTrue(PowerRouting.isOverloaded(level, tile(helper, 0, 2)), "the limited pipe is not overloaded");
             helper.assertFalse(PowerRouting.isOverloaded(level, tile(helper, 0, 1)), "the gold pipe is overloaded");
             helper.assertTrue(PowerRouting.requestsEnergy(level, tile(helper, 0, 2)), "no unmet request");
+            PipeFlow limited = tile(helper, 0, 2).gateHolder.flow;
+            helper.assertTrue(limited.isFlowing() && limited.isOverloaded() && limited.requestsEnergy(),
+                    "Pipe Contents on the limited pipe");
+            PipeFlow gold = tile(helper, 0, 1).gateHolder.flow;
+            helper.assertTrue(gold.isFlowing() && !gold.isOverloaded(), "Pipe Contents on the gold pipe");
+            PipeFlow idle = tile(helper, 2, 1).gateHolder.flow;
+            helper.assertTrue(!idle.isFlowing() && idle.requestsEnergy() && !idle.isOverloaded(),
+                    "Pipe Contents on the idle line");
             helper.succeed();
         });
     }

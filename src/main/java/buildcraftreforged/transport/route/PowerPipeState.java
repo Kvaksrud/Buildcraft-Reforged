@@ -19,7 +19,7 @@ public final class PowerPipeState extends SnapshotJournal<PowerPipeState.State> 
     /** 4.2.2 {@code PipeTransportPower.OVERLOAD_TICKS}. */
     public static final int OVERLOAD_TICKS = 60;
 
-    record State(long tick, long passed, int overload, boolean requested, long requestTick) {
+    record State(long tick, long passed, int overload, boolean requested, long requestTick, long flowTick) {
     }
 
     private static final long UNSET = Long.MIN_VALUE;
@@ -29,6 +29,7 @@ public final class PowerPipeState extends SnapshotJournal<PowerPipeState.State> 
     private int overload;
     private boolean requested;
     private long requestTick = UNSET;
+    private long flowTick = UNSET;
 
     /** Closes every tick before {@code now} with the given refill (FE/t), 4.2.2 {@code maxPower * 0.95}. */
     private void advance(long now, long refill) {
@@ -52,6 +53,8 @@ public final class PowerPipeState extends SnapshotJournal<PowerPipeState.State> 
         updateSnapshots(transaction);
         advance(now, refill);
         passed += amount;
+        if (amount > 0)
+            flowTick = now;
     }
 
     /**
@@ -68,6 +71,11 @@ public final class PowerPipeState extends SnapshotJournal<PowerPipeState.State> 
     public long passed(long now, long refill) {
         advance(now, refill);
         return passed;
+    }
+
+    /** The game time power last passed this pipe, or {@link Long#MIN_VALUE} if never since it loaded. */
+    public long lastFlowTick() {
+        return flowTick;
     }
 
     /** The overload counter at {@code now}, over the closed ticks: 0 to {@link #OVERLOAD_TICKS}. */
@@ -93,7 +101,7 @@ public final class PowerPipeState extends SnapshotJournal<PowerPipeState.State> 
 
     @Override
     protected State createSnapshot() {
-        return new State(tick, passed, overload, requested, requestTick);
+        return new State(tick, passed, overload, requested, requestTick, flowTick);
     }
 
     @Override
@@ -103,5 +111,6 @@ public final class PowerPipeState extends SnapshotJournal<PowerPipeState.State> 
         overload = snapshot.overload();
         requested = snapshot.requested();
         requestTick = snapshot.requestTick();
+        flowTick = snapshot.flowTick();
     }
 }

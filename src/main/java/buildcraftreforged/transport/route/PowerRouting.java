@@ -63,7 +63,7 @@ public final class PowerRouting {
      */
     public static boolean requestsEnergy(ServerLevel level, TilePipe pipe) {
         PowerPipeState state = pipe.getPowerState();
-        if (level.getGameTime() - state.lastRequestTick() < REQUEST_TICKS)
+        if (state.lastRequestTick() != Long.MIN_VALUE && level.getGameTime() - state.lastRequestTick() < REQUEST_TICKS)
             return state.lastRequestUnmet();
         PipeNetwork network = PipeNetworks.get(level, pipe.getBlockPos());
         if (network == null)

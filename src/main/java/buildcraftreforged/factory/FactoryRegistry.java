@@ -12,18 +12,26 @@
  */
 package buildcraftreforged.factory;
 
+import buildcraftreforged.api.power.PowerEnergyHandler;
+import buildcraftreforged.core.BlockBuildCraft;
 import buildcraftreforged.core.CreativeTabBuildCraft;
 import buildcraftreforged.core.ItemBlockBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
+import buildcraftreforged.factory.gui.ContainerRefinery;
 import java.util.function.Supplier;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
+import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -49,6 +57,27 @@ public final class FactoryRegistry {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileTank>> tankTile =
             REGISTERS.blockEntityTypes.register("tank", () -> new BlockEntityType<>(TileTank::new, tankBlock.get()));
 
+    /** BlockRefinery's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(5F); not opaque. */
+    public static final DeferredBlock<BlockRefinery> refineryBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("refineryBlock"), BlockRefinery::new,
+            properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.refineryBlock")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()));
+    public static final DeferredItem<ItemBlockBuildCraft> refineryBlockItem = blockItem("refineryBlock", refineryBlock);
+
+    /** 4.2.2 registered TileRefinery as "net.minecraft.src.buildcraft.factory.Refinery". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileRefinery>> refineryTile =
+            REGISTERS.blockEntityTypes.register("refinery", () -> new BlockEntityType<>(TileRefinery::new, refineryBlock.get()));
+
+    /** 4.2.2 GuiIds.REFINERY. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerRefinery>> refineryMenu =
+            REGISTERS.menus.register("refinery", () -> IMenuTypeExtension.create(ContainerRefinery::new));
+
+    /** The JSON refinery recipes (RefineryRecipe), type and serializer {@code buildcraftreforged:refinery}. */
+    public static final DeferredHolder<RecipeType<?>, RecipeType<RefineryRecipe>> refineryRecipeType =
+            REGISTERS.recipeTypes.register("refinery", id -> RecipeType.<RefineryRecipe>simple(id));
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<RefineryRecipe>> refineryRecipeSerializer =
+            REGISTERS.recipeSerializers.register("refinery", () -> RefineryRecipe.SERIALIZER);
+
     private FactoryRegistry() {
     }
 
@@ -63,6 +92,8 @@ public final class FactoryRegistry {
     /** 4.2.2's machines implemented IFluidHandler; now each exposes a fluid capability. */
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, tankTile.get(), (tile, side) -> tile);
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, refineryTile.get(), (tile, side) -> tile);
+        PowerEnergyHandler.registerEnergyHandler(event, refineryTile.get());
     }
 
     public static void register(IEventBus modBus) {
