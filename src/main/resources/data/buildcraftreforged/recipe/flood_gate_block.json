@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "G": "buildcraftreforged:iron_gear_item",
+    "F": "minecraft:iron_bars",
+    "T": "buildcraftreforged:tank_block"
+  },
+  "pattern": [
+    "IGI",
+    "FTF",
+    "IFI"
+  ],
+  "result": {
+    "id": "buildcraftreforged:flood_gate_block"
+  }
+}

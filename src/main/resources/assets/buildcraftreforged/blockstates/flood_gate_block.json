@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "buildcraftreforged:block/flood_gate_block"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "r": "minecraft:redstone",
+    "i": "minecraft:iron_ingot",
+    "T": "buildcraftreforged:tank_block",
+    "g": "buildcraftreforged:iron_gear_item",
+    "p": "buildcraftreforged:pipe_fluids_gold"
+  },
+  "pattern": [
+    "iri",
+    "iTi",
+    "gpg"
+  ],
+  "result": {
+    "id": "buildcraftreforged:pump_block"
+  }
+}

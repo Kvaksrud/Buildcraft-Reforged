@@ -72,6 +72,27 @@ public final class FactoryRegistry {
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerRefinery>> refineryMenu =
             REGISTERS.menus.register("refinery", () -> IMenuTypeExtension.create(ContainerRefinery::new));
 
+    /** BlockPump's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(5F). */
+    public static final DeferredBlock<BlockPump> pumpBlock = REGISTERS.blocks.registerBlock(RegistryNames.of("pumpBlock"),
+            BlockPump::new, properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.pumpBlock")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    public static final DeferredItem<ItemBlockBuildCraft> pumpBlockItem = blockItem("pumpBlock", pumpBlock);
+
+    /** 4.2.2 registered TilePump as "net.minecraft.src.buildcraft.factory.TilePump". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TilePump>> pumpTile =
+            REGISTERS.blockEntityTypes.register("pump", () -> new BlockEntityType<>(TilePump::new, pumpBlock.get()));
+
+    /** BlockFloodGate's constructor: Material.iron (metal sound and colour, pickaxe), setHardness(5F). */
+    public static final DeferredBlock<BlockFloodGate> floodGateBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("floodGateBlock"), BlockFloodGate::new,
+            properties -> BlockBuildCraft.defaultProperties(properties.overrideDescription("tile.floodGateBlock")
+                    .mapColor(MapColor.METAL).sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    public static final DeferredItem<ItemBlockBuildCraft> floodGateBlockItem = blockItem("floodGateBlock", floodGateBlock);
+
+    /** 4.2.2 registered TileFloodGate as "net.minecraft.src.buildcraft.factory.TileFloodGate". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileFloodGate>> floodGateTile =
+            REGISTERS.blockEntityTypes.register("flood_gate", () -> new BlockEntityType<>(TileFloodGate::new, floodGateBlock.get()));
+
     /** The JSON refinery recipes (RefineryRecipe), type and serializer {@code buildcraftreforged:refinery}. */
     public static final DeferredHolder<RecipeType<?>, RecipeType<RefineryRecipe>> refineryRecipeType =
             REGISTERS.recipeTypes.register("refinery", id -> RecipeType.<RefineryRecipe>simple(id));
@@ -121,6 +142,9 @@ public final class FactoryRegistry {
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, refineryTile.get(), (tile, side) -> tile);
         PowerEnergyHandler.registerEnergyHandler(event, refineryTile.get());
         PowerEnergyHandler.registerEnergyHandler(event, miningWellTile.get());
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, pumpTile.get(), (tile, side) -> tile);
+        PowerEnergyHandler.registerEnergyHandler(event, pumpTile.get());
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, floodGateTile.get(), (tile, side) -> tile);
     }
 
     public static void register(IEventBus modBus) {

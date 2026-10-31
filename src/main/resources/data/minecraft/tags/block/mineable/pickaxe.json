@@ -4,6 +4,8 @@
     "buildcraftreforged:assembly_table_block",
     "buildcraftreforged:refinery_block",
     "buildcraftreforged:engine_wood",
-    "buildcraftreforged:engine_stone"
+    "buildcraftreforged:engine_stone",
+    "buildcraftreforged:pump_block",
+    "buildcraftreforged:flood_gate_block"
   ]
 }

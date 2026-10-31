@@ -216,6 +216,48 @@ item pipe connects through `IMachine.manageSolids` (ported in `BlockPipeItems.is
 The rest of `git log 4.2.2..origin/7.1.x` over the three classes is the 6.x/7.x rewrite (RF battery, dynamic break
 energy, the 6.2 "unnerf", tiles API), the 1.7 port, achievements and style: no other fix.
 
+Triage for #65 (`factory/TilePump`, `BlockPump`, `TileFloodGate`, `BlockFloodGate`, `PumpDimensionList`), decided
+2026-10-31: the GitHub commit list for each file on the 7.1.x line since 4.2.2 holds the 1.7 port, headers, style,
+the MJ/RF API changes, the 6.x Tiles API, robots, emerald pipe filters and the 7.x fluid pipe rewrite, plus the
+entries below. `b3dac2386694fd9722f75223c8f07129d3526000` ("fixed generic fluid pumping", 1.7 line) makes
+`BlockUtil.drainBlock`/`getFluid` work for any registered fluid block instead of only water, lava and Forge fluid
+blocks; the port's `BlockUtil` already handles every `LiquidBlock` (not applicable). The residual liquid fix accepted
+in advance for pumps (PLAN.md section 3, BuildCraft#1790) is about blueprints keeping the pump's fluid; 4.2.2 has no
+pump schematic and blueprints are P6 (not applicable here; #78 should not copy tank contents into schematics).
+
+#### BuildCraft#2650: pump tube entities pile up
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`a11a25456c65848f4780728b951ae377aa014b9d`](https://github.com/BuildCraft/BuildCraft/commit/a11a25456c65848f4780728b951ae377aa014b9d) ("fix pump crash, fix pump entity spam", 13 Apr 2015, 7.0 line) and [`f3844b74b29ae314e2d3bb204144344a0efb5c0d`](https://github.com/BuildCraft/BuildCraft/commit/f3844b74b29ae314e2d3bb204144344a0efb5c0d) ("backport pump entity spam fix, fix #2650", 22 Apr 2015, 6.4 line) |
+| Upstream issue | [BuildCraft#2650](https://github.com/BuildCraft/BuildCraft/issues/2650) (referenced by the commit; the issue itself is about a filler) |
+| Class | `factory/TilePump` (`onChunkUnload`) |
+| Symptom | The tube is an entity spawned by the tile. When the chunk unloads, the tile goes but the entity is saved with the chunk; each reload spawns another tube, so tube entities pile up. Upstream removes the entity in `onChunkUnload`. |
+| Decision | Not applicable: the tube is no longer an entity (`EntityBlock` is render data held by `TilePump` and drawn by `RenderPump`), so nothing is saved or spawned. |
+| Applied in | — |
+
+#### BuildCraft#2165: flood gate searches below the world
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`2507218e00d5296041b712aaeeaf40c92f7981ba`](https://github.com/BuildCraft/BuildCraft/commit/2507218e00d5296041b712aaeeaf40c92f7981ba) ("fix #2165", 6 Nov 2014) |
+| Upstream issue | [BuildCraft#2165](https://github.com/BuildCraft/BuildCraft/issues/2165) |
+| Class | `factory/TileFloodGate` (`queueForFilling`) |
+| Symptom | A flood gate over a world without bedrock queues positions below y = 0 as empty (air) and the server crashes placing fluid there. Upstream skips y below 0 or above 255. In 4.2.2 the out-of-world positions read as air and are queued the same way. |
+| Decision | Accepted (2026-10-31, #65): a crash, no balance change. `queueForFilling` skips positions where `level.isOutsideBuildHeight(y)`, which follows the dimension's own height instead of 0..255. |
+| Applied in | #65 |
+
+#### BuildCraft#1563: flood gate and finite liquids
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`4ea6f8959f949deb740c20106eb50ed5e68e0136`](https://github.com/BuildCraft/BuildCraft/commit/4ea6f8959f949deb740c20106eb50ed5e68e0136) ("fixed flood gate and finite liquids, close #1563", 2 Apr 2014, 6.0 line) |
+| Upstream issue | [BuildCraft#1563](https://github.com/BuildCraft/BuildCraft/issues/1563) |
+| Class | `factory/TileFloodGate` (`placeFluid`) |
+| Symptom | A Forge `BlockFluidBase` fluid (finite liquids from other mods) was placed with metadata 0, which for those blocks is a nearly empty block; upstream places it at its full-block metadata. |
+| Decision | Not applicable: Forge's fluid block classes and metadata levels are gone. The gate places the fluid's source state (`FluidUtils.getFluidBlock`), which is always a full block. |
+| Applied in | — |
+
 ### silicon
 
 Triage for #72 (`silicon/TileAssemblyTable`, `BlockLaserTable`, `gui/GuiAssemblyTable`, `gui/ContainerAssemblyTable`,

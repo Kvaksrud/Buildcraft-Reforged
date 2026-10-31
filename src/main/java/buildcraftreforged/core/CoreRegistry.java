@@ -13,6 +13,7 @@
 
 package buildcraftreforged.core;
 
+import buildcraftreforged.api.core.BuildCraftAPI;
 import buildcraftreforged.api.gates.ActionManager;
 import buildcraftreforged.api.gates.IAction;
 import buildcraftreforged.api.gates.ITrigger;
@@ -30,8 +31,16 @@ import buildcraftreforged.core.triggers.TriggerInventoryLevel;
 import buildcraftreforged.core.triggers.TriggerMachine;
 import buildcraftreforged.transport.triggers.TriggerRedstoneInput;
 import java.util.function.Supplier;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CactusBlock;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.SugarCaneBlock;
+import net.minecraft.world.level.block.VegetationBlock;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -142,5 +151,24 @@ public final class CoreRegistry {
         // 4.2.2 BuildCraftCore.init
         ActionManager.registerTriggerProvider(new DefaultTriggerProvider());
         ActionManager.registerActionProvider(new DefaultActionProvider());
+        modBus.addListener(FMLCommonSetupEvent.class, event -> event.enqueueWork(CoreRegistry::registerSoftBlocks));
+    }
+
+    /**
+     * 4.2.2 BuildCraftCore.postInit: fluids and plants are soft (the flood gate and the builders replace them), and so
+     * are snow, vines and fire. 1.6.4's BlockFluid and IFluidBlock are LiquidBlock now; its IPlantable blocks are the
+     * vegetation blocks, sugar cane and cactus.
+     */
+    private static void registerSoftBlocks() {
+        for (Block block : BuiltInRegistries.BLOCK) {
+            if (block instanceof LiquidBlock || block instanceof VegetationBlock || block instanceof SugarCaneBlock
+                    || block instanceof CactusBlock) {
+                BuildCraftAPI.softBlocks.add(block);
+            }
+        }
+
+        BuildCraftAPI.softBlocks.add(Blocks.SNOW);
+        BuildCraftAPI.softBlocks.add(Blocks.VINE);
+        BuildCraftAPI.softBlocks.add(Blocks.FIRE);
     }
 }
