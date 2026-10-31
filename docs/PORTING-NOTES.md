@@ -799,6 +799,43 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
   energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
   The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
 
+## Fuel and coolant registry (#43)
+
+4.2.2 registered combustion engine fuels and coolants in code (`BuildCraftEnergy.preInit`). They are data now:
+three NeoForge data maps declared in `api/fuels/FuelDataMaps` and registered by `EnergyRegistry`. Decided 2026-10-31.
+
+| Data map | File | Key | Value |
+| --- | --- | --- | --- |
+| `buildcraftreforged:combustion_fuels` | `data/buildcraftreforged/data_maps/fluid/combustion_fuels.json` | fluid | `{"power_per_cycle": FE, "total_burning_time": ticks}` |
+| `buildcraftreforged:combustion_coolants` | `data/buildcraftreforged/data_maps/fluid/combustion_coolants.json` | fluid | `{"degrees_cooling_per_mb": float}` |
+| `buildcraftreforged:solid_coolants` | `data/buildcraftreforged/data_maps/item/solid_coolants.json` | item | `{"fluid": fluid, "amount": mB}` |
+
+- **Values.** Oil 30 FE per cycle for 5000 ticks, fuel 60 FE for 25000 ticks (4.2.2: 3 and 6 MJ, × 10). Water cools
+  0.0023 heat per mB (heat units are unchanged); an ice block counts as 2000 mB of water. Lava stays out, as it was
+  commented out in 4.2.2. All values are synced to clients (not mandatory).
+- **Oil and fuel before #42.** Their entries carry a `neoforge:registered` condition on the fluid, so they load once
+  #42 registers `buildcraftreforged:oil` and `buildcraftreforged:fuel` and are skipped quietly until then. Key the
+  source fluid, not the flowing one; tanks hold source fluids. #42/#44 need no code change here.
+- **Lookups (the API for #44).** Unchanged 4.2.2 entry points: `IronEngineFuel.getFuelForFluid(Fluid)` returns a
+  `Fuel` (`liquid`, `powerPerCycle` in FE, `totalBurningTime`) or `null`; `IronEngineCoolant.getCoolant(FluidStack)`,
+  `getCoolant(ItemStack)`, `getFluidCoolant(ItemStack)` and `isCoolant(Fluid)`. Each reads the data map first and
+  falls back to the 4.2.2 code-registered maps (`fuels`, `liquidCoolants`, `solidCoolants`, filled by `addFuel` and
+  `addCoolant`), which stay for other mods. Data wins when both name a fluid. `getFuelForFluid` builds a new `Fuel`
+  for data entries on each call, so callers may cache it per fuel change; `getFluidCoolant` builds a new stack for data
+  entries. Solid coolants are a fluid and an amount, not a `FluidStack`: a `FluidStack` cannot be decoded while data
+  maps load, because fluid components are bound after them.
+- **Config multipliers.** 4.2.2 multiplied the oil and fuel burning times by `fuel.oil.combustion` and
+  `fuel.fuel.combustion` when it registered them. The new `IronEngineFuel.burningTimeMultipliers` (fluid id →
+  `DoubleSupplier`) applies them at lookup to data-map fuels, `(int) (time * multiplier)` as in 4.2.2, so a config
+  change applies without a reload. `EnergyRegistry` puts the two config values there.
+- **Data packs** add a fuel or coolant with a file at the same path (entries merge; `"replace": true` overrides an
+  entry, `"remove"` drops one). Tags work as keys, as in every data map.
+- **Tests.** `FuelRegistryTest` (JUnit) checks the shipped files against the 4.2.2 values and the code-registered
+  fallback; no data packs load there, so the data maps are empty. The GameTest `fuels` reads the loaded data maps:
+  water, ice, and lava from the GameTest data pack behind the same condition (plus an entry for a missing fluid that
+  the condition skips), data over code, the multiplier, and oil and fuel at 30/5000 and 60/25000 once #42 has
+  registered them.
+
 ## Pipe network graph and cache (#49)
 
 New code from `docs/TRANSPORT.md` 3.4, package `buildcraftreforged.transport.graph`. No routing, budgets or source
