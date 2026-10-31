@@ -402,6 +402,11 @@ Every transfer returns `TransferResult(moved, reason)` with `reason` one of `MOV
   `dropItem`); that is the deliberate change.
 - Nothing is ever spawned in the world. Only the Void module destroys, on purpose.
 
+As built (#63, 2026-10-31): machines use `core/status/MachineOutput`. "No destination" means nothing connected takes
+items at all; a pipe line whose only destinations are full (the walk backs out of them, so the walk itself returns
+`NO_DESTINATION`) reports "Output blocked", as the #63 test in section 14 expects. See `docs/PORTING-NOTES.md`,
+"Blocked output (#63)".
+
 ### 6.4 Executing a transfer
 
 Items: (1) simulate extract `n` from the source slot; (2) real extract; (3) real insert into the destination; (4) if
