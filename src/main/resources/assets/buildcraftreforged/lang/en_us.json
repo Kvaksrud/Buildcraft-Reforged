@@ -36,6 +36,7 @@
   "gate.engine.green": "Engine Green",
   "gate.engine.yellow": "Engine Yellow",
   "gate.engine.red": "Engine Red",
+  "gate.engine.overheating": "Engine Overheating",
   "gate.pipe.item.color": "Paint Items %s",
   "gui.building.resources": "Building Resources",
   "gui.del": "Del",

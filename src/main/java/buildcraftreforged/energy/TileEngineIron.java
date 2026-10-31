@@ -12,7 +12,7 @@
  * the item's fluid capability; the GUI is a MenuProvider opened with openMenu; the tank progress bars are guiData ids 4
  * to 7 (4.2.2: 15 to 20; the GUI looks the colours up); BiomeGenBase.temperature becomes the biome's base
  * temperature; NBT becomes ValueInput/ValueOutput; the status panel shows OUT_OF_FUEL; an engine shut down by its
- * overheat timer (#40) cools as an unpowered one; getTriggers waits for the engine triggers (#41).
+ * overheat timer (#40) cools as an unpowered one; getTriggers reads the triggers from CoreRegistry.
  */
 package buildcraftreforged.energy;
 
@@ -20,6 +20,8 @@ import buildcraftreforged.api.fuels.IronEngineCoolant;
 import buildcraftreforged.api.fuels.IronEngineCoolant.Coolant;
 import buildcraftreforged.api.fuels.IronEngineFuel;
 import buildcraftreforged.api.fuels.IronEngineFuel.Fuel;
+import buildcraftreforged.api.gates.ITrigger;
+import buildcraftreforged.core.CoreRegistry;
 import buildcraftreforged.core.fluids.FluidUtils;
 import buildcraftreforged.core.fluids.Tank;
 import buildcraftreforged.core.fluids.TankManager;
@@ -27,6 +29,7 @@ import buildcraftreforged.core.status.MachineStatus;
 import buildcraftreforged.core.utils.Utils;
 import buildcraftreforged.energy.gui.ContainerEngine;
 import buildcraftreforged.transport.BlockPipe;
+import java.util.LinkedList;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -506,7 +509,16 @@ public class TileEngineIron extends TileEngineWithInventory implements ResourceH
         return currentFuel.powerPerCycle;
     }
 
-    // SEAM(#41): getTriggers adds the four fluid triggers (empty, contains, space, full) to the engine's heat triggers.
+    @Override
+    public LinkedList<ITrigger> getTriggers() {
+        LinkedList<ITrigger> triggers = super.getTriggers();
+        triggers.add(CoreRegistry.triggerEmptyFluid.get());
+        triggers.add(CoreRegistry.triggerContainsFluid.get());
+        triggers.add(CoreRegistry.triggerSpaceFluid.get());
+        triggers.add(CoreRegistry.triggerFullFluid.get());
+
+        return triggers;
+    }
 
     /** Powered with an empty fuel tank. */
     @Override

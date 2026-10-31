@@ -9,7 +9,8 @@
  * Modified by Buildcraft Reforged, 2026: the registration half of buildcraft/BuildCraftEnergy.java, on
  * DeferredRegister; numeric ids, Configuration and LanguageRegistry names removed. Oil and fuel are a FluidType (BCFluid),
  * a source and a flowing Fluid, a LiquidBlock and a bucket each; FluidContainerRegistry and BucketHandler are replaced by
- * the bucket's fluid capability and vanilla's BucketPickup. 4.2.2's engineBlock with metadata 0-2 becomes one BlockEngine,
+ * the bucket's fluid capability and vanilla's BucketPickup. The heat triggers are entries of the gates registry; the Engine
+ * Overheating trigger is new (plan section 9). 4.2.2's engineBlock with metadata 0-2 becomes one BlockEngine,
  * ItemEngine and block entity type per engine, registered through engine().
  */
 package buildcraftreforged.energy;
@@ -17,6 +18,7 @@ package buildcraftreforged.energy;
 import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.api.fuels.FuelDataMaps;
 import buildcraftreforged.api.fuels.IronEngineFuel;
+import buildcraftreforged.api.gates.ITrigger;
 import buildcraftreforged.api.power.PowerEnergyHandler;
 import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.CreativeTabBuildCraft;
@@ -25,6 +27,8 @@ import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.fluids.BCFluid;
+import buildcraftreforged.core.triggers.BCTrigger;
+import buildcraftreforged.energy.TileEngine.EnergyStage;
 import buildcraftreforged.energy.gui.ContainerEngine;
 import buildcraftreforged.energy.worldgen.OilWellFeature;
 import com.mojang.serialization.MapCodec;
@@ -102,6 +106,18 @@ public final class EnergyRegistry {
     /** The overheat whine (plan section 9, #40); its pitch rises as the timer runs out (EngineWhineSound). */
     public static final DeferredHolder<SoundEvent, SoundEvent> engineWhine = REGISTERS.soundEvents.register("engine_whine",
             SoundEvent::createVariableRangeEvent);
+
+    // 4.2.2 BuildCraftEnergy's engine heat triggers, and the Engine Overheating trigger (plan section 9, new).
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerBlueEngineHeat = trigger("triggerBlueEngineHeat",
+            () -> new TriggerEngineHeat(EnergyStage.BLUE, "buildcraft.engine.stage.blue"));
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerGreenEngineHeat = trigger("triggerGreenEngineHeat",
+            () -> new TriggerEngineHeat(EnergyStage.GREEN, "buildcraft.engine.stage.green"));
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerYellowEngineHeat = trigger("triggerYellowEngineHeat",
+            () -> new TriggerEngineHeat(EnergyStage.YELLOW, "buildcraft.engine.stage.yellow"));
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerRedEngineHeat = trigger("triggerRedEngineHeat",
+            () -> new TriggerEngineHeat(EnergyStage.RED, "buildcraft.engine.stage.red"));
+    public static final DeferredHolder<ITrigger, BCTrigger> triggerEngineOverheating = trigger("triggerEngineOverheating",
+            () -> new TriggerEngineOverheating("buildcraft.engine.overheating"));
 
     // Oil and fuel (4.2.2 BuildCraftEnergy.preInit). fluidOil and fluidFuel are the source fluids; 4.2.2's
     // buildcraftFluidOil/buildcraftFluidFuel (the BCFluid) are the fluid types.
@@ -221,6 +237,10 @@ public final class EnergyRegistry {
     private static <T extends TileEngine> void registerEngineCapabilities(RegisterCapabilitiesEvent event, BlockEntityType<T> type) {
         PowerEnergyHandler.registerEnergyHandler(event, type);
         TileBuildCraft.registerItemHandler(event, type);
+    }
+
+    private static DeferredHolder<ITrigger, BCTrigger> trigger(String fieldName, Supplier<BCTrigger> factory) {
+        return REGISTERS.triggers.register(RegistryNames.of(fieldName), factory);
     }
 
     private static DeferredItem<ItemBucketBuildcraft> bucket(String unlocalizedName, Supplier<? extends Fluid> fluid) {

@@ -10,7 +10,8 @@
  * orientation becomes the FACING block state; isBlockSolidOnSide becomes the support shape; rotateBlock is
  * IRotatableBlock; onBlockActivated becomes useItemOn/useWithoutItem; onPostBlockPlaced becomes setPlacedBy;
  * onNeighborBlockChange becomes neighborChanged; randomDisplayTick becomes animateTick; Material.iron and the icons
- * move to registration and the renderer (#39); the wrench restarts an engine shut down by overheating (#40).
+ * move to registration and the renderer (#39); the wrench restarts an engine shut down by overheating (#40); comparator
+ * output is new (plan section 9, #41).
  */
 package buildcraftreforged.energy;
 
@@ -193,5 +194,18 @@ public class BlockEngine extends BlockBuildCraft implements IRotatableBlock {
         if (world.getBlockEntity(pos) instanceof TileEngine tile) {
             tile.checkRedstonePower();
         }
+    }
+
+    /** Not in 4.2.2 (plan section 9): the engine's heat, 15 while it overheats. */
+    @Override
+    protected boolean hasAnalogOutputSignal(BlockState state) {
+        return true;
+    }
+
+    @Override
+    protected int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos, Direction direction) {
+        if (world.getBlockEntity(pos) instanceof TileEngine tile)
+            return tile.calculateComparatorInputOverride();
+        return 0;
     }
 }
