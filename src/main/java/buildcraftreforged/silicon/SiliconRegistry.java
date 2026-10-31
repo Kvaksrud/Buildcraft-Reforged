@@ -15,11 +15,17 @@ import buildcraftreforged.core.CreativeTabBuildCraft;
 import buildcraftreforged.core.ItemBlockBuildCraft;
 import buildcraftreforged.core.ModuleRegisters;
 import buildcraftreforged.core.RegistryNames;
+import buildcraftreforged.core.TileBuildCraft;
+import buildcraftreforged.silicon.gui.ContainerAssemblyTable;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -47,8 +53,37 @@ public final class SiliconRegistry {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileLaser>> laserTile =
             REGISTERS.blockEntityTypes.register("laser", () -> new BlockEntityType<>(TileLaser::new, laserBlock.get()));
 
+    /**
+     * 4.2.2 BlockLaserTable meta 0 with ItemLaserTable ("tile.assemblyTableBlock"): Material.iron, setHardness(10F), not
+     * an opaque cube, as the laser.
+     */
+    public static final DeferredBlock<BlockLaserTable> assemblyTableBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("assemblyTableBlock"), properties -> new BlockLaserTable(properties, TileAssemblyTable::new),
+            properties -> properties.overrideDescription("tile.assemblyTableBlock").mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL).strength(10F).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredItem<ItemBlockBuildCraft> assemblyTableBlockItem = REGISTERS.items.registerItem(
+            RegistryNames.of("assemblyTableBlock"), properties -> new ItemBlockBuildCraft(assemblyTableBlock.get(), properties),
+            properties -> properties.overrideDescription("tile.assemblyTableBlock"));
+
+    /** 4.2.2 registered TileAssemblyTable as "net.minecraft.src.buildcraft.factory.TileAssemblyTable". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileAssemblyTable>> assemblyTableTile =
+            REGISTERS.blockEntityTypes.register("assembly_table",
+                    () -> new BlockEntityType<>(TileAssemblyTable::new, assemblyTableBlock.get()));
+
+    /** 4.2.2 GuiHandler GUI id 0. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerAssemblyTable>> assemblyTableMenu =
+            REGISTERS.menus.register(RegistryNames.of("assemblyTableBlock"),
+                    () -> IMenuTypeExtension.create(ContainerAssemblyTable::new));
+
+    /** The JSON assembly recipes (AssemblyTableRecipe), type and serializer {@code buildcraftreforged:assembly}. */
+    public static final DeferredHolder<RecipeType<?>, RecipeType<AssemblyTableRecipe>> assemblyRecipeType =
+            REGISTERS.recipeTypes.register("assembly", id -> RecipeType.<AssemblyTableRecipe>simple(id));
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<AssemblyTableRecipe>> assemblyRecipeSerializer =
+            REGISTERS.recipeSerializers.register("assembly", () -> AssemblyTableRecipe.SERIALIZER);
+
     static {
         CreativeTabBuildCraft.MACHINES.add(laserBlockItem);
+        CreativeTabBuildCraft.MACHINES.add(assemblyTableBlockItem);
     }
 
     private SiliconRegistry() {
@@ -61,5 +96,6 @@ public final class SiliconRegistry {
 
     private static void registerCapabilities(RegisterCapabilitiesEvent event) {
         PowerEnergyHandler.registerEnergyHandler(event, laserTile.get());
+        TileBuildCraft.registerItemHandler(event, assemblyTableTile.get());
     }
 }

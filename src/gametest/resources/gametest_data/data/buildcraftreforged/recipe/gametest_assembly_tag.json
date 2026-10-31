@@ -1,0 +1,9 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 200,
+  "inputs": [
+    { "tag": "c:dyes/red", "count": 2 },
+    { "item": "minecraft:redstone" }
+  ],
+  "result": { "id": "minecraft:emerald" }
+}

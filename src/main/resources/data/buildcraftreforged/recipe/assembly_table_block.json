@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "O": "minecraft:obsidian",
+    "R": "minecraft:redstone",
+    "D": "minecraft:diamond",
+    "G": "buildcraftreforged:diamond_gear_item"
+  },
+  "pattern": [
+    "ORO",
+    "ODO",
+    "OGO"
+  ],
+  "result": {
+    "id": "buildcraftreforged:assembly_table_block"
+  }
+}
