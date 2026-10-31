@@ -67,6 +67,10 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NETHER_IGNITION = function("oil_fuel_nether_ignition");
     private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER =
             function("oil_fuel_no_ignition_outside_nether");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_LASER_CRAFTING = function("assembly_laser_crafting");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_QUEUE_AND_TAGS = function("assembly_queue_and_tags");
+    private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_SELECTION_SAVE_AND_SYNC =
+            function("assembly_selection_save_and_sync");
 
     private BuildcraftGameTests() {
     }
@@ -109,6 +113,9 @@ public final class BuildcraftGameTests {
             registry.register(OIL_FUEL_LIQUIDS, OilFuelTests::liquids);
             registry.register(OIL_FUEL_NETHER_IGNITION, OilFuelTests::netherIgnition);
             registry.register(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, OilFuelTests::noIgnitionOutsideNether);
+            registry.register(ASSEMBLY_LASER_CRAFTING, AssemblyTableTests::laserCrafting);
+            registry.register(ASSEMBLY_QUEUE_AND_TAGS, AssemblyTableTests::queueAndTags);
+            registry.register(ASSEMBLY_SELECTION_SAVE_AND_SYNC, AssemblyTableTests::selectionSaveAndSync);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -187,6 +194,11 @@ public final class BuildcraftGameTests {
                 padded(environment, Level.NETHER, 40)));
         event.registerTest(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER.identifier(), new FunctionGameTestInstance(
                 OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, padded(environment, Level.OVERWORLD, 40)));
+        for (ResourceKey<Consumer<GameTestHelper>> assembly : List.of(ASSEMBLY_LASER_CRAFTING, ASSEMBLY_QUEUE_AND_TAGS,
+                ASSEMBLY_SELECTION_SAVE_AND_SYNC)) {
+            event.registerTest(assembly.identifier(), new FunctionGameTestInstance(assembly,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        }
     }
 
     /**
