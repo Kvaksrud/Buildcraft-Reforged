@@ -77,7 +77,40 @@ behaviour are below. No fix was applied.
 | Upstream issue | [BuildCraft#2353](https://github.com/BuildCraft/BuildCraft/issues/2353) |
 | Class | `factory/BlockTank` (`onBlockActivated`) |
 | Symptom | Upstream: with a full inventory, using a stack of fluid containers on a tank fills the tank and then returns `false`, so the container is not consumed or dumps its contents: liquid is duplicated. The fix drops the container on the ground instead of returning `false`. In 4.2.2 the fill branch never returns `false` after filling, so the dupe path as reported does not exist. Reading the 4.2.2 code shows a neighbouring bug instead: emptying a stack of more than one filled container into the tank removes one container and never gives the empty one back (`Utils.consumeItem` splits the stack and drops the container item). With a full inventory, filling a container from a tank returns `false` before draining, which is safe. |
-| Decision | Pending: reproduce the lost empty container in 1.6.4 during #64. If it reproduces, apply the upstream remedy (give the empty container back, drop it if the inventory is full). |
+| Decision | Not applicable (decided 31 Oct 2026, #64): not reproduced in 1.6.4, as no reference instance was available. The container exchange is not ported: `BlockTank.useItemOn` goes through `FluidUtils.handleRightClick` and NeoForge's `ItemAccess.forPlayerInteraction`, which puts the emptied container in the inventory or drops it, so neither the upstream dupe nor the lost container can happen. GameTest `tank_buckets` checks a stack of two buckets. |
+| Applied in | — |
+
+#### Tank canFill/canDrain (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`aa24a99d956606b5efdb1da51548fd5d35f1e92f`](https://github.com/BuildCraft/BuildCraft/commit/aa24a99d956606b5efdb1da51548fd5d35f1e92f) ("Fix canFill/canDrain in tanks", 21 May 2014, 6.0 line) |
+| Upstream issue | none |
+| Class | `factory/TileTank` (`canFill`, `canDrain`) |
+| Symptom | 4.2.2 `canFill` answers true for any fluid, though `fill` refuses a fluid other than the stack's; `canDrain` answers false, though `drain` works, so pipes and machines that ask first never drain a tank. |
+| Decision | Accepted: the "tank fill/drain flags" fix accepted in advance (plan section 3). `canFill` is true when the bottom tank is empty or holds the fluid, `canDrain` when it holds the fluid. The fluid capability's `isValid` answers `canFill`. |
+| Applied in | #64 |
+
+#### Tank drain(FluidStack) checks the wrong tank (no upstream issue)
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`08edcf1759c884cb95b66c53427bbd4b3f3d9751`](https://github.com/BuildCraft/BuildCraft/commit/08edcf1759c884cb95b66c53427bbd4b3f3d9751) ("Fix drain method causing dupe glitches...", 12 May 2014, 6.0 line) |
+| Upstream issue | none |
+| Class | `factory/TileTank` (`drain(ForgeDirection, FluidStack, boolean)`) |
+| Symptom | 4.2.2 compares the requested fluid with the clicked tank's own fluid but drains the bottom tank. Asking an empty upper tank returns nothing while the bottom holds fluid, and asking a tank for its fluid drains whatever the bottom holds; upstream reports dupes when the two drain methods are mixed. |
+| Decision | Accepted: part of the "tank fill/drain flags" fix accepted in advance. The fluid is compared with the bottom tank, in `drain(Direction, FluidStack, boolean)` and in the capability's `extract`. |
+| Applied in | #64 |
+
+#### Tank light with an empty fluid stack: BuildCraft#3174
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`09917470e19163c90a36f12f06f1938e0c3b4f3b`](https://github.com/BuildCraft/BuildCraft/commit/09917470e19163c90a36f12f06f1938e0c3b4f3b) ("fix #3174", 12 Jan 2016, 7.1 line) |
+| Upstream issue | [BuildCraft#3174](https://github.com/BuildCraft/BuildCraft/issues/3174) |
+| Class | `factory/TileTank` (`getFluidLightLevel`) |
+| Symptom | A tank holding a fluid stack of amount 0 still lit up with the fluid's luminosity. |
+| Decision | Not applicable: `Tank` holds `FluidStack.EMPTY` for no fluid, and an empty `FluidStack` is any stack of amount 0, so `getFluidLightLevel` already returns 0. |
 | Applied in | — |
 
 #### BuildCraft#2340: quarry loses chest contents
