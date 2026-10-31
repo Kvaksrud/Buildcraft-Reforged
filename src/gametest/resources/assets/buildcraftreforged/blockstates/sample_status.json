@@ -1,0 +1,6 @@
+{
+  "multipart": [
+    {"apply": {"model": "minecraft:block/smoker"}},
+    {"when": {"blocked": "true"}, "apply": {"model": "buildcraftreforged:block/status_light"}}
+  ]
+}

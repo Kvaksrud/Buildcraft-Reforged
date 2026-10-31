@@ -46,6 +46,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_KINDS_AND_ENDPOINTS = function("pipe_kinds_and_endpoints");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_PLUGS_AND_MODULES = function("pipe_plugs_and_modules");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_WATERLOGGING = function("pipe_waterlogging");
+    private static final ResourceKey<Consumer<GameTestHelper>> STATUS_SYNC_WHILE_OPEN = function("status_sync_while_open");
+    private static final ResourceKey<Consumer<GameTestHelper>> STATUS_PANEL_WITHOUT_GUI = function("status_panel_without_gui");
 
     private BuildcraftGameTests() {
     }
@@ -70,6 +72,8 @@ public final class BuildcraftGameTests {
             registry.register(PIPE_KINDS_AND_ENDPOINTS, PipeTests::kindsAndEndpoints);
             registry.register(PIPE_PLUGS_AND_MODULES, PipeTests::plugsAndModules);
             registry.register(PIPE_WATERLOGGING, PipeTests::waterlogging);
+            registry.register(STATUS_SYNC_WHILE_OPEN, StatusTests::syncWhileOpen);
+            registry.register(STATUS_PANEL_WITHOUT_GUI, StatusTests::panelWithoutGui);
         });
         FluidTankTests.register(event);
     }
@@ -113,6 +117,10 @@ public final class BuildcraftGameTests {
         event.registerTest(id("pipe_plugs_and_modules"), new FunctionGameTestInstance(PIPE_PLUGS_AND_MODULES,
                 new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         event.registerTest(id("pipe_waterlogging"), new FunctionGameTestInstance(PIPE_WATERLOGGING,
+                new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("status_sync_while_open"), new FunctionGameTestInstance(STATUS_SYNC_WHILE_OPEN,
+                new TestData<>(environment, EMPTY_STRUCTURE, 100, 0, true)));
+        event.registerTest(id("status_panel_without_gui"), new FunctionGameTestInstance(STATUS_PANEL_WITHOUT_GUI,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
     }
 
