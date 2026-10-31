@@ -46,7 +46,7 @@ final class EngineWrenchTests {
         return helper.getBlockEntity(pos, TileEngineWood.class);
     }
 
-    /** Six plain wrench clicks visit every face once and come back; a sneaking click steps back one face. */
+    /** Six sneaking wrench clicks visit every face once and come back; engines turn on a sneaking click only. */
     static void wrenchCyclesFaces(GameTestHelper helper) {
         TileEngineWood engine = placeEngine(helper, ENGINE, Direction.UP);
         BlockEngine block = EnergyRegistry.engineWood.block().get();
@@ -54,12 +54,10 @@ final class EngineWrenchTests {
         BlockPos abs = helper.absolutePos(ENGINE);
         Direction[] forward = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP};
         for (Direction expected : forward) {
-            helper.assertTrue(block.rotateBlock(level, abs, Direction.UP, false), "the wrench did not turn the engine");
-            helper.assertValueEqual(engine.getOrientation(), expected, "facing after a wrench click");
+            helper.assertTrue(block.rotateBlock(level, abs, Direction.UP), "the wrench did not turn the engine");
+            helper.assertValueEqual(engine.getOrientation(), expected, "facing after a sneaking wrench click");
         }
-        helper.assertTrue(block.rotateBlock(level, abs, Direction.UP, true), "the sneaking wrench did not turn the engine");
-        helper.assertValueEqual(engine.getOrientation(), Direction.DOWN, "facing after a sneaking wrench click");
-        helper.assertTrue(block.rotatesBothWays(), "engines should turn both ways");
+        helper.assertTrue(block.rotatesOnSneakOnly(), "engines should turn on a sneaking click only");
         helper.succeed();
     }
 

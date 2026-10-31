@@ -14,15 +14,10 @@ public interface IRotatableBlock {
     boolean rotateBlock(Level level, BlockPos pos, Direction axis);
 
     /**
-     * Blocks that turn both ways answer true: the wrench then rotates them on a plain and on a sneaking click and
-     * passes the sneak as {@code reverse} to {@link #rotateBlock(Level, BlockPos, Direction, boolean)}.
+     * Blocks that answer true turn only on a sneaking wrench click; a plain click goes to the block as a normal use
+     * (an engine opens its GUI or status panel).
      */
-    default boolean rotatesBothWays() {
+    default boolean rotatesOnSneakOnly() {
         return false;
-    }
-
-    /** One step forward, or one step back when {@code reverse}; blocks that only turn one way ignore reverse. */
-    default boolean rotateBlock(Level level, BlockPos pos, Direction axis, boolean reverse) {
-        return rotateBlock(level, pos, axis);
     }
 }
