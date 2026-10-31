@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "buildcraftreforged:block/plain_pipe",
+    "pipe": "buildcraftreforged:block/plain_pipe"
+  },
+  "elements": [
+    {
+      "from": [4, 0, 4],
+      "to": [12, 16, 12],
+      "faces": {
+        "down": {"texture": "#pipe", "cullface": "down"},
+        "up": {"texture": "#pipe", "cullface": "up"},
+        "north": {"texture": "#pipe"},
+        "south": {"texture": "#pipe"},
+        "west": {"texture": "#pipe"},
+        "east": {"texture": "#pipe"}
+      }
+    }
+  ]
+}

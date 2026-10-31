@@ -16,6 +16,7 @@ package buildcraftreforged.core.utils;
 
 import buildcraftreforged.api.core.BuildCraftAPI;
 import buildcraftreforged.core.BuildCraftConfiguration;
+import buildcraftreforged.energy.EnergyRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -130,7 +131,8 @@ public class BlockUtil {
         if (state.getDestroySpeed(world, new BlockPos(x, y, z)) < 0)
             return false;
 
-        // TODO(#42): if (state.is(BuildCraftEnergy.blockOil)) return false;
+        if (state.is(EnergyRegistry.blockOil.get()))
+            return false;
 
         if (state.is(Blocks.LAVA))
             return false;

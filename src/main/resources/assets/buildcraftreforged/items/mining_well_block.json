@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "buildcraftreforged:block/mining_well_block"
+  }
+}

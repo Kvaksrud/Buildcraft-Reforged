@@ -78,6 +78,32 @@ public final class FactoryRegistry {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<RefineryRecipe>> refineryRecipeSerializer =
             REGISTERS.recipeSerializers.register("refinery", () -> RefineryRecipe.SERIALIZER);
 
+    /**
+     * BlockMiningWell's constructor: Material.ground (dirt colour, no tool needed), setHardness(5F), setResistance(10F)
+     * (1.6.4 resistance 10 * 3 / 5 = explosion resistance 6), stone step sound.
+     */
+    public static final DeferredBlock<BlockMiningWell> miningWellBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("miningWellBlock"), BlockMiningWell::new,
+            properties -> properties.overrideDescription("tile.miningWellBlock").mapColor(MapColor.DIRT).strength(5F, 6F)
+                    .sound(SoundType.STONE));
+    public static final DeferredItem<ItemBlockBuildCraft> miningWellBlockItem = blockItem("miningWellBlock", miningWellBlock);
+
+    /** 4.2.2 registered TileMiningWell as "MiningWell". */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TileMiningWell>> miningWellTile =
+            REGISTERS.blockEntityTypes.register("mining_well", () -> new BlockEntityType<>(TileMiningWell::new, miningWellBlock.get()));
+
+    /**
+     * BlockPlainPipe's constructor: Material.glass (glass sound, the hat instrument, not a redstone conductor, no
+     * suffocation, no spawns), no hardness (breaks at once), the pipe bounds; idDropped 0: no drops.
+     */
+    public static final DeferredBlock<BlockPlainPipe> plainPipeBlock = REGISTERS.blocks.registerBlock(
+            RegistryNames.of("plainPipeBlock"), BlockPlainPipe::new,
+            properties -> properties.overrideDescription("tile.plainPipeBlock").instrument(NoteBlockInstrument.HAT)
+                    .instabreak().sound(SoundType.GLASS).noOcclusion().noLootTable()
+                    .isValidSpawn((state, world, pos, type) -> false).isRedstoneConductor((state, world, pos) -> false)
+                    .isSuffocating((state, world, pos) -> false));
+    public static final DeferredItem<ItemBlockBuildCraft> plainPipeBlockItem = blockItem("plainPipeBlock", plainPipeBlock);
+
     private FactoryRegistry() {
     }
 
@@ -94,6 +120,7 @@ public final class FactoryRegistry {
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, tankTile.get(), (tile, side) -> tile);
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, refineryTile.get(), (tile, side) -> tile);
         PowerEnergyHandler.registerEnergyHandler(event, refineryTile.get());
+        PowerEnergyHandler.registerEnergyHandler(event, miningWellTile.get());
     }
 
     public static void register(IEventBus modBus) {
