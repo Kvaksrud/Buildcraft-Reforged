@@ -316,7 +316,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Template (`templateItem`) | `ItemBptTemplate` | `template_item` | #77 | [ ] | [ ] | [ ] |  |
-| Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [ ] | [ ] | [ ] | Library id + author + name in data components. |
+| Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [ ] | [ ] | [ ] | Library id + author + name in data components. File format, rotation, mirroring and library files (`core/blueprints`) done in #75; PORTING-NOTES "Blueprint file format (#75)". |
 | Land Mark (`markerBlock`) | `BlockMarker, TileMarker` | `marker_block` | #29 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Path Mark (`pathMarkerBlock`) | `BlockPathMarker, TilePathMarker` | `path_marker_block` | #30 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [ ] | [ ] | [ ] |  |

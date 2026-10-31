@@ -2575,3 +2575,131 @@ along a straight run an icon leaves one pipe exactly as it enters the next, at `
 of a pipe uses its own direction, so a bend can shift icons only at its centre. The spacing drawn is the rate's interval
 rounded to a power of two ticks (`displayInterval`), so small rate changes do not move the icons. Icons are still
 drawn from the flow record, not per item; performance is to be tuned later.
+
+## Blueprint file format (#75)
+
+Ported `core/blueprints/BptBase`, `BptBlueprint`, `BptTemplate`, `BptSlot`, `BptContext`, `BptError`, `BptRootIndex`,
+`BptPlayerIndex` and `core/IBptContributor`. New: `core/blueprints/BlueprintPaths`. Changed (additive):
+`api/blueprints/BptBlock.mirror`. Not ported: `BptDataStream` (the hand-rolled text NBT stream; the 1.6.4 importer,
+#13, ports it), `BptItem`, `BptActionBuild` and the builders (`BptBuilderBase`, `BptBuilderBlueprint`,
+`BptBuilderTemplate`, #78/#79). Decided 2026-10-31.
+
+### In-memory model
+
+- **`BptBase`** keeps the 4.2.2 fields: `contents[x][y][z]` (package-private, `getSlot(x, y, z)` for other packages;
+  null where nothing was captured), `sizeX/Y/Z`, `anchorX/Y/Z` (the architect's position relative to the box minimum,
+  may lie outside the box), `position` (the library number), `name`, `author`, `file` (a `Path`). 4.2.2's `version`
+  string becomes `getBptVersion()` and `getDataVersion()` (the versions the file was read with).
+- **Slots.** `BptSlot extends BptSlotInfo` (#34): a `BlockState state` in place of `blockId` + `meta`, `cpt` (block
+  entity data, filled by `BptBlock.initializeFromWorld` with `saveWithFullMetadata`), `storedRequirements` (the drops
+  of the block when captured) and the builder's `mode`/`stackToUse`. Every slot call goes to
+  `BlueprintManager.getBptBlock(state.getBlock())`, which #76 fills with schematics. `setBlockId` becomes
+  `setBlockState(x, y, z, state)`. `clone` now copies the requirement stacks (4.2.2 shared them).
+- **Capture.** `BptBlueprint.readFromWorld(context, anchorTile, x, y, z)` as 4.2.2: the slot at the position's place in
+  `context.surroundingBox()`, an `IBptContributor` block entity adds its data, then the schematic's
+  `initializeFromWorld`. It reads the context's level (4.2.2 read the anchor tile's, the same one); `anchorTile` may be
+  null and is only handed to the contributor.
+- **Templates.** A template has a slot at every position; a filled one holds stone (`BptTemplate.filledState()`, the
+  block 4.2.2's mask id 1 stood for), an empty one air. The architect's `setBlockId(x, y, z, mask)` is
+  `setMask(x, y, z, mask)`; `isFilled(x, y, z)` reads it.
+- **Rotation.** `rotateLeft(context)` keeps 4.2.2's mapping, (x, y, z) to (sizeZ - 1 - z, y, x), anchors and the
+  context box's turn. In world terms that is clockwise seen from above (east goes south), the direction 4.2.2's metadata
+  tables turned stairs and furnaces, so `BptBlock.rotateLeft` uses `Rotation.CLOCKWISE_90`. New: the slots' own
+  `x, y, z` follow the move (4.2.2 left the old values; the builder overwrites them with world positions anyway).
+- **Mirroring** is new (4.2.2 had none): `mirror(context, Mirror)`. `LEFT_RIGHT` flips z and `FRONT_BACK` flips x, as
+  vanilla structure templates do; the anchor flips with the box and each slot goes through
+  `BptBlock.mirror` (default `BlockState.mirror`). #76 overrides it where vanilla gives no answer.
+- **`equals`** compares class, size, anchor, which slots exist and their block states (4.2.2 compared ids). 4.2.2's
+  inverted class check made it false for any two blueprints (docs/BUGFIXES.md); it now works, so #77's architect
+  reuses the library entry when the same structure is captured again, as 4.2.2 intended.
+- **Contexts.** `BptContext(level, blueprint, box)`; the level may be null when nothing reads the world (turning or
+  mirroring a stored blueprint).
+
+### File format
+
+One gzip-compressed NBT compound per file (`NbtIo.writeCompressed`), extension `.bpt` as in 4.2.2. Tags:
+
+| Tag | Type | Meaning |
+|---|---|---|
+| `DataVersion` | int | The game's data version when saved (`SharedConstants.getCurrentVersion().dataVersion()`). |
+| `BptVersion` | int | Version of this layout, `BptBase.BPT_VERSION` = 1. |
+| `kind` | string | `blueprint` or `template` (4.2.2's `kind:` line). |
+| `sizeX`, `sizeY`, `sizeZ` | int | Box size, each 1 to 4096, volume at most 2^24. |
+| `anchorX`, `anchorY`, `anchorZ` | int | As 4.2.2. |
+| `name`, `author` | string | Optional, as 4.2.2. |
+
+Blueprints add:
+
+| Tag | Type | Meaning |
+|---|---|---|
+| `palette` | list of compounds | Each distinct block state, as vanilla `NbtUtils.writeBlockState` writes it (`{id: "minecraft:oak_stairs", properties: {facing: "north", ...}}`). Replaces the `idMap` section. |
+| `blocks` | int array | One entry per position, x outermost, then y, then z (4.2.2's loop order; index `(x * sizeY + y) * sizeZ + z`): the palette index, or -1 where there is no slot. Replaces the `contents` section's `bId`/`meta`. |
+| `data` | list of `{x, y, z, cpt}` | The slot's `cpt` (block entity data, or what a schematic stores) where it is not empty. |
+| `requirements` | list of `{x, y, z, items}` | `items` is a list of item stacks in the vanilla `ItemStack` codec, where the slot has stored requirements. Replaces the `requirements` section. |
+
+Templates add `mask`, a byte array of presence bits: bit `i % 8` of byte `i / 8` for flat index `i` (same order as
+`blocks`). 4.2.2 wrote a comma-separated id per position.
+
+Reading (`BptBase.readBluePrint(path, number, registries)`, or `loadBluePrint` which logs and returns null as 4.2.2,
+or `readFromNBT(tag, ...)`):
+
+- **Versions.** A `BptVersion` above 1 (written by a newer Buildcraft Reforged) or a `DataVersion` above the game's is
+  refused. An older `DataVersion` runs the palette (`block_state`), each `cpt` that has an `id` (`block_entity`) and each
+  requirement (`item_stack`) through the vanilla data fixers up to the current version, so blueprints survive game
+  updates the way chunks do (tested with 1.16.5's `grass_path` becoming `dirt_path`). A future layout change raises
+  `BPT_VERSION` and keeps reading 1.
+- **Unknown blocks.** A palette block this game does not have fails the load with "can't find block <id>", as 4.2.2's
+  "can't find block of signature" did. Unreadable items fail the same way.
+- **1.6.4 files.** A file that is not gzip and whose first line is a `key:value` header (`version:4.2.2`, or
+  `kind:blueprint` for 3.x files without a version) is refused with `BptBase.LEGACY_MESSAGE`, "1.6.4 blueprint, import
+  not yet available" (plan section 13.5); `isLegacyFile(path)` tells the library which files those are. The file is
+  never changed. #13 reads them with a ported `BptDataStream` and writes this format.
+- Corrupt input (wrong array lengths, palette indexes out of range, data for an empty slot, sizes out of range) is a
+  `BptError`, never an exception that escapes.
+
+Saving: `save(registries)` writes `writeToNBT(registries)` to `file`, creating the folder, and returns the file or null.
+Loading and saving need a `HolderLookup.Provider` (the level's or server's `registryAccess()`) for the item codec.
+
+### Library files and paths (plan section 19.2)
+
+- **Folders.** `BlueprintPaths.clientLibrary()` is `<gamedir>/buildcraft-reforged/blueprints/` and
+  `serverLibrary(server)` is `<world>/buildcraft-reforged/blueprints/`; 4.2.2 used `./blueprints/` under the process's
+  working directory.
+- **`BptRootIndex(baseDir, BlueprintPaths.ROOT_INDEX, registries)`** keeps 4.2.2's `index.txt` semantics: Latin-1 text,
+  line n is blueprint number n, an empty line once a file is gone so item numbers stay valid; `loadIndex`,
+  `importNewFiles` (any `*.bpt` in the folder, in name order), `getBluePrint(number)` (loads lazily, drops the entry if
+  the file cannot be loaded), `getBluePrint(fileName)` (null for an unknown name; 4.2.2 threw), new
+  `getBluePrintFile(number)`, and `storeBluePrint(bpt)` (`<name>.bpt`, `<name>_<n>.bpt` on a clash).
+- **Names.** `storeBluePrint` reduces the name to `[A-Za-z0-9 _-]`, trims it, caps it at 64 characters and falls back to
+  `unnamed` (`BlueprintPaths.sanitizeName`). Index lines are resolved with `BlueprintPaths.resolve`, which refuses
+  separators, `.`/`..` and anything outside the folder; such a line keeps its number but loads nothing.
+- **Players.** `BptPlayerIndex.forPlayer(uuid, rootIndex)` uses `<uuid>.list` in the same folder (4.2.2:
+  `<player name>.list`); the class is otherwise 4.2.2's (a new player starts with every root file; `nextBpt`/`prevBpt`
+  walk names in order).
+
+### For #76, #77, #78, #79 and #80
+
+- #76: override `BptBlock.rotateLeft`/`mirror` only where a state's rotation is not enough; slots already carry
+  `cpt` from `saveWithFullMetadata`, and `buildBlock` writes it back. Requirements are the block's drops at capture.
+- #77: capture with `readFromWorld` over the box, set `anchorX/Y/Z`, turn with `rotateLeft` as `TileArchitect` did,
+  and compare with `equals` before `storeBluePrint`. Templates: `new BptTemplate(...)` and `setMask`.
+- #78/#79: `getSlot`, `getBoxForPos`, `clone` and `rotateLeft` are as 4.2.2; a template slot is filled when its state is
+  not air (4.2.2's `blockId != 0`).
+- #80: build one `BptRootIndex` per side from `BlueprintPaths`, with the side's `registryAccess()`; list 1.6.4 files
+  with `getBluePrintFile` and `BptBase.isLegacyFile` and show `LEGACY_MESSAGE`. 4.2.2's `getBluePrint` drops a file it
+  cannot load from the index; keep that or not for 1.6.4 files, as #80 decides.
+
+### Tests
+
+- Unit (`BptFormatTest`): blueprint save/load round trip (gzip, headers, palette of four states, an empty slot and an
+  air slot kept apart, chest data and requirements, and a second save giving the identical tag); template round trip
+  (27 bits in 4 bytes); `rotateLeft` mapping, sizes, anchor and stairs north to east, four turns being the identity, a
+  turned blueprint surviving a save; mirroring both ways; `equals` and a deep `clone`; 1.6.4 text files refused with
+  the message and junk refused; newer `BptVersion` or `DataVersion`, unknown kind, oversize, short arrays and unknown
+  blocks refused; a 1.16.5 `DataVersion` upgraded through the data fixers; name sanitising and path checks; the root
+  index storing, clashing names, reload with an outside line, a deleted file and a dropped-in 1.6.4 file; the player
+  index by UUID.
+- GameTest `blueprint_capture_and_reread` (`BlueprintTests`): stairs, a chest with five diamonds, stone and
+  cobblestone captured from the world, stored in a library folder, read back from disk, equal to the capture with the
+  chest data intact; the server library path lies under the world folder; the read copy, turned once, placed beside the
+  original gives east-facing stairs and chest, the chest holding the diamonds.

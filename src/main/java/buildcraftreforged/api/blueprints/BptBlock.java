@@ -7,7 +7,7 @@
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
  *
  * Modified by Buildcraft Reforged, 2026: keyed by Block, slots hold a BlockState, rotation by BlockState.rotate, block
- * entity data through the block entity save API, signatures removed (plan section 13).
+ * entity data through the block entity save API, signatures removed (plan section 13); mirror added (#75).
  */
 
 package buildcraftreforged.api.blueprints;
@@ -19,6 +19,7 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.TagValueInput;
@@ -132,6 +133,13 @@ public class BptBlock {
      */
     public void rotateLeft(BptSlotInfo slot, IBptContext context) {
         slot.state = slot.state.rotate(context.world(), slot.pos(), Rotation.CLOCKWISE_90);
+    }
+
+    /**
+     * Mirrors the slot. New: 4.2.2 could not mirror a blueprint. The default mirrors the block state (#75).
+     */
+    public void mirror(BptSlotInfo slot, IBptContext context, Mirror mirror) {
+        slot.state = slot.state.mirror(mirror);
     }
 
     /**
