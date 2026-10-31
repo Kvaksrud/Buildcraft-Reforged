@@ -10,7 +10,7 @@
  * orientation becomes the FACING block state; isBlockSolidOnSide becomes the support shape; rotateBlock is
  * IRotatableBlock; onBlockActivated becomes useItemOn/useWithoutItem; onPostBlockPlaced becomes setPlacedBy;
  * onNeighborBlockChange becomes neighborChanged; randomDisplayTick becomes animateTick; Material.iron and the icons
- * move to registration and the renderer (#39).
+ * move to registration and the renderer (#39); the wrench restarts an engine shut down by overheating (#40).
  */
 package buildcraftreforged.energy;
 
@@ -103,6 +103,9 @@ public class BlockEngine extends BlockBuildCraft implements IRotatableBlock {
     public boolean rotateBlock(Level world, BlockPos pos, Direction axis) {
         BlockEntity tile = world.getBlockEntity(pos);
         if (tile instanceof TileEngine) {
+            // An engine shut down by overheating is restarted by the wrench, not turned (plan section 9).
+            if (((TileEngine) tile).restartAfterOverheat())
+                return true;
             return ((TileEngine) tile).switchOrientation(false);
         }
         return false;

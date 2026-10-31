@@ -111,6 +111,11 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_MENU = function("engine_stone_menu");
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_DELIVERY_THROUGH_KINESIS_PIPE =
             function("engine_delivery_through_kinesis_pipe");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_IRON_BURNS_FUEL = function("engine_iron_burns_fuel");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_IRON_COOLING = function("engine_iron_cooling");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_IRON_OVERHEAT = function("engine_iron_overheat");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_OVERHEAT_CONFIG = function("engine_overheat_config");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_IRON_MENU = function("engine_iron_menu");
     private static final ResourceKey<Consumer<GameTestHelper>> PUMP_SMALL_POOL = function("pump_small_pool");
     private static final ResourceKey<Consumer<GameTestHelper>> PUMP_OIL = function("pump_oil");
     private static final ResourceKey<Consumer<GameTestHelper>> FLOOD_GATE_FILLS_HOLE = function("flood_gate_fills_hole");
@@ -207,6 +212,11 @@ public final class BuildcraftGameTests {
             registry.register(ENGINE_STONE_OUTPUT_CONTROL, WoodStoneEngineTests::stoneOutputControl);
             registry.register(ENGINE_STONE_MENU, WoodStoneEngineTests::stoneMenu);
             registry.register(ENGINE_DELIVERY_THROUGH_KINESIS_PIPE, WoodStoneEngineTests::deliveryThroughKinesisPipe);
+            registry.register(ENGINE_IRON_BURNS_FUEL, CombustionEngineTests::burnsFuel);
+            registry.register(ENGINE_IRON_COOLING, CombustionEngineTests::cooling);
+            registry.register(ENGINE_IRON_OVERHEAT, CombustionEngineTests::overheat);
+            registry.register(ENGINE_OVERHEAT_CONFIG, CombustionEngineTests::overheatConfig);
+            registry.register(ENGINE_IRON_MENU, CombustionEngineTests::menu);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -369,7 +379,8 @@ public final class BuildcraftGameTests {
         }
         // #37 and #38: engines with redstone blocks and neighbours a few blocks apart, in the padded area.
         for (ResourceKey<Consumer<GameTestHelper>> engine : List.of(ENGINE_WOOD_REDSTONE_OUTPUT, ENGINE_STONE_BURNS_FUEL,
-                ENGINE_STONE_OUTPUT_CONTROL, ENGINE_STONE_MENU, ENGINE_DELIVERY_THROUGH_KINESIS_PIPE)) {
+                ENGINE_STONE_OUTPUT_CONTROL, ENGINE_STONE_MENU, ENGINE_DELIVERY_THROUGH_KINESIS_PIPE, ENGINE_IRON_BURNS_FUEL,
+                ENGINE_IRON_COOLING, ENGINE_IRON_OVERHEAT, ENGINE_OVERHEAT_CONFIG, ENGINE_IRON_MENU)) {
             event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine, padded(environment, Level.OVERWORLD, 400)));
         }
         // #65 pump and flood gate: pools and holes built in the padded area.

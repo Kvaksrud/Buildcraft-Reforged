@@ -1312,7 +1312,8 @@ Not ported: `TileEngineLegacy` (converts pre-4.0 saves, which cannot reach 26.x)
   `isBurning()`. The render shape is left at the default; #39 decides it with the renderer.
 - **Overheat.** Still 4.2.2: `addEnergy` while the stage is `OVERHEAT` (heat level 1, a full engine) explodes at the
   block's corner with `explosionRange()` and removes the block; the stage stays `OVERHEAT` once reached.
-  `SEAM(#40)` marks the spot for the timer and `engines.explode`.
+  `SEAM(#40)` marked the spot for the timer and `engines.explode`; #40 replaced it (see "Combustion engine and
+  overheat timer (#44, #40)").
 - **Sync.** The payload is the stage ordinal and `isPumping`; the client runs the piston animation (`progress`,
   `progressPart`, `getPistonSpeed` from the stage) for #39's renderer to read. `guiData` is a 4-slot `ContainerData`
   standing in for `getGUINetworkData`/`sendGUINetworkData`: energy in two 16-bit halves (whole FE, 4.2.2's tenths of
@@ -2169,3 +2170,80 @@ Ported `factory/BlockPump`, `TilePump`, `PumpDimensionList`, `BlockFloodGate`, `
 - **Not checked without a client:** the two block models and their textures, the tube's look (geometry, UVs,
   texture, light, the render box when it reaches far down), the status light on the pump, the status panel screens,
   and the recipes in the crafting grid.
+
+## Combustion engine and overheat timer (#44, #40)
+
+Ported: `energy/TileEngineIron`, `gui/GuiCombustionEngine`; new: the overheat timer in `TileEngine`,
+`energy/render/EngineWhineSound`. Registered as `engine_iron` through `EnergyRegistry.engine(...)` with its menu
+`engineIronMenu` (id `engine_iron`), the #39 blockstate and item model, loot table, `minecraft:mineable/pickaxe` and the
+4.2.2 recipe (iron ingots, glass, iron gears, piston). Recorded 2026-10-31.
+
+- **Units.** Store 100 000 FE, intake 20 000 FE, pulses up to 5 000 FE (4.2.2 10 000, 2 000, 500 MJ). A fuel's
+  `powerPerCycle` is FE from the `combustion_fuels` data map (#43): oil 30 FE/t for 5 ticks a mB, fuel 60 FE/t for 25
+  ticks a mB (config multipliers applied by `IronEngineFuel`). Heat stays in °C: `HEAT_PER_MJ` (0.0023) is applied to
+  `powerPerCycle / 10`, so heating, cooling (`COOLDOWN_RATE`, `MAX_COOLANT_PER_TICK`, water 0.0023 °C per mB) and the
+  biome scalar are 4.2.2's numbers. Piston speeds are 4.2.2's.
+- **Tanks.** `tankFuel` and `tankCoolant`, 10 000 mB each, in a `TankManager`. The tile is a `ResourceHandler<FluidResource>`
+  on every side (`Capabilities.Fluid.BLOCK`, registered in `EnergyRegistry.registerCapabilities`): index 0 is the fuel
+  tank and takes only fuels, index 1 the coolant tank and takes only coolants (4.2.2 `fill` routed by fluid);
+  extraction drains either, as 4.2.2's `drain(resource)`. 4.2.2's `fill`/`drain`/`canFill`/`canDrain` are kept for
+  internal callers. A right-click with a fluid container fills or drains through `FluidUtils.handleRightClick`
+  (main hand, since `BlockEngine` reaches `onBlockActivated` through `useWithoutItem`), otherwise the GUI opens.
+- **Slot.** `FluidContainerRegistry.getFluidForFilledItem` is the item's `Capabilities.Fluid.ITEM` contents; the slot
+  empties a container into the tanks when all of it fits and leaves the crafting remainder (a water bucket leaves a
+  bucket). Above 40 °C a solid coolant (ice: 2 000 mB of water, `solid_coolants`) goes in the same way.
+- **GUI data.** Ids 4 to 7: fuel fluid, coolant fluid (registry id + 1, 0 for none), fuel amount, coolant amount
+  (4.2.2 ids 15 to 20 with the colours; colours are client data now and `GuiCombustionEngine` looks them up with
+  `FluidRenderer.getColorForFluidStack`). The gauges draw the still sprite tinted, 16 pixels at a time, cut with a
+  scissor where 4.2.2 drew part of an icon. `combustion_engine_gui.png` is copied unchanged.
+- **Status panel.** `OUT_OF_FUEL` when powered with an empty fuel tank and nothing left burning.
+- **Overheat timer (plan section 9).** `computeEnergyStage` still returns `OVERHEAT` at heat level 1, but
+  `getEnergyStage` keeps the engine `RED` instead; only the timer sets `OVERHEAT`. Each server tick after
+  `engineUpdate`, `updateOverheatTimer` caps heat at `MAX_HEAT` (250 °C, where 4.2.2 exploded), starts the timer
+  (`engines.overheatTimerSeconds` × 20 ticks, `getOverheatTimerTicks()`) when the stage is `RED`, counts it down while
+  the engine keeps working, stops it (`overheatTimer = -1`) when the stage drops below `RED`, and calls `overheat()`
+  when it reaches 0. `addEnergy` no longer explodes.
+- **Explode or shut down.** `overheat()`: with `engines.explode` (`explodesWhenOverheated()`) the 4.2.2 explosion
+  (`explosionRange()`, the block removed); otherwise the stage becomes `OVERHEAT` and stays: no fuel burns, nothing is
+  sent, the stored energy bleeds away at 50 FE a tick, and the engine cools as an unpowered one (the combustion engine's
+  `engineUpdate` treats `OVERHEAT` like no redstone signal). The state is saved (`overheated`). The wrench restarts it:
+  `BlockEngine.rotateBlock` calls `restartAfterOverheat()` first, which recomputes the stage from the current heat (a
+  still-red engine starts a fresh timer) and does not turn the engine.
+- **Which engines.** `canOverheat()` is true for the Stirling and combustion engines (both exploded in 4.2.2) and false
+  for the redstone engine, whose stages stop at `RED` and which never exploded; a full redstone engine runs no timer.
+- **Status panel.** State `OVERHEATING` while the timer runs and when shut down; the Heat line shows "Red, N s" from
+  `overheatTimer` (rounded up to whole seconds).
+- **Whine.** `overheatTimer` and `overheatTimerTotal` go into the payload (sent when the timer starts or stops and
+  every 20 ticks; the client counts down between). While the timer runs, the client branch of `updateEntity` starts
+  `EngineWhineSound` (one per engine), a looping tickable sound whose pitch rises from 0.5 to 2 as the timer runs out
+  and which stops when the timer stops or the engine goes. Sound event `buildcraftreforged:engine_whine`, subtitle
+  "Engine overheating". No new recording yet: `sounds.json` points the event at vanilla's
+  `minecraft:block/beacon/ambient` hum. A sound of its own (plan section 8.6, new assets) can replace that entry
+  without code changes.
+- **Not here.** Comparator output and the Engine Overheating trigger (#41).
+- **Tests.** GameTests `engine_iron_burns_fuel` (limits; oil, fuel, water routed by the capability and per tank, lava
+  refused; a water bucket and ice from the slot, ice only above 40 °C; no burning without a signal; oil at one mB per
+  5 ticks and 30 FE/t, fuel at 60 FE/t; heat at 4.2.2's rate; OUT_OF_FUEL; tanks saved), `engine_iron_cooling`
+  (unpowered 0.05 °C a tick dry, plus 40 mB of water a tick; powered water brings a hot engine towards 100 °C and
+  holds it there), `engine_iron_overheat` (timer starts in red and keeps the engine burning, status and countdown,
+  synced to the client; water below red stops it; shut-down mode, saved, wrench restart), `engine_overheat_config`
+  (both options' defaults and effects, the redstone engine runs no timer) and `engine_iron_menu` (slot, data slots to a
+  client tile, gauges, GUI texture, recipe). `engine_orientation` now overheats a full test engine through a one-tick
+  timer. The test helpers clear the spot before placing an engine: GameTest areas are reused, and `setBlock` with the
+  same engine state kept a previous test's (shut-down) block entity.
+- **Not checked without a client:** the GUI drawing (gauges, tint, ledgers), the whine (pitch, loop, stopping), the
+  engine model and piston in the world and in the hand, and the right-click with buckets.
+
+### For the engine triggers (#41)
+
+- **Engine Overheating trigger.** True while `overheatTimer >= 0` (the timer runs), as plan section 9 asks; consider
+  also `energyStage == EnergyStage.OVERHEAT` (shut down) if the trigger should stay true then.
+- **Comparator.** Heat level 0 to 15, 15 once the timer starts: `overheatTimer >= 0 || energyStage == OVERHEAT` gives
+  15, otherwise scale `getHeatLevel()` (0 at 20 °C, 1 at 250 °C) to 0..14. `BlockEngine` needs
+  `hasAnalogOutputSignal`/`getAnalogOutputSignal`, and the tile should call `updateNeighbourForOutputSignal` when the
+  value changes (`TileTank` caches its comparator value the same way).
+- **Heat triggers.** `SEAM(#41)` in `TileEngine` (four stage triggers); the stage the trigger sees is `getEnergyStage()`,
+  which never reports `OVERHEAT` before the timer runs out.
+- **Fluid triggers.** `SEAM(#41)` in `TileEngineIron`: 4.2.2 added `triggerEmptyFluid`, `triggerContainsFluid`,
+  `triggerSpaceFluid` and `triggerFullFluid` (`CoreRegistry`); they read `Capabilities.Fluid.BLOCK`, which the engine
+  exposes on every side.

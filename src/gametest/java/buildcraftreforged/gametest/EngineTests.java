@@ -91,7 +91,8 @@ final class EngineTests {
     }
 
     /**
-     * Heat follows the stored energy (20 °C empty, 250 °C full), the stage its quarters, OVERHEAT sticks; server piston
+     * Heat follows the stored energy (20 °C empty, 250 °C full), the stage its quarters; a full engine stays RED (the
+     * overheat timer, #40, decides OVERHEAT), and OVERHEAT sticks; server piston
      * speed is 0.16 × heat level (at least 0.01), the client's comes from the synced stage. An unpowered engine loses
      * 20 FE a tick (4.2.2: 1 MJ in updateEntity and 1 MJ in engineUpdate).
      */
@@ -124,7 +125,8 @@ final class EngineTests {
             assertClose(helper, client.getPistonSpeed(), expected, "client piston speed for " + stage);
         }
 
-        assertStage(helper, engine, 1000, EnergyStage.OVERHEAT, 250F);
+        assertStage(helper, engine, 1000, EnergyStage.RED, 250F);
+        engine.energyStage = EnergyStage.OVERHEAT;
         helper.assertValueEqual(engine.getStatusState(), MachineStatus.OVERHEATING, "status state when overheated");
         assertStage(helper, engine, 100, EnergyStage.OVERHEAT, 43F);
 
@@ -304,7 +306,8 @@ final class EngineTests {
 
     /**
      * Placement turns the engine to a powered neighbour; the wrench cycles through powered neighbours; only the back is
-     * a solid face; item and fluid pipes do not connect to the output side; a full engine explodes (until #40).
+     * a solid face; item and fluid pipes do not connect to the output side; a full engine explodes when its overheat
+     * timer runs out (#40, shortened to one tick here).
      */
     static void orientation(GameTestHelper helper) {
         BlockPos east = ENGINE.east();
@@ -341,9 +344,11 @@ final class EngineTests {
             helper.assertValueEqual(engine.overridePipeConnection(PipeType.FLUID, Direction.WEST), ConnectOverride.DEFAULT,
                     "fluid pipe on the back");
 
-            // A full engine is overheated; the next energy it makes blows it up (4.2.2; #40 adds the timer).
+            // A full engine is red; when its overheat timer runs out it blows up (engines.explode).
             BlockPos hotPos = ENGINE.east(6);
             TestEngine hot = placeEngine(helper, hotPos, Direction.UP);
+            hot.overheatTicks = 1;
+            hot.explode = true;
             hot.energy = hot.getMaxEnergy();
             hot.output = 1;
             helper.setBlock(hotPos.below(), Blocks.REDSTONE_BLOCK);
@@ -373,7 +378,9 @@ final class EngineTests {
         return client;
     }
 
-    private static TestEngine placeEngine(GameTestHelper helper, BlockPos pos, Direction facing) {
+    static TestEngine placeEngine(GameTestHelper helper, BlockPos pos, Direction facing) {
+        // A fresh block entity: an engine left at this spot by an earlier test (shut down, say) would otherwise stay.
+        helper.setBlock(pos, Blocks.AIR);
         helper.setBlock(pos, engineBlock.defaultBlockState().setValue(BlockEngine.FACING, facing));
         return helper.getBlockEntity(pos, TestEngine.class);
     }
@@ -403,6 +410,10 @@ final class EngineTests {
     /** A redstone engine stand-in: 10 FE pulses, 1 000 FE storage, 500 FE intake; burns output FE a tick while powered. */
     static final class TestEngine extends TileEngine {
         float output = 0;
+        /** The overheat timer's length in ticks; -1 for engines.overheatTimerSeconds. */
+        int overheatTicks = -1;
+        /** Explode when the timer runs out; null for engines.explode. */
+        @Nullable Boolean explode = null;
 
         TestEngine(BlockPos pos, BlockState state) {
             super(engineTile, pos, state);
@@ -460,6 +471,16 @@ final class EngineTests {
         @Override
         public float getCurrentOutput() {
             return output;
+        }
+
+        @Override
+        protected int getOverheatTimerTicks() {
+            return overheatTicks >= 0 ? overheatTicks : super.getOverheatTimerTicks();
+        }
+
+        @Override
+        protected boolean explodesWhenOverheated() {
+            return explode != null ? explode : super.explodesWhenOverheated();
         }
     }
 

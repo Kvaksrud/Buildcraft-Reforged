@@ -91,7 +91,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37, #39 | [x] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36; renderer, base/trunk/chamber textures and the `buildcraftreforged:engine` item model type in #39. 10 FE per 16 ticks, 10 FE pulses, 1 000 FE; power pipes connect (4.2.2 refused every pipe). GameTests `engine_wood_redstone_output`, `engine_delivery_through_kinesis_pipe`; model and piston not checked in game. |
 | Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38, #39 | [x] | [ ] | [ ] | Renderer and textures from #39. Furnace burn times (`cooking_fuel`), PID output 10 / 3 to 10 FE/t, status OUT_OF_FUEL. GameTests `engine_stone_burns_fuel`, `engine_stone_output_control`, `engine_delivery_through_kinesis_pipe`; model and piston not checked in game. Inventory triggers wait for #41. |
-| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
+| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [x] | [ ] | [x] | Renderer and textures from #39. Fuel and coolant tanks from the #43 data maps (fluid capability, slot for buckets and ice); oil 30 FE/t, fuel 60 FE/t, 4.2.2 heating and water cooling. GameTests `engine_iron_burns_fuel`, `engine_iron_cooling`, `engine_iron_overheat`; model, piston and bucket clicks not checked in game. Fluid triggers wait for #41. |
 | Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [x] | [ ] | [ ] | `FluidType` `oil` plus source fluid `oil` and flowing fluid `flowing_oil`. Density 800, viscosity 1500, ticks every 7. |
 | Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [x] | [ ] | [ ] | As above: `fuel` and `flowing_fuel`, ticks every 5. |
 | Oil (block) (`blockOil`) | `BlockBuildcraftFluid` | `block_oil` | #42 | [x] | [ ] | [ ] | Nether: fire instead of explosion (section 19.2). Flow, buckets and the Nether rule pass GameTests; textures and drips not seen in a client. |
@@ -121,7 +121,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Combustion engine (`GuiIds.ENGINE_IRON` 20) | `GuiCombustionEngine / ContainerEngine` | `engine_iron` menu | #44 | [ ] | [ ] | [ ] |  |
+| Combustion engine (`GuiIds.ENGINE_IRON` 20) | `GuiCombustionEngine / ContainerEngine` | `engine_iron` menu | #44 | [x] | [ ] | [ ] | Tank gauges from guiData ids 4 to 7, engine and status ledgers. Slot and tank sync covered by GameTest `engine_iron_menu`; drawing not checked in game. |
 | Stirling engine (`GuiIds.ENGINE_STONE` 21) | `GuiStoneEngine / ContainerEngine` | `engine_stone` menu | #38 | [x] | [ ] | [ ] | Engine ledger in FE, plus the status ledger. Slots, shift-click and burn-time sync covered by GameTests `engine_stone_menu` and `engine_stone_burns_fuel`; drawing, flame and ledgers not checked in game. |
 
 ## factory (`BuildCraftFactory`)
@@ -404,6 +404,7 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
+| Overheat timer, shut-down mode and `engines.*` config | — | `TileEngine.updateOverheatTimer`, sound `engine_whine` | #40 | [x] | [ ] | [x] | Section 9. Red starts the timer, explode or shut down (wrench restarts) when it runs out; "Red, N s" in the status panel. GameTests `engine_iron_overheat`, `engine_overheat_config`, `engine_orientation`. The whine plays vanilla's beacon hum until a sound of its own exists; not heard in a client. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |
 | Machine blocked trigger | `TriggerMachine` | `trigger_machine_blocked` | #31 | [x] | [ ] | [ ] | Section 8.3. Tag `buildcraft.work.blocked`; true while `IMachine.isBlocked()`. Its sprite `triggers/trigger_machine_blocked` is new art, not drawn yet. |
 | Status panel (shared ledger and the GUI of blocks without one) | — | menu `status` | #26 | [x] | [ ] | [ ] | Section 10. `core/status`, `StatusLedger`; red light `block/status_light`. Sample blocks `sample_gui` and `sample_status` (dev runs). Renders needs a client check. |

@@ -34,6 +34,7 @@ import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Blocks;
@@ -77,12 +78,23 @@ public final class EnergyRegistry {
     // Engines (#37, #38, #44) go here, below ENGINE_TILES.
     public static final EngineEntry<TileEngineWood> engineWood = engine("engineWood", "engine_wood", TileEngineWood::new);
     public static final EngineEntry<TileEngineStone> engineStone = engine("engineStone", "engine_stone", TileEngineStone::new);
+    public static final EngineEntry<TileEngineIron> engineIron = engine("engineIron", "engine_iron", TileEngineIron::new);
 
     /** 4.2.2 GuiIds.ENGINE_STONE: the Stirling engine's ContainerEngine. */
     public static final DeferredHolder<MenuType<?>, MenuType<ContainerEngine>> engineStoneMenu = REGISTERS.menus.register(
             "engine_stone", () -> IMenuTypeExtension.create((containerId, inventory, extraData) -> new ContainerEngine(
                     EnergyRegistry.engineStoneMenu.get(), containerId, inventory,
                     ContainerEngine.clientTile(inventory, extraData.readBlockPos(), EnergyRegistry.engineStone))));
+
+    /** 4.2.2 GuiIds.ENGINE_IRON: the combustion engine's ContainerEngine. */
+    public static final DeferredHolder<MenuType<?>, MenuType<ContainerEngine>> engineIronMenu = REGISTERS.menus.register(
+            "engine_iron", () -> IMenuTypeExtension.create((containerId, inventory, extraData) -> new ContainerEngine(
+                    EnergyRegistry.engineIronMenu.get(), containerId, inventory,
+                    ContainerEngine.clientTile(inventory, extraData.readBlockPos(), EnergyRegistry.engineIron))));
+
+    /** The overheat whine (plan section 9, #40); its pitch rises as the timer runs out (EngineWhineSound). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> engineWhine = REGISTERS.soundEvents.register("engine_whine",
+            SoundEvent::createVariableRangeEvent);
 
     // Oil and fuel (4.2.2 BuildCraftEnergy.preInit). fluidOil and fluidFuel are the source fluids; 4.2.2's
     // buildcraftFluidOil/buildcraftFluidFuel (the BCFluid) are the fluid types.
@@ -212,6 +224,8 @@ public final class EnergyRegistry {
         for (DeferredHolder<BlockEntityType<?>, ? extends BlockEntityType<? extends TileEngine>> tile : ENGINE_TILES) {
             registerEngineCapabilities(event, tile.get());
         }
+        // The combustion engine's two tanks (4.2.2 IFluidHandler), on every side.
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, engineIron.tile().get(), (tile, side) -> tile);
         event.registerItem(Capabilities.Fluid.ITEM, (stack, access) -> new BucketResourceHandler(access), bucketOil.get(),
                 bucketFuel.get());
     }

@@ -19,5 +19,6 @@ final class EnergyScreens {
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(EnergyRegistry.engineStoneMenu.get(), GuiStoneEngine::new);
+        event.register(EnergyRegistry.engineIronMenu.get(), GuiCombustionEngine::new);
     }
 }

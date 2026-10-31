@@ -11,7 +11,10 @@
  * handler; an engine does not push into an engine that faces it (BUGFIXES); the @TileNetworkData fields go through
  * writePacketPayload; the GUI progress bars become the guiData ContainerData; NBT becomes ValueInput/ValueOutput;
  * validate/invalidate become clearRemoved/setRemoved; the status panel lines are added (plan section 10); getTriggers
- * waits for the heat triggers (#41); TileEngineLegacy's pre-4.0 conversion is not ported.
+ * waits for the heat triggers (#41); TileEngineLegacy's pre-4.0 conversion is not ported. The overheat timer (plan
+ * section 9, #40) replaces the immediate explosion in addEnergy: an engine that can overheat starts a timer in its red
+ * stage and explodes or shuts down (engines.explode) when it runs out; heat stops at MAX_HEAT meanwhile; the client
+ * plays the rising whine.
  */
 package buildcraftreforged.energy;
 
@@ -23,6 +26,7 @@ import buildcraftreforged.api.power.PowerHandler.Type;
 import buildcraftreforged.api.transport.IPipeConnection;
 import buildcraftreforged.api.transport.IPipeTile;
 import buildcraftreforged.api.transport.IPipeTile.PipeType;
+import buildcraftreforged.core.BuildCraftConfiguration;
 import buildcraftreforged.core.DefaultProps;
 import buildcraftreforged.core.TileBuffer;
 import buildcraftreforged.core.TileBuildCraft;
@@ -32,6 +36,7 @@ import buildcraftreforged.core.status.IStatusProvider;
 import buildcraftreforged.core.status.MachineStatus;
 import buildcraftreforged.core.status.StatusPanel;
 import buildcraftreforged.core.status.StatusReport;
+import buildcraftreforged.energy.render.EngineWhineSound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -78,6 +83,13 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     // Synced in writePacketPayload (4.2.2 @TileNetworkData). The orientation is BlockEngine.FACING.
     public EnergyStage energyStage = EnergyStage.BLUE;
     public boolean isPumping = false; // Used for SMP synch
+    /**
+     * Ticks left on the overheat timer (plan section 9), or -1 while it is not running. Synced to the client, which
+     * counts down between updates for the whine.
+     */
+    public int overheatTimer = -1;
+    /** The length the running overheat timer started with, in ticks; the whine's pitch follows overheatTimer / this. */
+    public int overheatTimerTotal = 0;
     /** The FE this engine hands out, for the status panel's Power line. */
     protected final FlowMeter meter = new FlowMeter(() -> level == null ? 0 : level.getGameTime());
     /** 4.2.2 getGUINetworkData/sendGUINetworkData, for the engine GUIs' menu (ContainerEngine, #38 and #44). */
@@ -152,6 +164,10 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
                 return energyStage;
             EnergyStage newStage = computeEnergyStage();
 
+            // Plan section 9: OVERHEAT comes only from the overheat timer; until it runs out the engine stays red.
+            if (newStage == EnergyStage.OVERHEAT)
+                newStage = EnergyStage.RED;
+
             if (energyStage != newStage) {
                 energyStage = newStage;
                 sendNetworkUpdate();
@@ -212,6 +228,11 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
             } else if (this.isPumping)
                 progressPart = 1;
 
+            if (overheatTimer > 0)
+                overheatTimer--;
+            if (overheatTimer >= 0)
+                EngineWhineSound.play(this);
+
             return;
         }
 
@@ -221,6 +242,16 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
                 switchOrientation(true);
         }
 
+        if (energyStage == EnergyStage.OVERHEAT) {
+            // Shut down by the overheat timer (engines.explode = false) until a wrench restarts it: no fuel burns and
+            // nothing is sent, the stored energy bleeds away (5 MJ a tick) and the engine cools as if unpowered.
+            energy = Math.max(energy - 50, 0);
+            updateHeatLevel();
+            engineUpdate();
+            setPumping(false);
+            return;
+        }
+
         if (!isRedstonePowered)
             if (energy > 10)
                 energy -= 10;
@@ -228,9 +259,10 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         updateHeatLevel();
         getEnergyStage();
         engineUpdate();
+        updateOverheatTimer();
 
-        // An overheated engine (4.2.2: explosion in addEnergy) may have removed itself.
-        if (isRemoved())
+        // An engine whose overheat timer ran out has exploded or shut down.
+        if (isRemoved() || energyStage == EnergyStage.OVERHEAT)
             return;
 
         Direction orientation = getOrientation();
@@ -307,6 +339,80 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     }
 
     protected void burn() {
+    }
+
+    /**
+     * Plan section 9. In the red stage a timer of engines.overheatTimerSeconds runs while the engine keeps working; heat
+     * stops at MAX_HEAT, where 4.2.2 exploded. Leaving the red stage stops the timer; when it runs out the engine
+     * overheats.
+     */
+    private void updateOverheatTimer() {
+        if (heat > MAX_HEAT)
+            heat = MAX_HEAT;
+
+        if (energyStage != EnergyStage.RED || !canOverheat()) {
+            if (overheatTimer >= 0) {
+                overheatTimer = -1;
+                sendNetworkUpdate();
+            }
+            return;
+        }
+
+        if (overheatTimer < 0) {
+            overheatTimer = overheatTimerTotal = getOverheatTimerTicks();
+            sendNetworkUpdate();
+        } else if (overheatTimer > 0) {
+            overheatTimer--;
+            if (overheatTimer % 20 == 0)
+                sendNetworkUpdate();
+        }
+
+        if (overheatTimer == 0)
+            overheat();
+    }
+
+    /**
+     * The overheat timer ran out: with engines.explode the 4.2.2 explosion (addEnergy's), otherwise the OVERHEAT stage,
+     * in which the engine stays shut down until {@link #restartAfterOverheat}.
+     */
+    protected void overheat() {
+        overheatTimer = -1;
+        if (level == null)
+            return;
+        if (explodesWhenOverheated()) {
+            level.explode(null, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), explosionRange(),
+                    Level.ExplosionInteraction.BLOCK);
+            level.removeBlock(worldPosition, false);
+        } else {
+            energyStage = EnergyStage.OVERHEAT;
+            setPumping(false);
+            sendNetworkUpdate();
+        }
+    }
+
+    /** The wrench on an engine shut down by overheating: it starts again from its current heat. */
+    public boolean restartAfterOverheat() {
+        if (energyStage != EnergyStage.OVERHEAT || !isSimulating())
+            return false;
+        energyStage = EnergyStage.BLUE;
+        getEnergyStage();
+        sendNetworkUpdate();
+        return true;
+    }
+
+    /** False for an engine that never overheated in 4.2.2 (the redstone engine stops at its red stage). */
+    protected boolean canOverheat() {
+        return true;
+    }
+
+    /** engines.overheatTimerSeconds in ticks. */
+    protected int getOverheatTimerTicks() {
+        return BuildCraftConfiguration.engineOverheatTimerSeconds.get() * 20;
+    }
+
+    /** engines.explode. */
+    protected boolean explodesWhenOverheated() {
+        return BuildCraftConfiguration.engineExplode.get();
     }
 
     protected void engineUpdate() {
@@ -400,6 +506,10 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         progress = data.getFloatOr("progress", 0);
         energy = data.getFloatOr("energyF", 0);
         heat = data.getFloatOr("heat", heat);
+        overheatTimer = data.getIntOr("overheatTimer", -1);
+        overheatTimerTotal = data.getIntOr("overheatTimerTotal", 0);
+        if (data.getBooleanOr("overheated", false))
+            energyStage = EnergyStage.OVERHEAT;
     }
 
     @Override
@@ -408,6 +518,9 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         data.putFloat("progress", progress);
         data.putFloat("energyF", energy);
         data.putFloat("heat", heat);
+        data.putInt("overheatTimer", overheatTimer);
+        data.putInt("overheatTimerTotal", overheatTimerTotal);
+        data.putBoolean("overheated", energyStage == EnergyStage.OVERHEAT);
     }
 
     @Override
@@ -415,6 +528,8 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         super.writePacketPayload(data);
         data.writeByte(energyStage.ordinal());
         data.writeBoolean(isPumping);
+        data.writeVarInt(overheatTimer + 1);
+        data.writeVarInt(overheatTimerTotal);
     }
 
     @Override
@@ -423,6 +538,8 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         int stage = data.readByte();
         energyStage = EnergyStage.values()[Math.floorMod(stage, EnergyStage.values().length)];
         isPumping = data.readBoolean();
+        overheatTimer = Math.max(data.readVarInt(), 0) - 1;
+        overheatTimerTotal = Math.max(data.readVarInt(), 0);
     }
 
     /**
@@ -492,12 +609,7 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
     public void addEnergy(float addition) {
         energy += addition;
 
-        if (getEnergyStage() == EnergyStage.OVERHEAT && level != null) {
-            // SEAM(#40): the overheat timer and engines.explode replace the immediate explosion.
-            level.explode(null, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), explosionRange(),
-                    Level.ExplosionInteraction.BLOCK);
-            level.removeBlock(worldPosition, false);
-        }
+        // 4.2.2 exploded here once the stage reached OVERHEAT; the overheat timer (updateOverheatTimer) decides now.
 
         if (energy > getMaxEnergy())
             energy = getMaxEnergy();
@@ -606,10 +718,10 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
 
     // Status panel (plan section 10)
 
-    /** Overheated, running on a redstone signal, or idle. Fuelled engines add OUT_OF_FUEL. */
+    /** Overheating (timer running or shut down), running on a redstone signal, or idle. Fuelled engines add OUT_OF_FUEL. */
     @Override
     public MachineStatus getStatusState() {
-        if (energyStage == EnergyStage.OVERHEAT)
+        if (energyStage == EnergyStage.OVERHEAT || overheatTimer >= 0)
             return MachineStatus.OVERHEATING;
         if (isRedstonePowered && isActive())
             return MachineStatus.WORKING;
@@ -621,10 +733,11 @@ public abstract class TileEngine extends TileBuildCraft implements IPowerRecepto
         return StatusReport.Power.produced(meter, (long) energy, (long) getMaxEnergy());
     }
 
-    /** The heat stage; the overheat timer (#40) fills in the countdown. */
+    /** The heat stage, and the seconds left on the overheat timer while it runs ("Red, N s"). */
     @Override
     public StatusReport.Heat getStatusHeat() {
-        return new StatusReport.Heat(HeatStage.values()[energyStage.ordinal()], StatusReport.Heat.NO_COUNTDOWN);
+        return new StatusReport.Heat(HeatStage.values()[energyStage.ordinal()],
+                overheatTimer >= 0 ? (overheatTimer + 19) / 20 : StatusReport.Heat.NO_COUNTDOWN);
     }
 
     /** The meter the status panel reads, for tests. */

@@ -8,7 +8,7 @@
  * Modified by Buildcraft Reforged, 2026: energy is FE (4.2.2 MJ × 10), so OUTPUT, the pulse added every 16 ticks and
  * the limits are × 10 and maxEnergyExtracted is 10 FE (docs/PORTING-NOTES.md, Power); power pipes may connect, item
  * and fluid pipes still may not; the block entity type comes from EnergyRegistry; CoreProxy.isSimulating becomes
- * the level's client check.
+ * the level's client check; it never runs the overheat timer (#40), since it never overheated in 4.2.2.
  */
 package buildcraftreforged.energy;
 
@@ -30,6 +30,12 @@ public class TileEngineWood extends TileEngine {
     @Override
     public Identifier getTextureFile() {
         return WOOD_TEXTURE;
+    }
+
+    /** Its stages stop at RED (computeEnergyStage), so 4.2.2's redstone engine never exploded. */
+    @Override
+    protected boolean canOverheat() {
+        return false;
     }
 
     @Override
