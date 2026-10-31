@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "buildcraftreforged:block_oil",
+    "buildcraftreforged:block_fuel"
+  ]
+}

@@ -5,6 +5,7 @@ import buildcraftreforged.api.gates.ActionManager;
 import buildcraftreforged.api.gates.IAction;
 import buildcraftreforged.api.gates.ITrigger;
 import net.minecraft.core.Registry;
+import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
@@ -35,6 +36,7 @@ public final class ModuleRegisters {
     public final DeferredRegister<RecipeType<?>> recipeTypes = create(Registries.RECIPE_TYPE);
     public final DeferredRegister<RecipeSerializer<?>> recipeSerializers = create(Registries.RECIPE_SERIALIZER);
     public final DeferredRegister<SoundEvent> soundEvents = create(Registries.SOUND_EVENT);
+    public final DeferredRegister<ParticleType<?>> particleTypes = create(Registries.PARTICLE_TYPE);
     public final DeferredRegister.DataComponents dataComponents =
             DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, BuildcraftReforged.MOD_ID);
     public final DeferredRegister<CreativeModeTab> creativeModeTabs = create(Registries.CREATIVE_MODE_TAB);
@@ -55,6 +57,7 @@ public final class ModuleRegisters {
         recipeTypes.register(modBus);
         recipeSerializers.register(modBus);
         soundEvents.register(modBus);
+        particleTypes.register(modBus);
         dataComponents.register(modBus);
         creativeModeTabs.register(modBus);
         triggers.register(modBus);

@@ -15,6 +15,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Rotation;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
@@ -59,6 +61,12 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> TANK_STACKING = function("tank_stacking");
     private static final ResourceKey<Consumer<GameTestHelper>> TANK_TRANSFER = function("tank_transfer");
     private static final ResourceKey<Consumer<GameTestHelper>> TANK_BUCKETS = function("tank_buckets");
+    private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_PLACEMENT_AND_BUCKETS = function("oil_fuel_placement_and_buckets");
+    private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_FLOW = function("oil_fuel_flow");
+    private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_LIQUIDS = function("oil_fuel_liquids");
+    private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NETHER_IGNITION = function("oil_fuel_nether_ignition");
+    private static final ResourceKey<Consumer<GameTestHelper>> OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER =
+            function("oil_fuel_no_ignition_outside_nether");
 
     private BuildcraftGameTests() {
     }
@@ -96,6 +104,11 @@ public final class BuildcraftGameTests {
             registry.register(TANK_STACKING, TankTests::stacking);
             registry.register(TANK_TRANSFER, TankTests::transfer);
             registry.register(TANK_BUCKETS, TankTests::buckets);
+            registry.register(OIL_FUEL_PLACEMENT_AND_BUCKETS, OilFuelTests::placementAndBuckets);
+            registry.register(OIL_FUEL_FLOW, OilFuelTests::flow);
+            registry.register(OIL_FUEL_LIQUIDS, OilFuelTests::liquids);
+            registry.register(OIL_FUEL_NETHER_IGNITION, OilFuelTests::netherIgnition);
+            registry.register(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, OilFuelTests::noIgnitionOutsideNether);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -164,6 +177,16 @@ public final class BuildcraftGameTests {
             event.registerTest(tank.identifier(), new FunctionGameTestInstance(tank,
                     new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         }
+        // Oil and fuel flow beyond the 1x1x1 structure; the padding clears that area and keeps other tests out of it.
+        event.registerTest(OIL_FUEL_PLACEMENT_AND_BUCKETS.identifier(), new FunctionGameTestInstance(OIL_FUEL_PLACEMENT_AND_BUCKETS,
+                padded(environment, Level.OVERWORLD, 20)));
+        event.registerTest(OIL_FUEL_FLOW.identifier(), new FunctionGameTestInstance(OIL_FUEL_FLOW, padded(environment, Level.OVERWORLD, 140)));
+        event.registerTest(OIL_FUEL_LIQUIDS.identifier(), new FunctionGameTestInstance(OIL_FUEL_LIQUIDS,
+                padded(environment, Level.OVERWORLD, 60)));
+        event.registerTest(OIL_FUEL_NETHER_IGNITION.identifier(), new FunctionGameTestInstance(OIL_FUEL_NETHER_IGNITION,
+                padded(environment, Level.NETHER, 40)));
+        event.registerTest(OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER.identifier(), new FunctionGameTestInstance(
+                OIL_FUEL_NO_IGNITION_OUTSIDE_NETHER, padded(environment, Level.OVERWORLD, 40)));
     }
 
     /**
@@ -174,6 +197,12 @@ public final class BuildcraftGameTests {
     static void addTestData(AddPackFindersEvent event) {
         event.addPackFinders(id("gametest_data"), PackType.SERVER_DATA, Component.literal("Buildcraft Reforged GameTest data"),
                 PackSource.BUILT_IN, true, Pack.Position.TOP);
+    }
+
+    private static TestData<Holder<TestEnvironmentDefinition<?>>> padded(Holder<TestEnvironmentDefinition<?>> environment,
+            ResourceKey<Level> dimension, int maxTicks) {
+        return new TestData<>(environment, dimension, EMPTY_STRUCTURE, maxTicks, 0, true, Rotation.NONE, false, 1, 1, false,
+                OilFuelTests.PADDING);
     }
 
     private static ResourceKey<Consumer<GameTestHelper>> function(String name) {

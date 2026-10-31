@@ -67,6 +67,25 @@ behaviour are below. No fix was applied.
 | Decision | Not applicable: the gate loop they change is from the 6.x refactor; in 4.2.2 the side is already correct. #60 keeps 4.2.2's `o.getOpposite()` when it ports `Gate`. |
 | Applied in | — |
 
+### energy
+
+Triage for #42 (`energy/BlockBuildcraftFluid`, `ItemBucketBuildcraft`, `BucketHandler`, `render/EntityDropParticleFX`):
+`git log` on the 6.4.x line lists the 1.7 port, header and style commits plus the four below. No fix was applied.
+`1efa254037` ("Make swimming in oil a lot harder", 6.x) adds a `dense` flag that slows entities in oil: a gameplay
+change, rejected under policy point 2. `ce393ec0ef` (BuildCraft#1439) and `05693e1b0b` repair crashes and a lost
+bucket mapping introduced by the 1.7 port; the 4.2.2 code does not have them (not applicable).
+
+#### BuildCraft#2649: oil in the Nether explodes at the wrong moment
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`fc3ebfbb8dbf236f16850bb47f08d7338caf8dd8`](https://github.com/BuildCraft/BuildCraft/commit/fc3ebfbb8dbf236f16850bb47f08d7338caf8dd8) ("fix #2649", 22 Apr 2015, 6.4 line) |
+| Upstream issue | [BuildCraft#2649](https://github.com/BuildCraft/BuildCraft/issues/2649) |
+| Class | `energy/BlockBuildcraftFluid` (`onNeighborBlockChange`) |
+| Symptom | The Nether explosion ran before the fluid block was removed, so the explosion's neighbour updates reached the same block again. Upstream swapped the two calls. |
+| Decision | Not applicable: PLAN.md section 19.2 replaces the explosion with fire, so the block is replaced by fire in one call and there is no explosion to order. |
+| Applied in | — |
+
 ### factory
 
 #### BuildCraft#2353: liquid dupe with the tank
