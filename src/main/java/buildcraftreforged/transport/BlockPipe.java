@@ -117,9 +117,20 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
         }
     }
 
+    /** The pipe, its facades and its plugs (4.2.2 doRayTrace's parts): what a click and the outline see. */
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return PipeShapes.get(level.getBlockEntity(pos) instanceof TilePipe pipe ? pipe.getConnectionMask() : 0);
+        if (level.getBlockEntity(pos) instanceof TilePipe pipe)
+            return PipeShapes.get(pipe.getConnectionMask(), pipe.getFacadeMask(), pipe.getPluggedMask());
+        return PipeShapes.get(0);
+    }
+
+    /** 4.2.2 {@code addCollisionBoxesToList}: the pipe and its facades; plugs do not collide. */
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        if (level.getBlockEntity(pos) instanceof TilePipe pipe)
+            return PipeShapes.get(pipe.getConnectionMask(), pipe.getFacadeMask(), 0);
+        return PipeShapes.get(0);
     }
 
     @Override
@@ -145,7 +156,7 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
     // Gates and pipe wire (#60), 4.2.2 BlockGenericPipe.onBlockActivated and the redstone methods.
 
     /**
-     * Blocks are placed, and gate and wire items fit themselves (their useOn), without opening the gate. Module items
+     * Blocks are placed, and gate, wire, facade and plug items fit themselves (their useOn), without opening the gate. Module items
      * fit themselves too ({@code ItemPipeModule.useOn}). On a pipe with a module (docs/TRANSPORT.md 8.1, Q18) a wrench
      * turns the module (its {@code onWrench}) and a sneaking wrench takes it off and hands back its item with the
      * settings. Any other item falls through to {@link #useWithoutItem}, as 4.2.2 {@code PipeItemsEmerald} opened its
@@ -155,7 +166,8 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
             InteractionHand hand, BlockHitResult hitResult) {
         if (stack.getItem() instanceof BlockItem || stack.getItem() instanceof ItemGate
-                || stack.getItem() instanceof ItemPipeWire)
+                || stack.getItem() instanceof ItemPipeWire || stack.getItem() instanceof ItemFacade
+                || stack.getItem() instanceof ItemPlug)
             return InteractionResult.PASS;
         if (WrenchHelper.isWrench(stack) && level.getBlockEntity(pos) instanceof TilePipe pipe && pipe.getModule() != null)
             return wrenchModule(pipe, level, pos, player, hand);
@@ -184,14 +196,20 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
     }
 
     /**
-     * Sneaking with an empty hand strips the pipe's wires, then its gate; a click on the gate opens the gate GUI.
-     * Facades (#61) come first in 4.2.2's strip order; module GUIs (#55) take the clicks that miss the gate.
+     * Sneaking with an empty hand strips the clicked facade, else the pipe's wires, then its gate (4.2.2
+     * stripEquipment); a click on the gate opens the gate GUI. Module GUIs (#55) take the clicks that miss the gate.
      */
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hitResult) {
         if (level.getBlockEntity(pos) instanceof TilePipe pipe) {
             if (player.isShiftKeyDown() && player.getMainHandItem().isEmpty()) {
+                // Try to strip facades first
+                PipeParts.RaytraceResult rayTraceResult = PipeParts.doRayTrace(pipe, hitResult.getLocation(),
+                        hitResult.getDirection());
+                if (rayTraceResult != null && rayTraceResult.hitPart() == PipeParts.Part.Facade
+                        && pipe.dropFacade(rayTraceResult.sideHit()))
+                    return InteractionResult.SUCCESS;
                 if (pipe.gateHolder.stripEquipment())
                     return InteractionResult.SUCCESS;
             } else if (pipe.gateHolder.hasGate() && pipe.gateHolder.isGateHit(hitResult.getLocation())) {

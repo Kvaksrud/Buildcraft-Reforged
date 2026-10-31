@@ -1449,7 +1449,8 @@ its items.
 | 6 Facades of a block | 3 Cobblestone Structure Pipes, the block | 80000 | #61 |
 
 4.2.2 created one facade recipe per facade-able block at start-up (`addFacade`); with data-driven recipes that is
-either one JSON per block or a recipe type of its own for #61 to decide.
+either one JSON per block or a recipe type of its own. #61 left both plug and facade recipes to #74, since they need
+the Cobblestone Structure Pipe (#54); see "Facades and plugs (#61)" below.
 
 ### Tests
 
@@ -2550,3 +2551,90 @@ Decided 2026-10-31.
   the arm and stripes rendering (geometry, UVs, light, the render box), the red light, the status panel screen, the
   chat messages, the recipe in the crafting grid, and chunk loading with `quarry.loadsChunks` on (no test toggles the
   option).
+
+## Facades and plugs (#61)
+
+Ported from 4.2.2 `ItemFacade`, `ItemPlug`, `api/transport/FacadeManager`, `transport/render/FacadeRenderHelper`,
+`FacadeItemRenderer`, `PlugItemRenderer`, and the facade and plug parts of `TileGenericPipe`, `BlockGenericPipe`
+(`Part`, `doRayTrace`, the bounding boxes, `addOrStrip*`, `stripEquipment`), `Pipe` (`hasGate(side)`,
+`onBlockRemoval`) and `PipeRendererWorld.pipePlugRenderer`. Decided 2026-10-31.
+
+- **Items.** `pipe_facade` (4.2.2 `pipeFacade`, key `item.Facade`) and `pipe_plug` (`pipePlug`, key `item.PipePlug`).
+  A facade carries its block state in the `buildcraftreforged:facade` data component (block state codec on disk, the
+  block-state id on the network), in place of the `id` and `meta` NBT tags. Its name is "Facade: <block>" as 4.2.2.
+  The Facades tab lists one facade per facade state (`CreativeTabBuildCraft.addStacks`, additive) and its icon is the
+  stone-brick facade; the plug is in the Machines tab.
+- **Which blocks.** `ItemFacade.isFacadeBlock` is 4.2.2's `initialize` rule on the block's default state, over the
+  whole block registry (plan section 6: no reflection): glass always; never bedrock, grass block, oak leaves, sponge,
+  redstone lamp, jack o'lantern (the locked chest is gone); otherwise `isSolidRender` (4.2.2 `isOpaqueCube`), no block
+  entity, render shape `MODEL` and a full collision cube (4.2.2 `renderAsNormalBlock`), and an item. 4.2.2 made one
+  facade per named metadata; block states replace metadata, so a block gives its default state, and a block with an
+  `axis` property gives Y, X and Z (4.2.2's rotated logs). `FacadeManager.addFacade(BlockState)` adds states that the
+  rule skips (4.2.2's reflective `addFacade(ItemStack)`; the IMC message went with numeric ids). The list is built on
+  first use, after the registries are frozen. Only listed states can be fitted, so a facade item edited to carry a
+  chest does nothing.
+- **Fitting and taking off** are 4.2.2's, as the items' `useOn` (`BlockPipe.useItemOn` passes both items through):
+  the click is classified by `PipeParts.doRayTrace`, a port of 4.2.2's ray trace over the pipe centre and arms, gate
+  boxes, facade slabs and plug caps. A `UseOnContext` has the hit, not the player's eye, so the ray is a short one
+  through the clicked point along the clicked face. A facade goes on the side of the arm or gate clicked, or the face
+  clicked on the centre, replacing (and dropping) another facade there; a facade item used on another block's face
+  puts the facade on the pipe beside that face (4.2.2 `onItemUse`). Sneaking with a facade on a facade, or sneaking
+  with an empty hand on a facade, takes it off; the empty hand then strips wires and the gate as before. A plug goes
+  on the side of the pipe arm, centre face or gate clicked; sneaking with a plug on a plug takes it off. Creative
+  players keep the item. The client answers the same as the server and changes nothing, so the arm swings.
+- **Connections.** A plug blocks its side on both pipes (the rule of #48, `setPlugged`), which also invalidates the
+  network; it now also re-sends the pipe and notifies the neighbours. A facade does not touch connections: 4.2.2's
+  `canPipeConnect` ignored facades and drew a hollow facade around a connected arm.
+- **Shape.** The outline (`getShape`) is the pipe plus 4.2.2's facade slabs (2 px over the whole side) and plug caps;
+  the collision shape leaves the plugs out, as 4.2.2's `addCollisionBoxesToList` did. Shapes with facades or plugs
+  are built on first use and cached by the three masks (`PipeShapes`). A side with a facade is solid
+  (`isSolidOnSide`), and since pipes have dynamic shapes, `isFaceSturdy` sees the slab: torches stand on facades.
+- **Gate.** `PipeGateHolder.hasGate(side)` is 4.2.2's (no gate box on a side with a facade or plug, nor opposite a
+  single connection); `isGateHit` skips such sides; the renderer's `shouldRenderNormalPipeSide` hides the gate there.
+- **Save and sync.** Saved as `facade[0]` … `facade[5]` (block states, 4.2.2 `facadeBlocks[i]` / `facadeMeta[i]`)
+  and the existing `plugs` byte. The pipe's payload now ends with the plug mask and, per side, 0 or the facade's
+  block-state id + 1, so the client draws them and has the same shape. Facades and plugs drop with the pipe
+  (`PipeGateHolder.onBlockRemoval`, 4.2.2 `Pipe.onBlockRemoval`).
+- **Rendering** is in the pipe's `BlockEntityRenderer` (`PipeRendererTESR` → `FacadeRenderHelper`), not the chunk
+  mesh as in 4.2.2's `PipeRendererWorld`. Each facade face takes the sprite of the facade state's model quad on that
+  face (else an unculled quad facing that way, else the particle sprite) and its block tint, on the block atlas, with
+  UVs from the box's place in the block; boxes, the hollow variant, the z-fight offsets and the hidden faces between
+  neighbouring facades are 4.2.2's; supports and plugs use the Cobblestone Structure Pipe texture
+  (`textures/block/pipe_structure_cobblestone.png`, 4.2.2 `pipeStructureCobblestone`, added here; #54 can reuse it).
+  4.2.2's `uvRotate` for logs is gone: the axis state's model already places end and bark faces, but bark on a
+  sideways log facade is not turned within the face. The facade item is the special item model
+  `buildcraftreforged:facade` (`FacadeItemRenderer`: the 1 px facade and a structure stub, 4.2.2's boxes), its base
+  model `item/pipe_facade` with a GUI view of the facade side; the plug item is a JSON box model (4.2.2
+  `PlugItemRenderer`'s box).
+- **Recipes.** The crafting-table turning helper (4.2.2 `FacadeRecipe`: one log facade turns Y → X → Z → Y) is the
+  special recipe `buildcraftreforged:facade_rotation` (`data/buildcraftreforged/recipe/facade_rotation.json`). The
+  Assembly Table recipes (8 plugs from 1 Cobblestone Structure Pipe, 10 000 FE; 6 facades of a block from 3 Cobblestone
+  Structure Pipes and the block, 80 000 FE) are **not** here: the Structure Pipe does not exist yet (#54), and the
+  facade recipe, one per facade state, needs either generated JSON or an assembly recipe type of its own.
+
+### For #74 (and #54)
+
+- Plugs: one `buildcraftreforged:assembly` JSON, input `buildcraftreforged:pipe_structure_cobblestone` (or whatever
+  #54 names it) × 1, energy 10000, result `buildcraftreforged:pipe_plug` × 8.
+- Facades: for every stack in `ItemFacade.getAllFacades()`, inputs 3 Structure Pipes and the block's item, energy
+  80000, result that facade × 6. 4.2.2 added rotated log facades to the list without a recipe (the turning recipe makes
+  them); the axis-Y state is the one with a recipe. Since the list depends on the loaded blocks, a recipe type of its own
+  (matching any facade-able block in the table, result built by `ItemFacade.getStack`) is closer to 4.2.2 than JSON
+  per block; the table's `AssemblyRecipeManager` would have to list those recipes for the GUI's 8 slots.
+- JEI: the facades tab lists many stacks; a JEI subtype interpreter on the `facade` component keeps them apart.
+
+### Tests
+
+GameTests (`FacadeTests`, padded area): `facade_rules_and_recipe` (allowed and refused blocks, three log facades,
+the name, the turning recipe and its loading), `facade_place_and_strip` (fitting on the centre, on an arm and from a
+neighbouring block's face, a second identical facade and a grass facade refused, solid side, collision, a torch-sturdy
+face, connections unchanged, stripping with an empty hand and with a facade, drops), `plug_blocks_connection`
+(a plug on an arm cuts both pipes' connection and splits the network; outline with the plug, collision without;
+sneak-use takes it off, drops it and joins the network again) and `facade_plug_save_sync_and_drops` (save and load,
+the client payload, drops when the pipe breaks).
+
+Not checked without a client: every picture (facade boxes and sprites, tints, the hollow facade around an arm, the
+structure supports, plugs, gates hidden behind facades and plugs, the facade item in the GUI, hand and on the ground,
+the plug item), the outline box while aiming, and real clicks from a player's eye (the tests click with
+`UseOnContext` hits).
+

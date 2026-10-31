@@ -7,8 +7,8 @@
  *
  * Modified by Buildcraft Reforged, 2026: a BlockEntityRenderer that copies the pipe's synced wire and gate state and
  * its flow record into a render state and submits the 4.2.2 boxes as custom geometry, one texture per box; the GL
- * state calls become the render type, the GL matrix calls the pose stack; facades and plugs (#61) are not yet in
- * shouldRenderNormalPipeSide. Pipes hold nothing any more, so renderSolids, renderFluids and renderPower draw the flow
+ * state calls become the render type, the GL matrix calls the pose stack. Facades and plugs (#61), which 4.2.2 drew
+ * in PipeRendererWorld, are drawn here too (FacadeRenderHelper). Pipes hold nothing any more, so renderSolids, renderFluids and renderPower draw the flow
  * record (docs/TRANSPORT.md 9.4) instead of travelling items, per-side fluid amounts and per-side power stages: item
  * icons spaced by the record's rate (with the ItemBox colour marker), a fluid column whose size follows the rate, and
  * the kinesis glow whose width follows the rate, red when overloaded. Client only.
@@ -53,6 +53,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -87,6 +88,9 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
         public @Nullable TextureAtlasSprite fluidFlowing;
         public int fluidColour = 0xFFFFFF;
         public boolean overload;
+        /** Facades and plugs (#61), by side. */
+        public final FacadeRenderHelper.@Nullable FacadeLook[] facades = new FacadeRenderHelper.FacadeLook[6];
+        public final boolean[] plugs = new boolean[6];
     }
 
     /** At most this many item icons per pipe (docs/TRANSPORT.md 9.4). */
@@ -145,6 +149,9 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
         state.gateLit = holder.isRenderedGateLit();
         for (Direction side : Direction.values()) {
             state.pipeConnected[side.get3DDataValue()] = pipe.isPipeConnected(side);
+            BlockState facade = pipe.getFacade(side);
+            state.facades[side.get3DDataValue()] = facade == null ? null : FacadeRenderHelper.look(facade);
+            state.plugs[side.get3DDataValue()] = pipe.hasPlug(side);
         }
         extractFlow(pipe, state, partialTicks);
     }
@@ -206,6 +213,8 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
             }
         }
         renderGatesWires(state, poseStack, collector);
+        FacadeRenderHelper.pipeFacadeRenderer(poseStack, collector, state.facades, state.pipeConnected, state.lightCoords);
+        FacadeRenderHelper.pipePlugRenderer(poseStack, collector, state.plugs, state.lightCoords);
     }
 
     /** The point where side {@code side} (0-5) meets the pipe's face, or the centre for {@link FlowRecord#CENTRE}. */
@@ -606,8 +615,8 @@ public class PipeRendererTESR implements BlockEntityRenderer<TilePipe, PipeRende
     }
 
     private boolean shouldRenderNormalPipeSide(State state, Direction direction) {
-        // SEAM(#61): no facade and no plug on the side.
-        return !state.pipeConnected[direction.get3DDataValue()] && !isOpenOrientation(state, direction);
+        return !state.pipeConnected[direction.get3DDataValue()] && state.facades[direction.get3DDataValue()] == null
+                && !state.plugs[direction.get3DDataValue()] && !isOpenOrientation(state, direction);
     }
 
     public boolean isOpenOrientation(State state, Direction direction) {

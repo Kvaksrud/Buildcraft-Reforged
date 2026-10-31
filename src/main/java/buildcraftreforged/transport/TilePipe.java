@@ -21,9 +21,11 @@ import buildcraftreforged.transport.route.PipeFluidHandler;
 import buildcraftreforged.transport.route.PipeItemHandler;
 import buildcraftreforged.transport.route.PowerPipeFlow;
 import buildcraftreforged.transport.route.PowerPipeState;
+import buildcraftreforged.core.inventory.InvUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
@@ -65,6 +67,10 @@ import org.jspecify.annotations.Nullable;
  * {@link FluidPipeState} (7.3). Every pipe keeps its flow record ({@link FlowTracker}, 9): measured on the server,
  * synced to clients and read by the Pipe Contents trigger. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
  * {@link buildcraftreforged.transport.route.ItemRouting}).
+ *
+ * <p>Facades and plugs (#61) are 4.2.2 {@code TileGenericPipe}'s: one facade block state and one plug per side, saved,
+ * synced, dropped with the pipe. A plug stops the side connecting; a facade does not (4.2.2 left connections alone and
+ * drew a hollow facade around a connected arm), but makes the side solid ({@link #isSolidOnSide}).
  */
 public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pipe {
 
@@ -74,6 +80,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     public final PipeType kind;
     private byte connectionMask;
     private byte pluggedMask;
+    /** 4.2.2 {@code facadeBlocks} and {@code facadeMeta}: the facade's block state per side, or null. */
+    private final @Nullable BlockState[] facadeStates = new BlockState[6];
     private @Nullable PipeModule module;
     private boolean connectionsDirty = true;
     private final BlockCapabilityCache<?, ?>[] endpointCaches = new BlockCapabilityCache<?, ?>[6];
@@ -186,7 +194,103 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         if (mask != pluggedMask) {
             pluggedMask = mask;
             onConfigurationChanged();
+            if (level != null && !level.isClientSide()) {
+                // The client draws the plug, and its shape takes the plug's box.
+                sendNetworkUpdate();
+                level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
+            }
         }
+    }
+
+    // Facades and plugs (#61), 4.2.2 TileGenericPipe
+
+    /**
+     * 4.2.2 {@code addFacade}: puts a facade of {@code state} on {@code direction}, dropping the one already there.
+     * False when the side already has a facade of that state. The client answers alike and changes nothing.
+     */
+    public boolean addFacade(Direction direction, BlockState state) {
+        if (level == null)
+            return false;
+        if (state.equals(facadeStates[direction.get3DDataValue()]))
+            return false;
+        if (level.isClientSide())
+            return true;
+
+        if (hasFacade(direction))
+            dropFacadeItem(direction);
+
+        facadeStates[direction.get3DDataValue()] = state;
+        onFacadesChanged();
+        return true;
+    }
+
+    public boolean hasFacade(@Nullable Direction direction) {
+        return direction != null && facadeStates[direction.get3DDataValue()] != null;
+    }
+
+    /** The facade's block state on {@code direction}, or null. */
+    public @Nullable BlockState getFacade(Direction direction) {
+        return facadeStates[direction.get3DDataValue()];
+    }
+
+    /** The sides with a facade, bit {@code d} = {@link Direction#get3DDataValue()}. */
+    public int getFacadeMask() {
+        int mask = 0;
+        for (Direction side : Direction.values()) {
+            if (hasFacade(side))
+                mask |= PipeConnections.bit(side);
+        }
+        return mask;
+    }
+
+    private void dropFacadeItem(Direction direction) {
+        InvUtils.dropItems(level, ItemFacade.getStack(facadeStates[direction.get3DDataValue()]), worldPosition.getX(),
+                worldPosition.getY(), worldPosition.getZ());
+    }
+
+    /** 4.2.2 {@code dropFacade}: takes the facade off {@code direction} and drops its item. */
+    public boolean dropFacade(@Nullable Direction direction) {
+        if (!hasFacade(direction))
+            return false;
+        if (level != null && !level.isClientSide()) {
+            dropFacadeItem(direction);
+            facadeStates[direction.get3DDataValue()] = null;
+            onFacadesChanged();
+        }
+        return true;
+    }
+
+    /** 4.2.2 notifyBlockChange and scheduleRenderUpdate: neighbours see the new solid side, the client the facade. */
+    private void onFacadesChanged() {
+        setChanged();
+        sendNetworkUpdate();
+        level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
+        gateHolder.scheduleRenderUpdate();
+    }
+
+    public boolean hasPlug(@Nullable Direction side) {
+        return side != null && PipeConnections.hasSide(pluggedMask, side);
+    }
+
+    /** 4.2.2 {@code removeAndDropPlug}. */
+    public boolean removeAndDropPlug(@Nullable Direction side) {
+        if (!hasPlug(side))
+            return false;
+        if (level != null && !level.isClientSide()) {
+            setPlugged(side, false);
+            InvUtils.dropItems(level, new ItemStack(TransportRegistry.plugItem.get()), worldPosition.getX(),
+                    worldPosition.getY(), worldPosition.getZ());
+        }
+        return true;
+    }
+
+    /** 4.2.2 {@code addPlug}. The client answers alike and changes nothing. */
+    public boolean addPlug(Direction forgeDirection) {
+        if (hasPlug(forgeDirection))
+            return false;
+        if (level != null && !level.isClientSide())
+            setPlugged(forgeDirection, true);
+        return true;
     }
 
     /** Fits a new module of {@code type} with default settings, or removes the module for null. */
@@ -437,10 +541,10 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         }
     }
 
+    /** 4.2.2: a side with a facade is solid. */
     @Override
     public boolean isSolidOnSide(Direction side) {
-        // SEAM(#61): facades.
-        return false;
+        return hasFacade(side);
     }
 
     // Save and sync
@@ -449,6 +553,9 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.putByte("plugs", pluggedMask);
+        for (int i = 0; i < 6; i++) {
+            output.storeNullable("facade[" + i + "]", BlockState.CODEC, facadeStates[i]);
+        }
         output.storeNullable("module", PipeModuleType.CODEC, getModuleType());
         if (module != null)
             module.save(output.child("module_settings"));
@@ -459,6 +566,9 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         pluggedMask = input.getByteOr("plugs", (byte) 0);
+        for (int i = 0; i < 6; i++) {
+            facadeStates[i] = input.read("facade[" + i + "]", BlockState.CODEC).orElse(null);
+        }
         module = input.read("module", PipeModuleType.CODEC).map(PipeModule::create).orElse(null);
         if (module != null)
             module.load(input.childOrEmpty("module_settings"));
@@ -475,6 +585,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         data.writeByte(type == null ? -1 : type.ordinal());
         gateHolder.writeRenderState(data);
         FlowRecord.STREAM_CODEC.encode(data, flowTracker.sent());
+        // Facades and plugs (#61): the plug mask, then per side 0 or the facade's block state id + 1.
+        data.writeByte(pluggedMask);
+        for (BlockState facade : facadeStates) {
+            ByteBufCodecs.VAR_INT.encode(data, facade == null ? 0 : Block.BLOCK_STATE_REGISTRY.getId(facade) + 1);
+        }
     }
 
     @Override
@@ -493,6 +608,11 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         FlowRecord record = FlowRecord.STREAM_CODEC.decode(data);
         flowTracker.receive(record.kind() == kind ? record : FlowRecord.none(kind),
                 level == null ? 0 : level.getGameTime());
+        pluggedMask = (byte) (data.readByte() & 63);
+        for (int i = 0; i < 6; i++) {
+            int id = ByteBufCodecs.VAR_INT.decode(data);
+            facadeStates[i] = id == 0 ? null : Block.BLOCK_STATE_REGISTRY.byId(id - 1);
+        }
     }
 
     /** Client: the new mask picks another cached model and shape, so refresh the model data and re-mesh. */
