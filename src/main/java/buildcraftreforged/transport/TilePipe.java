@@ -7,6 +7,8 @@ import buildcraftreforged.api.transport.IPipeTile;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeWorld;
+import buildcraftreforged.transport.route.PipeBudget;
+import buildcraftreforged.transport.route.PipeItemHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -21,6 +23,9 @@ import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.model.data.ModelData;
 import net.neoforged.neoforge.model.data.ModelProperty;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,7 +37,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Loading, removal (including chunk unload), a mask change and a plug or module change invalidate the cached
  * network around the pipe ({@link PipeNetworks}, docs/TRANSPORT.md 3.4).
  *
- * <p>Budgets, fluid locks, flow records and the overflow stack of 3.1 belong to #50–#59.
+ * <p>Item pipes take pushes through the item capability and route them at once ({@link PipeItemHandler},
+ * docs/TRANSPORT.md 6.2); every pipe keeps its throughput {@link PipeBudget} (5). Fluid locks and flow records of 3.1
+ * belong to #51 and #59. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
+ * {@link buildcraftreforged.transport.route.ItemRouting}).
  */
 public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pipe {
 
@@ -45,6 +53,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     private @Nullable PipeModuleType moduleType;
     private boolean connectionsDirty = true;
     private final BlockCapabilityCache<?, ?>[] endpointCaches = new BlockCapabilityCache<?, ?>[6];
+    private final PipeBudget budget = new PipeBudget();
+    private final PipeItemHandler[] itemHandlers = new PipeItemHandler[6];
 
     public TilePipe(BlockPos pos, BlockState state) {
         super(TransportRegistry.pipeTile.get(), pos, state);
@@ -65,6 +75,17 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
 
     public int getTier() {
         return getBlockState().getBlock() instanceof BlockPipe pipe ? pipe.getTier() : 0;
+    }
+
+    /** The caps of this pipe's tier in use now ({@link BlockPipe#getTierStats}). */
+    public PipeTierStats getTierStats() {
+        return getBlockState().getBlock() instanceof BlockPipe pipe ? pipe.getTierStats()
+                : PipeTierStats.defaults(PipeMaterial.WOOD);
+    }
+
+    /** The throughput budget (docs/TRANSPORT.md 5), in the kind's unit. Not saved. */
+    public PipeBudget getBudget() {
+        return budget;
     }
 
     public PipeConnections.PipeEnd end() {
@@ -111,6 +132,8 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         super.onLoad();
         scheduleConnectionUpdate();
         PipeNetworks.invalidate(level, worldPosition);
+        if (level != null)
+            budget.start(level.getGameTime());
     }
 
     @Override
@@ -125,6 +148,9 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         super.updateEntity();
         if (connectionsDirty)
             updateConnections();
+        // Sources are ticked per network (PipeSources), so a source makes sure its network exists.
+        if (moduleType != null && moduleType.isSource() && level instanceof ServerLevel serverLevel)
+            PipeNetworks.get(serverLevel, worldPosition);
     }
 
     /** Server side: applies the connection rule on all six sides. */
@@ -213,10 +239,29 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return null;
     }
 
+    /** Pushes entering on {@code from} route at once (docs/TRANSPORT.md 6.2); returns how many items were taken. */
     @Override
     public int injectItem(ItemStack stack, boolean doAdd, Direction from) {
-        // SEAM(#50): route instantly along the graph (docs/TRANSPORT.md 6.2).
-        return 0;
+        ResourceHandler<ItemResource> handler = getItemHandler(from);
+        if (handler == null || stack.isEmpty())
+            return 0;
+        try (Transaction transaction = Transaction.openRoot()) {
+            int moved = handler.insert(ItemResource.of(stack), stack.getCount(), transaction);
+            if (doAdd)
+                transaction.commit();
+            return moved;
+        }
+    }
+
+    /** Item pipes expose {@link PipeItemHandler} on every side; it refuses sides facing an item pipe or a plug. */
+    @Override
+    public @Nullable ResourceHandler<ItemResource> getItemHandler(@Nullable Direction side) {
+        if (kind != PipeType.ITEM || side == null)
+            return null;
+        int index = side.get3DDataValue();
+        if (itemHandlers[index] == null)
+            itemHandlers[index] = new PipeItemHandler(this, side);
+        return itemHandlers[index];
     }
 
     @Override

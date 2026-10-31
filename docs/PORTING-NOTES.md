@@ -1174,3 +1174,83 @@ of `BuildCraftEnergy.preInit`. Decisions recorded 31 Oct 2026.
 - 4.2.2 `RefineryRecipes.addRecipe(new FluidStack(fluidOil, 1), new FluidStack(fluidFuel, 1), 12, 1)` was registered
   in `BuildCraftEnergy.preInit`; #68 owns it now (oil in, fuel out, `energy` 12 MJ, so 120 FE, `delay` 1).
 - `FluidRenderer` draws the tank contents from the fluid models registered here.
+
+## Item routing walk and per-segment budgets (#50)
+
+New code from `docs/TRANSPORT.md` 4, 5 and 6, package `buildcraftreforged.transport.route`; the 4.2.2
+`PipeTransportItems` was read for behaviour only.
+
+- **Walk.** `PipeWalk.walk(network, start, in, sourcePos, rules, random, maxVisits)` is 4.2 step by step, iterative (no
+  Java recursion on long lines). Candidates in side order, then a uniform random permutation from the `RandomSource`
+  (the level's; tests pass a seeded one); an accepting endpoint ends the walk, a pipe is entered, a dead end is backed
+  out of (Q1) but stays visited. Returns a `Route(path, endpoint, sink)` or null (no destination, or more than
+  `maxVisits` pipes, Q20). `PipeWalk.Rules` is where the kinds and modules differ: `accepts(endpoint)` (the simulated
+  insert), `canEnter(node)`, `isSink(node)` (default: the Void module) and `allowsOutput(node, side)`.
+- **Source exclusion by block.** No endpoint at the source block's position is a destination, on any face, not just
+  the face the transfer came from. A chest touching a line twice never receives its own items back. Decided
+  2026-10-31.
+- **Budgets.** `PipeBudget` is 5.1–5.2: a `long` in the kind's unit, lazily refilled by game time, capped at
+  `PipeBudget.cap(refill, burstSeconds, costPerUnit)`, started at 0 when the pipe loads (`TilePipe.onLoad`; a budget
+  never started starts at its first read). It is a NeoForge `SnapshotJournal`, so spending is part of a transaction:
+  a simulated transfer is an aborted transaction and leaves budgets as they were (6.2). `TilePipe.getBudget()` and
+  `TilePipe.getTierStats()` give each pipe's. Not saved.
+- **Transfers.** `ResourceRouter<R extends Resource>` is the generic transfer of 5.3 and 6.4, for any
+  `ResourceHandler<R>`: walk, then `n = min(offered, simulated insert at the destination, min over the path of
+  floor(budget / costPerUnit))`, insert `n` with `ResourceHandlerUtil.insertStacking` (matching stacks first, as 4.2.2
+  `Transactor.add`), spend `n × costPerUnit` on every pipe of the path, all in the caller's transaction. It returns
+  `TransferResult(moved, reason, route)` with the reasons of 6.3. A Void sink takes `min(offered, budgets)`.
+- **No overflow stack.** The 26.x transfer API is transactional, so a transfer is one transaction: the destination
+  insert, the budgets and the source extract commit together or not at all, and a handler that takes less than it
+  promised just makes the transfer smaller. The `overflow` field of 3.1 and step 5 of 6.4 (Q19) are therefore never
+  needed and not implemented; nothing is left between source and destination. Decided 2026-10-31.
+- **Items.** `ItemRouting.ROUTER` costs 20 units per item (an item-tick), refill = the tier's `itemsPerSecond`.
+  `ItemRouting.push(level, network, node, in, resource, amount, transaction)` is a push from the block beside the pipe;
+  `ItemRouting.extract(level, network, node, facing, source)` is one Extractor attempt (8.2, Q13): up to
+  `floor(budget / 20)` items from the first slot whose stack has a destination, at most one successful transfer, the
+  pull and the insert in one root transaction. NO_CAPACITY stops the scan (a destination exists); NO_DESTINATION tries
+  the next slot.
+- **Pipe capability (6.2).** Item pipes register `Capabilities.Item.BLOCK` (`TransportRegistry`, through
+  `TileBuildCraft.registerItemHandler`); `TilePipe.getItemHandler(side)` returns a `PipeItemHandler`: one virtual,
+  always-empty slot; `insert` routes at once and returns what reached a destination; `extract` gives nothing. It refuses
+  on a plugged side and on a side facing another item pipe, decided at call time, so no capability invalidation is
+  needed when neighbours change. A connection on that side is not required (6.2 says "every side whose neighbour is not
+  a pipe of the same kind"). Hoppers and other mods push through it; `TilePipe.injectItem(stack, doAdd, from)` is the
+  same push in its own root transaction.
+- **Source tick (6.1).** `PipeSources` runs at `LevelTickEvent.Post` on the server: for each valid network with
+  `sourceNodes`, one attempt per source starting at `sourceCursor`, then the cursor moves on by one. A source pipe asks
+  for its network on its own tick (`TilePipe.updateEntity`), so its network exists by then. Only the item Extractor
+  does anything yet, and until #55 saves a facing it pulls from the first side, in side order, that leads to an
+  endpoint with an item handler.
+- **Config** (`transport` section): `burstSeconds` (0.05–10, 1.0) and `maxRouteVisits` (64–65 536, 4096), read once
+  per transfer through `ItemRouting.settings()` (defaults before the config loads). `fluidLockTicks` is #51's.
+- **Tests.** Unit (`PipeRoutingTest`, on a stub grid with a test `Resource` and a transactional stub chest): straight
+  line and path, 10 000-walk 50 % ± 2 % splits at a junction of two chests and at a chest-versus-pipe junction, dead
+  end backed out of, loop, full chest, source never the destination, `maxRouteVisits`, Void sink; every worked
+  example of 5.4 tick by tick (wood, iron, gold, quartz, ender, bottleneck, shared trunk, burst), config change and cap
+  shrink; partial, NO_CAPACITY with nothing spent, simulation changes nothing, budgets spent only on the path.
+  GameTests (`ItemRoutingTests`, padded area): chest → Extractor → chest with two item kinds; a hopper pushing through
+  the pipe capability; a junction with a chest, a far chest, a dead end and a full chest (200 items, all in the first
+  two, each at least 70); budgets on a wood line and a gold–wood–gold bottleneck, simulated and real pushes and
+  `injectItem`; and the 10-tier throughput test, one per tier, which measured exactly `2 × itemsPerSecond` over a
+  40-tick window for every tier (tolerance ± 1, plus one tick's worth from 20 items/s up). Every test ends with no
+  item entity in its area.
+
+### For #51 (fluids), #52 (power), #55–#57 (modules), #58 (Basic Extractor) and #59 (flow records)
+
+- **#51.** Make a `ResourceRouter<FluidResource>` with `costPerUnit` 1, refill `fluidPerTick`, handlers from the
+  endpoint caches (`Capabilities.Fluid.BLOCK`), like `ItemRouting.ROUTER`, and pass `PipeWalk.Rules` with
+  `canEnter` for the fluid lock (7.3); `ResourceRouter.push` takes the walk rules from its own lambda today, so add an
+  overload or a `Rules` parameter there. The budget object (`TilePipe.getBudget()`) is the same for every kind. Add the
+  fluid Extractor at the `SEAM(#51)` in `PipeSources.tickSource` and a fluid capability next to the item one.
+- **#52.** Power uses the budget (`PipeBudget`, cost 1 FE) but not the walk (7.4 builds a tree). `PipeBudget.available`
+  and `spend(…, transaction)` work the same.
+- **#55–#57.** Modules plug into `PipeWalk.Rules`: `allowsOutput` (Director, Colour Sorter), `isSink` (Void already),
+  and a candidate filter for Sorter and Colour Sorter (8.5, 8.9) still has to be added to `Rules` and called between
+  steps 4 and 6. The Extractor's saved facing replaces the first-handler choice in `PipeSources.tickSource`
+  (`SEAM(#55)`); its pull is `ItemRouting.extract`. Filtered Extractor: filter slots before calling the same push
+  inside its own transaction, as `extract` does.
+- **#58.** The Basic Extractor pulse is `ItemRouting.extract`-shaped: a walk from the pipe on its pipe face with
+  `in` = the side facing it; cap `want` by the pulse before the push.
+- **#59.** Every successful transfer passes `ResourceRouter.push` where `SEAM(#59)` sits; `TransferResult.route()`
+  has the path (node indices), and `route.endpoint()` / `route.sink()` the exit. Record flow there, journaled in the
+  same transaction, so simulations record nothing.

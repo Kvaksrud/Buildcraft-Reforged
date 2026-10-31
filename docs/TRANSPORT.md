@@ -411,6 +411,10 @@ dropped as an item only when the pipe is broken (as pipe contents were in 4.2.2 
 Fluids: the same with drain and fill. Power has no remainder problem: the amount returned to the caller is the amount
 delivered. See Q19.
 
+As built (#50, 2026-10-31): the 26.x transfer API is transactional, so the walk, the destination insert, the budgets
+and the source extract run in one transaction and commit together or not at all. Steps (4) and (5) never arise and
+the overflow stack is not implemented; see `docs/PORTING-NOTES.md`, "Item routing walk and per-segment budgets".
+
 After a successful transfer: spend budgets (5.3), record flow on every pipe of the path (section 9), and for fluids
 lock every pipe of the path (7.3).
 
