@@ -1,12 +1,13 @@
 package buildcraftreforged.transport;
 
+import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import com.mojang.serialization.Codec;
 import java.util.Locale;
 import net.minecraft.util.StringRepresentable;
 
 /**
- * The module kinds of docs/TRANSPORT.md 8.1, with only what the connection rule (3.2, 3.3) needs to know about them.
- * The module objects themselves (settings, hooks, GUIs) are #55–#57; until then a pipe stores just the type.
+ * The module kinds of docs/TRANSPORT.md 8.1, with what the connection rule (3.2, 3.3), the graph and fitting need to
+ * know about them. The module objects (settings, hooks, GUIs) are {@link buildcraftreforged.transport.module.PipeModule}.
  */
 public enum PipeModuleType implements StringRepresentable {
 
@@ -49,6 +50,15 @@ public enum PipeModuleType implements StringRepresentable {
      */
     public boolean isSource() {
         return this == EXTRACTOR || this == FILTERED_EXTRACTOR || this == PICKUP;
+    }
+
+    /** Which pipe kinds take this module (docs/TRANSPORT.md 8.1, Q8). */
+    public boolean accepts(PipeType kind) {
+        return switch (this) {
+        case EXTRACTOR, VOID, ISOLATOR -> kind == PipeType.ITEM || kind == PipeType.FLUID;
+        case DIRECTOR -> kind == PipeType.ITEM || kind == PipeType.FLUID || kind == PipeType.POWER;
+        default -> kind == PipeType.ITEM;
+        };
     }
 
     @Override

@@ -59,7 +59,7 @@ public class PipeGateHolder implements IPipe {
 
     /**
      * The pipe part that offers and takes module actions (Pipe Direction, Pipe Color, Extraction Preset, Power
-     * Limiter). SEAM(#55): module fitting sets it.
+     * Limiter). {@code TilePipe.setModule} sets it from {@code PipeModule.gateTarget}.
      */
     public @Nullable IPipeGateTarget target;
 

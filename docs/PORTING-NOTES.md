@@ -781,8 +781,8 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
   handler except `EmptyEnergyHandler`, because NeoForge 26.3's `EnergyHandler` has no `canReceive`/`canExtract`.
 - **Modules and plugs** exist only as data so far: `TilePipe.setModuleType(PipeModuleType)` and
   `setPlugged(Direction, boolean)`, saved as `module` and `plugs`. `PipeModuleType` knows only the connection-rule
-  facts (Isolator, the four self-banned modules of Q16). #55 replaces the type with the module object; #61 calls
-  `setPlugged`.
+  facts (Isolator, the four self-banned modules of Q16). #55 added the module object beside the type (see "Pipe
+  modules" below); #61 calls `setPlugged`.
 - **Hardness.** Registered with 0.25 (`DefaultProps.PIPES_DURABILITY`); `BlockPipe.getDestroyProgress` reads
   `pipes.durability` at break time, so the configured value applies without a restart.
 - **Shape.** `PipeShapes`: the 4.2.2 centre (4–12 px) plus an arm per connected side, 64 shapes built once, read from
@@ -890,7 +890,7 @@ ticking yet (#50–#52).
   in build order, but a network is only built when something asks for it. The tick has to make sure every source pipe's
   network exists (for example source pipes ask for theirs when they load or when their module is fitted) and then
   walk `networks()` with `sourceNodes` / `sourceCursor`, at `LevelTickEvent.Post` on the server.
-- `PipeModuleType.isSource()` decides `sourceNodes`; when #55 replaces the type with module objects, keep that method
+- `PipeModuleType.isSource()` decides `sourceNodes` (#55 kept the type in the node and put the module object beside it)
   (or its equivalent) and rebuild the network on a module change (`onConfigurationChanged` already invalidates).
 
 ## Tier pipes: registration, recipes, textures and the tier table (#53)
@@ -1742,3 +1742,98 @@ The textures and block models are in place. Each engine adds two files:
 - **Not checked without a client:** the drawing itself (box orientation for all six facings, the UVs, face culling
   and winding, the chamber stacking, light), the item render in the GUI, hand and ground, and the particle texture.
   Tick the PARITY "renders" columns when an engine has been looked at in game.
+
+## Pipe modules: framework, Extractor, Filtered Extractor and Director (#55)
+
+New code from `docs/TRANSPORT.md` 8.1–8.4, package `buildcraftreforged.transport.module`; the 4.2.2 `PipeItemsWood`,
+`PipeLogicWood`, `PipeItemsEmerald`, `GuiEmeraldPipe`, `ContainerEmeraldPipe`, `PipeItemsIron`, `PipeLogicIron` and
+`PipePowerIron` were read for behaviour only.
+
+- **Type and object.** `PipeModuleType` (the enum of #48) stays the type the connection rule and the graph read
+  (`isSource`, bans, Isolator); it also has `accepts(PipeType)`, the module/kind matrix of 8.1 (Q8). `PipeModule` is the
+  object a pipe holds: `type`, settings and hooks. `PipeModule.create(type)` makes one with default settings; types with
+  no behaviour yet (#56, #57) are a plain `PipeModule`, so `TilePipe.setModuleType` works for every type.
+- **Hooks** (all no-ops by default; the pipe calls them on the server):
+  `onInstalled(pipe)`, `onRemoved(pipe)`; `onNeighbourChange(pipe)`, after every connection recompute (neighbour block
+  change, capability invalidation, load, plug or module change); `allowsOutput(pipe, side)`, read live by the walk;
+  `tickSource(level, network, node, pipe)`, one attempt per tick for source types, called by `PipeSources`;
+  `onWrench(pipe, player)`, a wrench without sneaking; `gateTarget(pipe)`, the `IPipeGateTarget` of #60 that the pipe
+  puts in `gateHolder.target` when the module is fitted or loaded; `getMenuProvider(pipe)`, the GUI opened with an
+  empty hand (a click on a gate opens the gate first);
+  `save(ValueOutput)` / `load(ValueInput)`; `toItem(registries)` / `PipeModule.fromItem(type, stack, registries)`.
+- **Pipe.** `TilePipe.getModule()`, `setModule(module)` (null removes; calls `onRemoved` / `onInstalled`, recomputes
+  connections, rebuilds the network, syncs), `setModuleType(type)` (a new default module), `removeModule()` (returns the
+  item with its settings). Saved as `module` (the type, as before) and `module_settings` (the module's own values).
+  Only the type reaches the client, in the update payload after the mask; the client holds a default module of that
+  type. Breaking the pipe drops the module item with its settings (`TilePipe.destroy`).
+- **Fitting (Q18).** `ItemPipeModule.useOn` fits its module to a pipe of an accepted kind with no module and uses up
+  one item. `BlockPipe.useItemOn` on a pipe with a module: a wrench calls `onWrench`; a sneaking wrench takes the module
+  off and puts its item in the player's inventory (dropped at the player when full); a block item places as usual; any
+  other item falls through to `useWithoutItem`, which opens the module's GUI. The item keeps the settings in the
+  `buildcraftreforged:module_settings` data component (`CustomData`), written by `save`, so a module carries its filters,
+  mode and facing from pipe to pipe.
+- **Walk hook.** `PipeWorld.Pipe.allowsOutput(side)` (default true; `TilePipe` asks its module) is what
+  `PipeWalk.Rules.allowsOutput` now returns by default, so every router (items now, fluids in #51) honours the
+  Director. A facing change needs no network rebuild.
+- **Source hook.** `PipeSources.tickSource` hands each source node to its pipe's module. The Extractor finds its source
+  handler from the network endpoint on its facing; `ItemRouting.extract` gained an overload with a
+  `Predicate<ItemResource>` for filtered pulls, and `ItemRouting.handler(endpoint)` is public.
+- **Extractor.** Facing saved as `facing` (-1 none, else `get3DDataValue`). Valid facing: a connected side whose
+  neighbour is not a pipe and that `PipeManager` (ported to `api/transport`, the 4.2.2 exclusion list of
+  `IExtractionHandler`s) allows. `ModuleFacing.next` is the 4.2.2 search `facing+1 … facing+6`; no facing starts at
+  `UP`, like 4.2.2's metadata 6. On install and on every connection recompute an invalid facing switches; the wrench
+  switches. When no side is valid the facing becomes none (4.2.2 kept the stale metadata; decided 2026-10-31, so an
+  excluded or vanished block is never pulled from). Fluid extraction is `SEAM(#51)` in `ModuleExtractor.tickSource`.
+- **Filtered Extractor.** Extends the Extractor. Nine ghost filters (`SimpleInventory`, stack size 1), the cursor
+  (`FilterCursor`, level-free) and the mode (`BLOCKING` default, `NONBLOCKING`), saved as `filters`, `currentFilter` and
+  `state` (the 4.2.2 keys). One attempt: the current filter's item via the filtered `extract` ("same item" =
+  `ItemResource.is(item)`, components ignored); success moves the cursor; non-blocking tries each following filter
+  once; `NO_CAPACITY` stops the attempt without moving the cursor (4.2.2 did nothing without energy). GUI:
+  `ContainerFilteredExtractor` (menu type `buildcraftreforged:filtered_extractor`, the 4.2.2 slot layout) and
+  `transport/client/GuiFilteredExtractor` on the 4.2.2 `filter_2.png`; the mode reaches the client through a data
+  slot and comes back with `PacketGuiReturn` through a handler on the menu (the pipe's position, valid while the
+  module is still on the pipe), not through `TilePipe`, so gates (#60) can give the pipe its own GUI.
+- **Director.** Facing saved as `facing`; `allowsOutput(side) = side == facing`, none = nothing leaves. Valid facing: a
+  connected side whose neighbour is not a pipe with an Extractor or Filtered Extractor. Installed, it starts at `UP`
+  and moves to the first valid side (4.2.2 `onBlockPlaced`); a Director fitted before its pipe's connections settle
+  gets its first valid side on the next recompute. Wrench: `switchPosition`. Gate: it offers one Pipe Direction
+  action per connected side and applies the first active one through `setFacing(pipe, side)`, the 4.2.2 setter
+  (refused for an invalid side). Redstone (Q11): `onNeighbourChange` compares
+  `hasNeighborSignal` with the last value (not saved, read again on load) and switches on every change.
+- **Power Limiter (Q7).** A Director on a power pipe directs nothing (`allowsOutput` is true on every side) and keeps
+  a `PowerMode` (#60's enum, 20 to 1 280 FE/t), saved as `powerMode` (its ordinal), default `M2` as a fresh 4.2.2 iron
+  kinesis pipe. The wrench steps to the next limit and shows `chat.pipe.power.limiter.mode`; 4.2.2 stepped back on a
+  sneaking wrench, which now removes the module. The gate offers the seven Power Limiter actions and applies the first
+  active one. `getPowerLimit()` is `SEAM(#52)`: power routing caps the pipe with it.
+- **Items.** `module_extractor`, `module_filtered_extractor`, `module_director` (keys
+  `item.moduleExtractor` …, no 4.2.2 keys), in the machines tab, textures copied from the 4.2.2 wood, emerald and
+  iron item pipe textures as stand-ins. No recipe yet: modules are made in the Assembly Table (PLAN 8.2); the recipes are
+  #74 (`docs/PARITY.md`).
+- **Tests.** Unit (`ModuleLogicTest`): the facing search order and wrap, no facing starting at `UP`, the filter
+  cursor in both modes (round robin, waiting, skipping, all filters empty, stop on no capacity, range), the kind
+  matrix; `PipeRoutingTest`: a Director sends everything out of its facing, read live; a Director facing a full chest
+  backs up to the previous junction; no facing is a dead end. GameTests (`ModuleTests`, padded area): fitting with the
+  item, facing, wood-rate extraction from a chest and the wrench reversing it; the exclusion list; sneak-wrench removal
+  with settings, refitting, saving with the pipe, no Filtered Extractor on a fluid pipe, the drop on breaking; filtered
+  round robin; blocking versus non-blocking and empty filters; the menu, its phantom slots and the GUI return; the
+  Director's facing, wrench, Pipe Direction actions and redstone toggle with chests; the Power Limiter's wrench steps
+  and actions.
+
+### For #56 (Sorter, Pickup, Void), #57 (colours, Isolator), #60 (gates), #51 and #52
+
+- **A new module:** subclass `PipeModule`, add a case to `PipeModule.create`, register its item with
+  `TransportRegistry.module(type, "moduleX")` (a line next to the three here) and add the lang key and item model.
+  Settings go in `save`/`load`; they travel with the item automatically. A GUI is a `MenuProvider` from
+  `getMenuProvider`, with a menu that returns its settings like `ContainerFilteredExtractor`.
+- **Candidate filter (Sorter, Colour Sorter) and colour on entry:** not added yet. Add them to `PipeWalk.Rules`
+  between steps 4 and 6 (and to `PipeWorld.Pipe` / `PipeModule` like `allowsOutput`); they need the resource, which
+  only the router's rules know, so `ResourceRouter.push` will have to pass it.
+- **Pickup:** a source type already; `tickSource` is called once per tick when the pipe's network exists (source
+  pipes ask for theirs on their own tick).
+- **Void:** the walk's `isSink` still reads `node.module == VOID` (the type), which needs no module object.
+- **Gate actions:** a module with actions returns an `IPipeGateTarget` from `gateTarget(pipe)` (Pipe Color and
+  Extraction Preset for #57), as the Director does.
+- **#51:** fluid Extractor at `SEAM(#51)` in `ModuleExtractor.tickSource` (facing and validity already handle fluid
+  pipes through `PipeManager.canExtractFluids`); the Director works once the fluid router uses the default
+  `allowsOutput`.
+- **#52:** read `ModuleDirector.getPowerLimit()` on a power pipe whose module is a Director.
