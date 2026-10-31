@@ -165,6 +165,7 @@ a later port needs to know; bug fixes go in `docs/BUGFIXES.md`, parity ticks in 
   | `PacketTileState` (`tile_state`) | to client | `PacketTileState`, `STATE_UPDATE` | position, up to 32 `(stateId, bytes)` |
   | `PacketGuiWidget` (`gui_widget`) | to client | `PacketGuiWidget`, `GUI_WIDGET` | container id, widget index, bytes |
   | `PacketGuiReturn` (`gui_return`) | to server | `PacketGuiReturn`, `GUI_RETURN` | container id, position, bytes |
+  | `PacketStatusWatch` (`status_watch`, #26) | to server | new | container id, watching |
 
   Each byte payload is at most `PacketData.MAX_PAYLOAD_BYTES` (32767); the codec refuses anything longer. The
   per-module 4.2.2 packets (gate, diamond/emerald pipe, refinery filter, assembly table, advanced workbench, architect,
@@ -931,3 +932,64 @@ New code from `docs/TRANSPORT.md` 2.1, 2.2 and Q17 (decided 29 Oct 2026); the 4.
   kind, tier and caps; every pipe has a blockstate, item definition, item model, texture, loot table and recipe.
   GameTests (`TierPipeTests`): every pipe and the sealant crafts from its recipe in the server's recipe manager with
   the right count, uncrafting included; every pipe places and reports the loaded config's caps.
+
+## Status panel (#26)
+
+New code for plan section 10 (no 4.2.2 original), in `buildcraftreforged.core.status` plus `core/gui/StatusLedger`.
+Decided 31 Oct 2026.
+
+- **Provider.** A block entity that works implements `IStatusProvider` (porting checklist step 4). One method per
+  line, each with a default, each read on the server only while someone has the panel open:
+
+  | Line | Method | Default | Type |
+  |---|---|---|---|
+  | State | `getStatusState()` | from `IMachine`: `isBlocked()` → `BLOCKED`, `isActive()` → `WORKING`, else `IDLE` | `MachineStatus` |
+  | Reason | `getStatusReason()` | `NONE` (line hidden) | `StatusReason` |
+  | Flow | `getStatusFlow()` | null (line hidden) | the tile's `FlowMeter` |
+  | Power | `getStatusPower()` | null | `StatusReport.Power` (`drawn`/`produced` helpers) |
+  | Heat | `getStatusHeat()` | null | `StatusReport.Heat(HeatStage, overheatSeconds)` |
+  | Owner | `getStatusOwner()` | `TileBuildCraft.getOwner()` | `String` |
+
+  `MachineStatus` and `StatusReason` carry the plan's values; their ordinals are the wire format, so append new values
+  at the end and add a `gui.status.state.*` / `gui.status.reason.*` key to `en_us.json`.
+- **`FlowMeter`** (`new FlowMeter(() -> level == null ? 0 : level.getGameTime())`) counts `itemsIn/itemsOut` (items),
+  `fluidIn/fluidOut` (mB) and `energyIn/energyOut` (FE) into per-tick buckets and sums the last 20 ticks; it needs no
+  tick call and is not saved. The panel shows items/s, mB/t (mB per second / 20) and FE/t (`Power.drawn(meter, stored,
+  capacity)` uses `energyIn`, `Power.produced` uses `energyOut`).
+- **Sync only while open.** `StatusWidget` is an invisible widget. A machine menu adds it
+  (`addWidget(new StatusWidget(tile))`, on both sides, in the same widget order) and the screen adds the ledger in
+  `initLedgers`: `ledgerManager.add(new StatusLedger<>(this, StatusWidget.find(container)))` (or a field, as the sample
+  does). Opening the ledger, or `SessionVars` reopening it in the next GUI, sends the server-bound `PacketStatusWatch`
+  (`status_watch`: container id, watching) and closing it sends false; closing the menu ends everything. The server
+  checks that the id is the sender's open `BuildCraftContainer`, that it has a `StatusWidget` and that `stillValid`
+  holds, and drops the packet otherwise (logged as for `gui_return`). While watched, `broadcastChanges` sends a
+  `StatusReport` over `PacketGuiWidget` at most every `StatusWidget.SEND_INTERVAL` (10) ticks and only when it changed;
+  the first goes at once. `StatusReport.STREAM_CODEC` writes absent lines as absent, so the client hides them.
+- **Blocks without a GUI.** `useWithoutItem` calls `StatusPanel.open(player, tile)` (no-op on the client; return
+  `InteractionResult.SUCCESS`). It opens the `status` menu (`CoreRegistry.statusMenu`, `ContainerStatus`: no slots,
+  watched from the moment it opens) with `GuiStatus`, which is the ledger alone, centred and always open, headed with
+  the block's name.
+- **Red light.** A block that can be blocked adds `StatusPanel.BLOCKED` (`blocked`) to its state definition (default
+  false). `TileBuildCraft.updateEntity` calls `StatusPanel.updateBlockedLight` every server tick for an
+  `IStatusProvider`, which sets the property to `getStatusState() == BLOCKED` when it differs (so keep
+  `getStatusState` cheap). The model shows it with a multipart case applying `buildcraftreforged:block/status_light`, a
+  small emissive red lamp on top of the block (see the `sample_status` blockstate). Blocks drawn by a
+  `BlockEntityRenderer` (engines) can read the same property.
+- **For #27 (owner).** Only `IStatusProvider.getStatusOwner()`'s default reads `TileBuildCraft.getOwner()`; change the
+  default when the owner becomes a game profile. The line is a plain string, at most 64 characters on the wire.
+- **For #36 (engines).** Implement `getStatusState` (`WORKING`, `IDLE`, `OVERHEATING`, `OUT_OF_FUEL`), `getStatusPower`
+  with `Power.produced(meter, stored, capacity)` and `meter.energyOut(fe)` where the engine sends power, and
+  `getStatusHeat` with `HeatStage.values()[energyStage.ordinal()]` (named and ordered as 4.2.2's
+  `TileEngine.EnergyStage`) and the overheat timer's seconds left, or `Heat.NO_COUNTDOWN`. The engine GUIs add the
+  ledger next to `EngineLedger`; engines are not blocked, so they need no `BLOCKED` property.
+- **For #63 (blocked output).** Return `BLOCKED` from `getStatusState` (the default does, through
+  `IMachine.isBlocked()`), `OUTPUT_FULL` or `NO_DESTINATION` from `getStatusReason`, and add `BLOCKED` to the block
+  with the multipart light. The Machine trigger already reads `isBlocked()`.
+- **Samples** (GameTest source set): `sample_gui` now fills all six lines (made up from its counter) and has the status
+  ledger; `sample_status` is a GUI-less block that opens the panel on right-click and cycles Working, Blocked (red light)
+  and Idle every five seconds.
+- **Tests.** JUnit `FlowMeterTest` (window, forgetting, reuse, rates) and `StatusReportTest` (codec with all and no
+  lines, bad ordinal, owner cut, `IMachine` defaults, watch packet). GameTests `status_sync_while_open` (no data before
+  the watch packet, refused packets, all six lines read by a client copy of the menu, interval, nothing after close)
+  and `status_panel_without_gui` (watched on open, `stillValid`, red light on and off without replacing the block
+  entity). Drawing, the ledger's open/close clicks and the light's look need a client and are not tested.

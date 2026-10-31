@@ -37,7 +37,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | transport | 111 | blocks and items 23, pipes 30, triggers 14, actions 39, GUIs 5 |
 | builders | 19 | blocks and items 8, actions 7, GUIs 4 |
 | **4.2.2 total** | **199** | |
-| new in Reforged | 42 | tier pipes 30, pipe modules 10, other additions 2 |
+| new in Reforged | 44 | tier pipes 30, pipe modules 10, other additions 4 |
 
 ## core (`BuildCraftCore`)
 
@@ -406,3 +406,4 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 | Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |
 | Machine blocked trigger | `TriggerMachine` | `trigger_machine_blocked` | #31 | [x] | [ ] | [ ] | Section 8.3. Tag `buildcraft.work.blocked`; true while `IMachine.isBlocked()`. Its sprite `triggers/trigger_machine_blocked` is new art, not drawn yet. |
+| Status panel (shared ledger and the GUI of blocks without one) | — | menu `status` | #26 | [x] | [ ] | [ ] | Section 10. `core/status`, `StatusLedger`; red light `block/status_light`. Sample blocks `sample_gui` and `sample_status` (dev runs). Renders needs a client check. |

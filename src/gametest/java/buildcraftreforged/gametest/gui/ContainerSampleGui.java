@@ -3,6 +3,7 @@ package buildcraftreforged.gametest.gui;
 import buildcraftreforged.core.gui.BuildCraftContainer;
 import buildcraftreforged.core.gui.slots.SlotPhantom;
 import buildcraftreforged.core.network.IGuiReturnHandler;
+import buildcraftreforged.core.status.StatusWidget;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.Container;
@@ -14,6 +15,7 @@ import net.minecraft.world.inventory.Slot;
 public class ContainerSampleGui extends BuildCraftContainer {
     public final TileSampleGui tile;
     public final CounterWidget counterWidget;
+    public final StatusWidget statusWidget;
 
     /** Client side: the block position comes with the open-menu packet. */
     public ContainerSampleGui(int containerId, Inventory inventoryplayer, RegistryFriendlyByteBuf extraData) {
@@ -38,6 +40,8 @@ public class ContainerSampleGui extends BuildCraftContainer {
 
         counterWidget = new CounterWidget(tile, 80, 24, 176, 0, 14, 14);
         addWidget(counterWidget);
+        statusWidget = new StatusWidget(tile);
+        addWidget(statusWidget);
     }
 
     private static TileSampleGui clientTile(Inventory inventoryplayer, BlockPos pos) {

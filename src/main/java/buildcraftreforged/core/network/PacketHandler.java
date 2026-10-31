@@ -2,14 +2,15 @@
  * Ported from buildcraft/core/network/PacketHandler.java (BuildCraft 4.2.2, MMPL; the original has no header).
  * Modified by Buildcraft Reforged, 2026: the packet-id switch over one Packet250CustomPayload channel is replaced by
  * typed payloads on one PayloadRegistrar. Tile updates and widget data are client-bound only (PacketHandlerClient);
- * the one server-bound packet, PacketGuiReturn, is checked against the sender's open menu, distance and value ranges,
- * and logged and dropped when it fails (docs/PLAN.md section 19.2).
+ * server-bound packets (PacketGuiReturn, and PacketStatusWatch for the status panel) are checked against the sender's
+ * open menu, distance and value ranges, and logged and dropped when they fail (docs/PLAN.md section 19.2).
  */
 
 package buildcraftreforged.core.network;
 
 import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.core.gui.BuildCraftContainer;
+import buildcraftreforged.core.status.PacketStatusWatch;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -46,6 +47,7 @@ public final class PacketHandler {
         registrar.playToClient(PacketGuiWidget.TYPE, PacketGuiWidget.STREAM_CODEC);
         // Server-bound: GUI actions only, each validated before it is applied.
         registrar.playToServer(PacketGuiReturn.TYPE, PacketGuiReturn.STREAM_CODEC, PacketHandler::onGuiReturn);
+        registrar.playToServer(PacketStatusWatch.TYPE, PacketStatusWatch.STREAM_CODEC, PacketStatusWatch::handle);
     }
 
     private static void onGuiReturn(PacketGuiReturn packet, IPayloadContext context) {
