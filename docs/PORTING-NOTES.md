@@ -23,7 +23,7 @@ underneath. Transport is the exception and follows `docs/TRANSPORT.md` (plan sec
 | `Packet`, `PacketPayload`, `@TileNetworkData` | `CustomPacketPayload` + `StreamCodec`, one channel | Explicit codecs instead of the reflection-based payload builder. |
 | `GuiContainer` / `Container` / `IGuiHandler` | `AbstractContainerScreen` / `AbstractContainerMenu` / `MenuType` + `IMenuProvider` | 31 GUIs. Same textures, same slot positions, same ledgers. Status panel added as a shared ledger (section 10). |
 | `ISimpleBlockRenderingHandler`, `TileEntitySpecialRenderer` | JSON models + blockstates for static blocks; `BlockEntityRenderer` for engines, quarry arm, lasers, markers, refinery, tank fluid; pipes per section 8 | Keep the 16× textures. |
-| Animated textures | `.png.mcmeta` | Oil, fuel, laser, engine chamber. |
+| Animated textures | `.png.mcmeta` | Oil, fuel, laser. The engine chamber is one still frame in 4.2.2; its animation is the renderer stacking it behind the piston (#39). |
 | Java recipe registration | `data/buildcraftreforged/recipe/*.json` via datagen; custom `RecipeType` + serializer for Assembly Table and Refinery | Assembly recipes are JSON with energy cost in FE. |
 | Ore Dictionary | Common tags (`c:ingots/iron` etc.) **only in the recipes where 4.2.2 used the Ore Dictionary** (core recipes, assembly recipes, Advanced Crafting Table matching); exact vanilla items everywhere else | Decided 29 Oct 2026. |
 | `BuildCraftAPI` fuels, `IronEngineFuel`, `IronEngineCoolant` | Ported registries, data-driven via tags or JSON where easy | Coolant: water and ice as in 4.2.2. |
@@ -1486,3 +1486,69 @@ New code from `docs/TRANSPORT.md` 4, 5 and 6, package `buildcraftreforged.transp
 - **#59.** Every successful transfer passes `ResourceRouter.push` where `SEAM(#59)` sits; `TransferResult.route()`
   has the path (node indices), and `route.endpoint()` / `route.sink()` the exit. Record flow there, journaled in the
   same transaction, so simulations record nothing.
+
+## Engine renderer and textures (#39)
+
+Ported: `energy/render/RenderEngine` (4.2.2's `TileEntitySpecialRenderer` and `IInventoryRenderer` in one class, as
+4.2.2) and the engine half of `EnergyProxyClient.registerTileEntities`. Textures copied unchanged from
+`reference/.../textures/blocks`: `base_wood`, `base_stone`, `base_iron`, `chamber`, `trunk_blue`, `trunk_green`,
+`trunk_yellow`, `trunk_red` (64 × 32, 4.2.2 `ModelBase`'s texture size) and `engineWoodBottom`, `engineStoneBottom`,
+`engineIronBottom` as `engine_*_bottom` (16 × 16). Recorded 31 Oct 2026.
+
+- **Geometry.** The four `ModelRenderer` boxes keep their sizes and texture offsets: base `(0, 1)` 16 × 4 × 16,
+  moving box `(0, 1)` 16 × 4 × 16, chamber `(1, 1)` 10 × 2 × 10, trunk `(1, 1)` 8 × 12 × 8. They are baked
+  `ModelPart`s with no pose; 26.x `ModelPart.Cube` lays out UVs as 1.6.4 `ModelBox` did. The rotation point (8, 8, 8)
+  and `angleMap` rotation (Z, then Y, then X, as `ModelRenderer.render`) go on the pose stack per part, not on the
+  shared parts, because submitted parts are drawn after `submit` returns.
+- **Animation.** `render` is 4.2.2's: `step` rises from 0 to 7.99 px over the first half of `progress` and falls back
+  over the second; the moving box is translated `step / 16` along the facing; one chamber slice is drawn every 2 px
+  up to `step + 2`, so the bellows grows and shrinks with the piston. The trunk texture follows the stage (blue, green,
+  yellow, red; overheat draws red). No partial-tick interpolation, as 4.2.2.
+- **What the renderer reads.** `energyStage` and `isPumping` from the tile payload (#36), `progress` from the
+  client's own tick (it advances at `getPistonSpeed()` of the synced stage while pumping), the facing from
+  `BlockEngine.FACING` and the base texture from `getTextureFile()`. All of it is copied into `RenderEngine.State` in
+  `extractRenderState`.
+- **Render types.** 4.2.2 drew with lighting and face culling on and blending off: `RenderTypes.entitySolid` on each
+  texture, the block's packed light, no overlay, plus the breaking overlay (`submitCrumblingOverlay`), which 4.2.2 did
+  not have for engines.
+- **Chamber texture.** Plan section 6 listed the engine chamber under animated textures. In 4.2.2 `chamber.png` is a
+  single still frame; the moving part is the stacked slices above. No `.png.mcmeta` was added; the plan row is corrected.
+- **Block model.** The block keeps `RenderShape.MODEL` with an element-less model, as vanilla's chest:
+  `block/engine` (parent `minecraft:block/block`, for the item display transforms) and `block/engine_wood`,
+  `engine_stone`, `engine_iron`, which only name the 4.2.2 `BlockEngine.getIcon` texture as `particle` (breaking and
+  landing particles). Everything visible is the block entity renderer, as 4.2.2's `RenderingEntityBlocks` drew nothing
+  for an engine in the world. This replaces #36's note that each engine adds one blockstate variant per facing: one
+  `""` variant is enough.
+- **Item.** 4.2.2 put one `RenderEngine(TEXTURE)` per engine metadata into `RenderingEntityBlocks.blockByEntityRenders`.
+  Now the item model is a `minecraft:special` model of type `buildcraftreforged:engine` with the base texture as its
+  `texture` field (`RenderEngine.ItemRenderer`, registered in `EnergyProxyClient`). It draws 4.2.2's
+  `inventoryRender`: blue trunk, facing up, progress 0.25.
+- **Registration.** `EnergyProxyClient.registerRenderers` binds `RenderEngine` to every type in
+  `EnergyRegistry.engineTiles()`, so an engine registered with `EnergyRegistry.engine(...)` gets the renderer without
+  further code.
+
+### Engine textures, for #37, #38 and #44
+
+Each engine plugs in one row. The trunk and chamber textures are shared.
+
+| Engine | `getTextureFile()` | Item model `texture` | Block model (particle) |
+|---|---|---|---|
+| Redstone (`engine_wood`, #37) | `TileEngine.WOOD_TEXTURE` | `buildcraftreforged:textures/block/base_wood.png` | `block/engine_wood` (`engine_wood_bottom`) |
+| Stirling (`engine_stone`, #38) | `TileEngine.STONE_TEXTURE` | `buildcraftreforged:textures/block/base_stone.png` | `block/engine_stone` (`engine_stone_bottom`) |
+| Combustion (`engine_iron`, #44) | `TileEngine.IRON_TEXTURE` | `buildcraftreforged:textures/block/base_iron.png` | `block/engine_iron` (`engine_iron_bottom`) |
+
+The textures and block models are in place. Each engine adds two files:
+
+- `blockstates/engine_wood.json`: `{"variants": {"": {"model": "buildcraftreforged:block/engine_wood"}}}`
+- `items/engine_wood.json`:
+  `{"model": {"type": "minecraft:special", "base": "buildcraftreforged:block/engine_wood", "model": {"type": "buildcraftreforged:engine", "texture": "buildcraftreforged:textures/block/base_wood.png"}}}`
+
+### Tests and what is not checked
+
+- GameTest `engine_render_state`: a running engine's payload gives the client the stage (yellow at 60 %), the pumping
+  flag and the matching piston speed; overheat syncs and stops the client piston; the facing reaches the client tile
+  through the block state; every texture the renderer, the item model and the block models name is in the jar at
+  its 4.2.2 size.
+- **Not checked without a client:** the drawing itself (box orientation for all six facings, the UVs, face culling
+  and winding, the chamber stacking, light), the item render in the GUI, hand and ground, and the particle texture.
+  Tick the PARITY "renders" columns when an engine has been looked at in game.

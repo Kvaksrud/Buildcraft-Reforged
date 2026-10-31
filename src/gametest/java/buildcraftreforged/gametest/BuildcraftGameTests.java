@@ -73,6 +73,7 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_PUSHES_INTO_FE_AND_ENGINES =
             function("engine_pushes_into_fe_and_engines");
     private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_ORIENTATION = function("engine_orientation");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_RENDER_STATE = function("engine_render_state");
     private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_LASER_CRAFTING = function("assembly_laser_crafting");
     private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_QUEUE_AND_TAGS = function("assembly_queue_and_tags");
     private static final ResourceKey<Consumer<GameTestHelper>> ASSEMBLY_SELECTION_SAVE_AND_SYNC =
@@ -131,6 +132,7 @@ public final class BuildcraftGameTests {
             registry.register(ENGINE_PUSHES_INTO_RECEPTOR, EngineTests::pushesIntoReceptor);
             registry.register(ENGINE_PUSHES_INTO_FE_AND_ENGINES, EngineTests::pushesIntoForgeEnergyAndEngines);
             registry.register(ENGINE_ORIENTATION, EngineTests::orientation);
+            registry.register(ENGINE_RENDER_STATE, EngineTests::renderState);
             registry.register(ASSEMBLY_LASER_CRAFTING, AssemblyTableTests::laserCrafting);
             registry.register(ASSEMBLY_QUEUE_AND_TAGS, AssemblyTableTests::queueAndTags);
             registry.register(ASSEMBLY_SELECTION_SAVE_AND_SYNC, AssemblyTableTests::selectionSaveAndSync);
@@ -227,7 +229,7 @@ public final class BuildcraftGameTests {
         event.registerTest(ENGINE_HEAT_AND_STAGES.identifier(), new FunctionGameTestInstance(ENGINE_HEAT_AND_STAGES,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
         for (ResourceKey<Consumer<GameTestHelper>> engine : List.of(ENGINE_PUSHES_INTO_RECEPTOR, ENGINE_PUSHES_INTO_FE_AND_ENGINES,
-                ENGINE_ORIENTATION)) {
+                ENGINE_ORIENTATION, ENGINE_RENDER_STATE)) {
             event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine,
                     new TestData<>(environment, EMPTY_STRUCTURE, 200, 0, true)));
         }
