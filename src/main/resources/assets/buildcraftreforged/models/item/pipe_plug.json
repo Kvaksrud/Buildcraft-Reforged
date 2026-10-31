@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "buildcraftreforged:block/pipe_structure_cobblestone",
+    "structure": "buildcraftreforged:block/pipe_structure_cobblestone"
+  },
+  "elements": [
+    {
+      "from": [4, 4, 4],
+      "to": [12, 6, 12],
+      "faces": {
+        "down": { "texture": "#structure" },
+        "up": { "texture": "#structure" },
+        "north": { "texture": "#structure" },
+        "south": { "texture": "#structure" },
+        "west": { "texture": "#structure" },
+        "east": { "texture": "#structure" }
+      }
+    }
+  ]
+}

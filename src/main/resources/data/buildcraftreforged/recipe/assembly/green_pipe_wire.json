@@ -1,0 +1,19 @@
+{
+  "type": "buildcraftreforged:assembly",
+  "energy": 5000,
+  "inputs": [
+    {
+      "tag": "c:dyes/green"
+    },
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    }
+  ],
+  "result": {
+    "id": "buildcraftreforged:green_pipe_wire",
+    "count": 8
+  }
+}

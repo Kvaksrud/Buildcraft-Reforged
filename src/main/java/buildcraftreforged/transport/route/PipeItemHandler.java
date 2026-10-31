@@ -63,7 +63,7 @@ public final class PipeItemHandler implements ResourceHandler<ItemResource>, IOu
     public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
         if (amount == 0 || !(pipe.getLevel() instanceof ServerLevel level) || pipe.isRemoved()
-                || pipe.kind != PipeType.ITEM || PipeConnections.hasSide(pipe.getPluggedMask(), side))
+                || pipe.kind != PipeType.ITEM || PipeConnections.hasSide(pipe.getBlockedMask(), side))
             return 0;
         BlockPos neighbour = pipe.getBlockPos().relative(side);
         if (!level.isLoaded(neighbour)
@@ -84,7 +84,7 @@ public final class PipeItemHandler implements ResourceHandler<ItemResource>, IOu
     @Override
     public StatusReason whyRefused(ItemResource resource) {
         if (resource.isEmpty() || !(pipe.getLevel() instanceof ServerLevel level) || pipe.isRemoved()
-                || pipe.kind != PipeType.ITEM || PipeConnections.hasSide(pipe.getPluggedMask(), side))
+                || pipe.kind != PipeType.ITEM || PipeConnections.hasSide(pipe.getBlockedMask(), side))
             return StatusReason.NO_DESTINATION;
         PipeNetwork network = PipeNetworks.get(level, pipe.getBlockPos());
         if (network == null)

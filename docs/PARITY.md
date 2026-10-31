@@ -37,7 +37,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | transport | 111 | blocks and items 23, pipes 30, triggers 14, actions 39, GUIs 5 |
 | builders | 19 | blocks and items 8, actions 7, GUIs 4 |
 | **4.2.2 total** | **199** | |
-| new in Reforged | 44 | tier pipes 30, pipe modules 10, other additions 4 |
+| new in Reforged | 47 | tier pipes 30, pipe modules 10, other additions 7 |
 
 ## core (`BuildCraftCore`)
 
@@ -156,13 +156,13 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
-| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client; the 4.2.2 recipes wait for their items (#60, #61, #74). GameTests `assembly_*`. |
+| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client. The 4.2.2 chipset, gate and pipe wire recipes and the module recipes ship (#74, `assembly/`); plugs and facades wait for #61. JEI category (#74). GameTests `assembly_*`, `silicon_*`. |
 | Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
-| Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_chipset_0` | #74 | [ ] | [ ] | [ ] | Metadata suffix names are placeholders; #18 notes they become items or a data component. |
-| Redstone Iron Chipset (`redstoneChipset.1`) | `ItemRedstoneChipset (meta 1)` | `redstone_chipset_1` | #74 | [ ] | [ ] | [ ] |  |
-| Redstone Golden Chipset (`redstoneChipset.2`) | `ItemRedstoneChipset (meta 2)` | `redstone_chipset_2` | #74 | [ ] | [ ] | [ ] |  |
-| Redstone Diamond Chipset (`redstoneChipset.3`) | `ItemRedstoneChipset (meta 3)` | `redstone_chipset_3` | #74 | [ ] | [ ] | [ ] |  |
-| Pulsating Chipset (`redstoneChipset.4`) | `ItemRedstoneChipset (meta 4)` | `redstone_chipset_4` | #74 | [ ] | [ ] | [ ] |  |
+| Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_red_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_red_chipset`. GameTests `silicon_*`. |
+| Redstone Iron Chipset (`redstoneChipset.1`) | `ItemRedstoneChipset (meta 1)` | `redstone_iron_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_iron_chipset`. GameTests `silicon_*`. |
+| Redstone Golden Chipset (`redstoneChipset.2`) | `ItemRedstoneChipset (meta 2)` | `redstone_gold_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_gold_chipset`. GameTests `silicon_*`. |
+| Redstone Diamond Chipset (`redstoneChipset.3`) | `ItemRedstoneChipset (meta 3)` | `redstone_diamond_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_diamond_chipset`. GameTests `silicon_*`. |
+| Pulsating Chipset (`redstoneChipset.4`) | `ItemRedstoneChipset (meta 4)` | `redstone_pulsating_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_pulsating_chipset`. GameTests `silicon_*`. |
 
 ### GUIs (silicon, `silicon.GuiHandler`)
 
@@ -179,24 +179,24 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Pipe block (`pipeBlock`) | `BlockGenericPipe, TileGenericPipe` | `pipe_block` | #48 | [ ] | [ ] | [ ] | Replaced by the tier pipe blocks below; kept as the shared pipe base. |
 | Pipe Sealant (`pipeWaterproof`) | `ItemBuildCraft` | `pipe_waterproof` | #53 | [x] | [ ] | [ ] | 4.2.2 fluid-pipe ingredient, kept: fluid pipes are item pipe + sealant (TRANSPORT.md Q17). |
-| Red Pipe Wire (`redPipeWire`) | `ItemPipeWire` | `red_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
-| Blue Pipe Wire (`bluePipeWire`) | `ItemPipeWire` | `blue_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
-| Green Pipe Wire (`greenPipeWire`) | `ItemPipeWire` | `green_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
-| Yellow Pipe Wire (`yellowPipeWire`) | `ItemPipeWire` | `yellow_pipe_wire` | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
-| Gate (`pipeGate.0`) | `ItemGate (meta 0)` | `gate` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Crafting in #74. GameTest `gate_*`. |
-| Iron AND Gate (`pipeGate.1`) | `ItemGate (meta 1)` | `gate_iron_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Iron OR Gate (`pipeGate.2`) | `ItemGate (meta 2)` | `gate_iron_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Gold AND Gate (`pipeGate.3`) | `ItemGate (meta 3)` | `gate_gold_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Gold OR Gate (`pipeGate.4`) | `ItemGate (meta 4)` | `gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Diamond AND Gate (`pipeGate.5`) | `ItemGate (meta 5)` | `gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Diamond OR Gate (`pipeGate.6`) | `ItemGate (meta 6)` | `gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Gate (`pipeGateAutarchic.0`) | `ItemGate autarchic (meta 0)` | `autarchic_gate` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Iron AND Gate (`pipeGateAutarchic.1`) | `ItemGate autarchic (meta 1)` | `autarchic_gate_iron_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Iron OR Gate (`pipeGateAutarchic.2`) | `ItemGate autarchic (meta 2)` | `autarchic_gate_iron_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Gold AND Gate (`pipeGateAutarchic.3`) | `ItemGate autarchic (meta 3)` | `autarchic_gate_gold_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `autarchic_gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `autarchic_gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
-| Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. GameTest `gate_*`. |
+| Red Pipe Wire (`redPipeWire`) | `ItemPipeWire` | `red_pipe_wire` | #60, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/red_pipe_wire` (#74). GameTest `gate_*`, `silicon_*`. |
+| Blue Pipe Wire (`bluePipeWire`) | `ItemPipeWire` | `blue_pipe_wire` | #60, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/blue_pipe_wire` (#74). GameTest `gate_*`, `silicon_*`. |
+| Green Pipe Wire (`greenPipeWire`) | `ItemPipeWire` | `green_pipe_wire` | #60, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/green_pipe_wire` (#74). GameTest `gate_*`, `silicon_*`. |
+| Yellow Pipe Wire (`yellowPipeWire`) | `ItemPipeWire` | `yellow_pipe_wire` | #60, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/yellow_pipe_wire` (#74). GameTest `gate_*`, `silicon_*`. |
+| Gate (`pipeGate.0`) | `ItemGate (meta 0)` | `gate` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe (#74). GameTest `gate_*`, `silicon_*`. |
+| Iron AND Gate (`pipeGate.1`) | `ItemGate (meta 1)` | `gate_iron_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Iron OR Gate (`pipeGate.2`) | `ItemGate (meta 2)` | `gate_iron_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Gold AND Gate (`pipeGate.3`) | `ItemGate (meta 3)` | `gate_gold_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Gold OR Gate (`pipeGate.4`) | `ItemGate (meta 4)` | `gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Diamond AND Gate (`pipeGate.5`) | `ItemGate (meta 5)` | `gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Diamond OR Gate (`pipeGate.6`) | `ItemGate (meta 6)` | `gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Gate (`pipeGateAutarchic.0`) | `ItemGate autarchic (meta 0)` | `autarchic_gate` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Iron AND Gate (`pipeGateAutarchic.1`) | `ItemGate autarchic (meta 1)` | `autarchic_gate_iron_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Iron OR Gate (`pipeGateAutarchic.2`) | `ItemGate autarchic (meta 2)` | `autarchic_gate_iron_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Gold AND Gate (`pipeGateAutarchic.3`) | `ItemGate autarchic (meta 3)` | `autarchic_gate_gold_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `autarchic_gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `autarchic_gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
+| Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
 | Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). |
 | Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61 | [ ] | [ ] | [ ] |  |
 | Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [ ] | [ ] | [ ] |  |
@@ -388,22 +388,23 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Extractor module | — | `module_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Filtered Extractor module | — | `module_filtered_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Director module | — | `module_director` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Sorter module | — | `module_sorter` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Pickup module | — | `module_pickup` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Void module | — | `module_void` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Colour Tag module | — | `module_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Colour Sorter module | — | `module_colour_sorter` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Filtered Colour Tag module | — | `module_filtered_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Isolator module | — | `module_isolator` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Extractor module | — | `module_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Filtered Extractor module | — | `module_filtered_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Director module | — | `module_director` | #55, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Sorter module | — | `module_sorter` | #56, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Pickup module | — | `module_pickup` | #56, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Void module | — | `module_void` | #56, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Colour Tag module | — | `module_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Colour Sorter module | — | `module_colour_sorter` | #57, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Filtered Colour Tag module | — | `module_filtered_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
+| Isolator module | — | `module_isolator` | #57, #74 | [x] | [ ] | [ ] | Assembly recipe `assembly/<name>` (#74): Redstone Chipset + the 4.2.2 pipe material, 20 000 FE. GameTest `silicon_assembly_recipes_load`. |
 
 ### Other additions
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
+| Recipe viewer: Assembly Table and Refinery categories | NEI plugins (external) | `platform/jei` | #32, #74 | [x] | [ ] | [ ] | Section 6. Optional JEI plugin; gate AND/OR swaps show in JEI's crafting category. Not yet seen in a client. |
 | Overheat timer, shut-down mode and `engines.*` config | — | `TileEngine.updateOverheatTimer`, sound `engine_whine` | #40 | [x] | [ ] | [x] | Section 9. Red starts the timer, explode or shut down (wrench restarts) when it runs out; "Red, N s" in the status panel. GameTests `engine_iron_overheat`, `engine_overheat_config`, `engine_orientation`. The whine plays vanilla's beacon hum until a sound of its own exists; not heard in a client. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |
 | Machine blocked trigger | `TriggerMachine` | `trigger_machine_blocked` | #31 | [x] | [ ] | [ ] | Section 8.3. Tag `buildcraft.work.blocked`; true while `IMachine.isBlocked()`. Its sprite `triggers/trigger_machine_blocked` is new art, not drawn yet. |
