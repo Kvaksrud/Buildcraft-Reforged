@@ -2000,3 +2000,68 @@ New code from `docs/TRANSPORT.md` 7.2 and 7.3, package `buildcraftreforged.trans
   with its record's `rate > 0`.
 - **#57.** The Isolator needs nothing from fluid routing: it is a connection rule (#48), so an Isolator never has a
   tank endpoint.
+
+## Redstone and Stirling engines (#37, #38)
+
+Ported: `energy/TileEngineWood`, `TileEngineStone`, `gui/ContainerEngine`, `gui/GuiEngine`, `gui/GuiStoneEngine`.
+Registered as `engine_wood` and `engine_stone` through `EnergyRegistry.engine(...)`, with blockstates and item models
+from the #39 texture table, loot tables, `minecraft:mineable/pickaxe` and the 4.2.2 recipes (`"plankWood"` →
+`#minecraft:planks`, `"cobblestone"` → `#c:cobblestones`, the rest exact items). Recorded 2026-10-31.
+
+- **Redstone engine units.** Every MJ value × 10: `OUTPUT` 0.5 FE/t (4.2.2 0.05 MJ/t, shown only), 10 FE added every
+  16 ticks while powered (4.2.2 `addEnergy(1)`), 1 000 FE store, 500 FE intake, 10 FE pulses (4.2.2 1.01 MJ, see
+  "For the engines (#36)" under Power). Its own `computeEnergyStage` (energy, never `OVERHEAT`) and `getPistonSpeed`
+  (0.08 × heat level on the server) are kept, so a cold engine pulses slowly and a warm one about every 16 ticks:
+  at its working temperature it delivers about 0.625 FE/t.
+- **Redstone engine and pipes.** 4.2.2's `TileEngineWood.overridePipeConnection` returned `DISCONNECT` for every pipe,
+  yet its pulse still reached a wooden kinesis pipe beside it, which looked unconnected. Plan section 7 has the
+  redstone engine power any accepting block, and #52's power pipes take pushes from any neighbour, so power pipes now
+  get `DEFAULT` (they connect); item and fluid pipes still get `DISCONNECT` on every side.
+- **Stirling engine units.** `MAX_OUTPUT` is 10 FE/t (4.2.2 1 MJ/t); `MIN_OUTPUT`, `eLimit` follow from it and
+  `TARGET_OUTPUT` (0.375 of the store), `kp`, `ki` are unitless, so the PID aims at 3 750 FE of a 10 000 FE store and
+  outputs between 10 / 3 and 10 FE/t, 10 × 4.2.2 at every point. Upstream's own RF port (7.1) ended with the same
+  constants. Intake 2 000 FE (minimum the `TileEngine` default of 20), pulses up to 1 000 FE.
+- **Burn times.** 1.6.4 `TileEntityFurnace.getItemBurnTime` is now the item's `minecraft:cooking_fuel` component,
+  resolved as the vanilla furnace does (`ResolvableInt.getFromItem` with a `CONTAINER_PROCESS` loot context built like
+  `BaseContainerBlockEntity.getLootContext`), so data packs that change furnace fuel change the engine too. The vanilla
+  values match 1.6.4 for coal (1 600), blaze rods (2 400), sticks (100), coal blocks (16 000) and lava buckets
+  (20 000). `Utils.consumeItem` leaves the crafting remainder, so a lava bucket leaves an empty bucket, as 4.2.2.
+- **GUI data.** `TileEngine.guiData` now has `getGUINetworkDataCount()` slots (default 4); the Stirling engine adds
+  `burnTime` and `totalBurnTime` as ids 4 and 5 (4.2.2 15 and 16), read back as unsigned 16-bit values (burn times
+  up to 65 535 ticks, 4.2.2 sent shorts too).
+- **Menu.** `ContainerEngine(MenuType, containerId, Inventory, TileEngineWithInventory)` keeps 4.2.2's slots (fuel at
+  80, 41 for the Stirling engine, 52, 41 otherwise; inventory from 8, 84; hotbar at 142), adds `tile.guiData` and a
+  `StatusWidget`. One `MenuType` per engine, registered in `EnergyRegistry` (`engineStoneMenu`, id `engine_stone`) with
+  a client constructor that reads the block position (`ContainerEngine.clientTile`). `TileEngineStone` is the
+  `MenuProvider` and opens it from `onBlockActivated` with `player.openMenu(this, worldPosition)`. The screen is paired
+  in `energy/gui/EnergyScreens`.
+- **Screens.** `GuiEngine` (abstract, `GuiBuildCraft<ContainerEngine>`) keeps 4.2.2's `EngineLedger` (orange, 94 high)
+  with FE/t, FE and °C instead of MJ/t and MJ, its icon the `icons/energy` GUI sprite; the status ledger is added after
+  it. `GuiStoneEngine` draws `textures/gui/steam_engine_gui.png` (copied unchanged) and the 4.2.2 flame.
+- **Status panel.** The Stirling engine reports `OUT_OF_FUEL` when it is powered with nothing burning and nothing
+  burnable in its slot. The redstone engine opens the status panel on use (#36's default).
+- **Not here.** The inventory triggers 4.2.2's `TileEngineStone.getTriggers` added (`SEAM(#41)`), the overheat timer
+  (#40) and comparator output.
+- **Tests.** GameTests `engine_wood_redstone_output` (nothing without a signal; with one, 10 FE per 16 ticks all in the
+  receptor or the engine, 10 FE pulses, about 0.625 FE/t from a warm engine; pipe overrides), `engine_stone_burns_fuel`
+  (coal taken only when powered, 1 600 ticks, 10 FE per tick burnt below the target, lava bucket, other fuels,
+  OUT_OF_FUEL, save tags, GUI values), `engine_stone_output_control` (PID limits), `engine_stone_menu` (slots,
+  shift-click, status widget, GUI texture, both recipes) and `engine_delivery_through_kinesis_pipe` (both engines
+  through three wood power pipes into a `PowerHandler` machine, pipes empty every tick). Not checked without a client:
+  the GUI drawing, flame and ledgers, the engines in the world and in the hand.
+
+### For the combustion engine (#44)
+
+- One line in `EnergyRegistry` below `engineStone`
+  (`engine("engineIron", "engine_iron", TileEngineIron::new)`) and a menu beside `engineStoneMenu`:
+  `REGISTERS.menus.register("engine_iron", () -> IMenuTypeExtension.create((id, inv, buf) -> new ContainerEngine(
+  EnergyRegistry.engineIronMenu.get(), id, inv, ContainerEngine.clientTile(inv, buf.readBlockPos(), EnergyRegistry.engineIron))))`.
+  Pair it with `GuiCombustionEngine::new` in `EnergyScreens`.
+- `ContainerEngine` already puts slot 0 at 52, 41 for any engine that is not a `TileEngineStone`. `GuiCombustionEngine`
+  extends `GuiEngine` (ledgers come with it); the fluid gauges and tanks are #24's.
+- Extra GUI values go after id 3: override `getGUINetworkDataCount()` and extend `sendGUINetworkData(int)` /
+  `getGUINetworkData(int, int)` as `TileEngineStone` does (4.2.2's iron ids 15 to 19 become 4 onwards).
+- Implement `MenuProvider` and override `onBlockActivated` like `TileEngineStone`, and `getStatusState` for
+  `OUT_OF_FUEL`.
+- Copy `combustion_engine_gui.png` from `reference/buildcraft_resources/assets/buildcraft/textures/gui`. Add the two
+  #39 files, loot table, pickaxe tag and recipe (`Item.ingotIron` exact, `ironGearItem`, glass, piston).

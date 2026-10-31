@@ -105,6 +105,12 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_PUSH_AND_VOID = function("fluid_routing_push_and_void");
     private static final ResourceKey<Consumer<GameTestHelper>> FLUID_ROUTING_MIXING_REFUSAL =
             function("fluid_routing_mixing_refusal");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_WOOD_REDSTONE_OUTPUT = function("engine_wood_redstone_output");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_BURNS_FUEL = function("engine_stone_burns_fuel");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_OUTPUT_CONTROL = function("engine_stone_output_control");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_STONE_MENU = function("engine_stone_menu");
+    private static final ResourceKey<Consumer<GameTestHelper>> ENGINE_DELIVERY_THROUGH_KINESIS_PIPE =
+            function("engine_delivery_through_kinesis_pipe");
 
     private BuildcraftGameTests() {
     }
@@ -189,6 +195,11 @@ public final class BuildcraftGameTests {
             for (PipeMaterial material : PipeMaterial.values()) {
                 registry.register(fluidCaps(material), helper -> FluidRoutingTests.tierCaps(helper, material));
             }
+            registry.register(ENGINE_WOOD_REDSTONE_OUTPUT, WoodStoneEngineTests::woodRedstoneOutput);
+            registry.register(ENGINE_STONE_BURNS_FUEL, WoodStoneEngineTests::stoneBurnsFuel);
+            registry.register(ENGINE_STONE_OUTPUT_CONTROL, WoodStoneEngineTests::stoneOutputControl);
+            registry.register(ENGINE_STONE_MENU, WoodStoneEngineTests::stoneMenu);
+            registry.register(ENGINE_DELIVERY_THROUGH_KINESIS_PIPE, WoodStoneEngineTests::deliveryThroughKinesisPipe);
         });
         FluidTankTests.register(event);
         LaserTests.register(event);
@@ -343,6 +354,11 @@ public final class BuildcraftGameTests {
         for (PipeMaterial material : PipeMaterial.values()) {
             event.registerTest(fluidCaps(material).identifier(), new FunctionGameTestInstance(fluidCaps(material),
                     padded(environment, Level.OVERWORLD, FluidRoutingTests.WINDOW_END + 20)));
+        }
+        // #37 and #38: engines with redstone blocks and neighbours a few blocks apart, in the padded area.
+        for (ResourceKey<Consumer<GameTestHelper>> engine : List.of(ENGINE_WOOD_REDSTONE_OUTPUT, ENGINE_STONE_BURNS_FUEL,
+                ENGINE_STONE_OUTPUT_CONTROL, ENGINE_STONE_MENU, ENGINE_DELIVERY_THROUGH_KINESIS_PIPE)) {
+            event.registerTest(engine.identifier(), new FunctionGameTestInstance(engine, padded(environment, Level.OVERWORLD, 400)));
         }
     }
 
