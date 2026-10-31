@@ -1,6 +1,6 @@
 /*
  * Buildcraft Reforged, 2026: the client half of 4.2.2's factory GuiHandler (getClientGuiElement) for the refinery,
- * and the client's copy of the refinery recipes.
+ * auto workbench and hopper, and the client's copy of the refinery recipes.
  */
 package buildcraftreforged.factory.gui;
 
@@ -23,6 +23,8 @@ final class FactoryScreens {
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(FactoryRegistry.refineryMenu.get(), GuiRefinery::new);
+        event.register(FactoryRegistry.autoWorkbenchMenu.get(), GuiAutoCrafting::new);
+        event.register(FactoryRegistry.hopperMenu.get(), GuiHopper::new);
     }
 
     @SubscribeEvent

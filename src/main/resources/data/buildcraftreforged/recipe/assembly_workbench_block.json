@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "O": "minecraft:obsidian",
+    "W": "minecraft:crafting_table",
+    "C": "minecraft:chest",
+    "R": "buildcraftreforged:redstone_red_chipset"
+  },
+  "pattern": [
+    "OWO",
+    "OCO",
+    "ORO"
+  ],
+  "result": {
+    "id": "buildcraftreforged:assembly_workbench_block"
+  }
+}

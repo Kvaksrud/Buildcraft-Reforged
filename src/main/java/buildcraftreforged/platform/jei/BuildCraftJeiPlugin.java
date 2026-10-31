@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
@@ -62,5 +63,6 @@ public class BuildCraftJeiPlugin implements IModPlugin {
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addCraftingStation(AssemblyRecipeCategory.TYPE, SiliconRegistry.assemblyTableBlockItem.get());
         registration.addCraftingStation(RefineryRecipeCategory.TYPE, FactoryRegistry.refineryBlockItem.get());
+        registration.addCraftingStation(RecipeTypes.CRAFTING, SiliconRegistry.advancedCraftingTableBlockItem.get());
     }
 }

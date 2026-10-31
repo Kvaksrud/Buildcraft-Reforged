@@ -132,22 +132,22 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Mining Well (`miningWellBlock`) | `BlockMiningWell, TileMiningWell` | `mining_well_block` | #66 | [x] | [ ] | [ ] | Digs as the owner; a refused break blocks it (status panel, red light). GameTests `mining_well_digs`, `mining_well_output`, `mining_well_protected`; model not checked in game. |
 | Mining Pipe (`plainPipeBlock`) | `BlockPlainPipe` | `plain_pipe_block` | #66 | [x] | [ ] | [ ] | `IFramePipeConnection` (never connects) since #67. Model not checked in game. |
-| Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [ ] | [ ] | [ ] |  |
+| Automatic Crafting Table (`autoWorkbenchBlock`) | `BlockAutoWorkbench, TileAutoWorkbench` | `auto_workbench_block` | #69 | [x] | [ ] | [ ] | Template grid filled through its sides (pipes, hoppers), one craft per 256 ticks, the last item of each slot kept unless the preview is clicked; crafts as the owner's fake player; status panel added. GameTests `auto_workbench_crafts_from_chest`, `auto_workbench_rules_menu_and_save`; model not checked in game. `BptBlockAutoWorkbench` waits for the builder (#78). |
 | Frame (`frameBlock`) | `BlockFrame` | `frame_block` | #67 | [x] | [ ] | [ ] | Waterloggable; six connection properties and a multipart model for 4.2.2's legacy pipe model; removed at once with its quarry instead of decaying (section 19.3). Built and connected in GameTest `quarry_digs_9x9`; model not checked in game. |
 | Quarry (`machineBlock`) | `BlockQuarry, TileQuarry` | `machine_block` | #67 | [x] | [ ] | [ ] | Registry name `machine_block` by the naming rule (decided in #67). Frame built by `QuarryFrameBuilder` (the quarry's part of `BptBuilderBlueprint` and `EntityRobot`); arm (`EntityMechanicalArm`) is render data drawn by `RenderQuarry`. Digs as the owner and stops at a refused block; output through `MachineOutput` (blocked, red light); chunk loading only with `quarry.loadsChunks`; Done state, no power taken when done. GameTests `quarry_digs_9x9`, `quarry_marker_area`, `quarry_blocked_output`, `quarry_protected_block`; model, arm, lasers and status screen not checked in game. |
 | Tank (`tankBlock`) | `BlockTank, TileTank` | `tank_block` | #64 | [x] | [ ] | [ ] | Comparator output added (BuildCraft 7.1 formula). GameTests `tank_stacking`, `tank_transfer`, `tank_buckets`; model and fluid renderer not checked in game. |
 | Pump (`pumpBlock`) | `BlockPump, TilePump` | `pump_block` | #65 | [x] | [ ] | [ ] | 100 FE per block; `PumpDimensionList` takes dimension keys and fluid ids; status panel and status light added. Ships 4.2.2's fallback recipe (gold waterproof pipe) until the mining well (#66) adds the tank-over-mining-well recipe. GameTests `pump_small_pool`, `pump_oil`; model and tube renderer not checked in game. |
 | Flood Gate (`floodGateBlock`) | `BlockFloodGate, TileFloodGate` | `flood_gate_block` | #65 | [x] | [ ] | [ ] | Nothing queued outside the build height (BuildCraft#2165); status panel added. GameTest `flood_gate_fills_hole`; model not checked in game. |
 | Refinery (`refineryBlock`) | `BlockRefinery, TileRefinery` | `refinery_block` | #68 | [x] | [ ] | [ ] | JSON recipe type `buildcraftreforged:refinery`; status panel added. GameTests `refinery_oil_to_fuel`, `refinery_filters_and_blocked`, `refinery_recipes`; renderer and item model not checked in game. `BptBlockRefinery` waits for the builder (#78). |
-| Hopper (`blockHopper`) | `BlockHopper, TileHopper` | `block_hopper` | #70 | [ ] | [ ] | [ ] |  |
+| Hopper (`blockHopper`) | `BlockHopper, TileHopper` | `block_hopper` | #70 | [x] | [ ] | [ ] | The "Chute": one item every two ticks into the item capability below (pipes, machines, inventories); `RenderHopper` is a static JSON model; status panel and red light added. GameTests `hopper_feeds_pipe`, `hopper_feeds_machine`, `hopper_blocked_menu_and_recipe`; model not checked in game. |
 
 ### GUIs (factory, `factory.GuiHandler`)
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Automatic Crafting Table (`GuiIds.AUTO_CRAFTING_TABLE` 30) | `GuiAutoCrafting / ContainerAutoWorkbench` | `auto_workbench_block` menu | #69 | [ ] | [ ] | [ ] |  |
+| Automatic Crafting Table (`GuiIds.AUTO_CRAFTING_TABLE` 30) | `GuiAutoCrafting / ContainerAutoWorkbench` | `auto_workbench_block` menu | #69 | [x] | [ ] | [ ] | Slots, preview, "click to craft" and the progress `DataSlot` covered by GameTest `auto_workbench_rules_menu_and_save`; status ledger added; drawing and the yellow tool tip not checked in game. |
 | Refinery (`GuiIds.REFINERY` 31) | `GuiRefinery / ContainerRefinery` | `refinery_block` menu | #68 | [x] | [ ] | [ ] | Filter sync and return covered by GameTest `refinery_filters_and_blocked`; drawing and clicks not checked in game. |
-| Hopper (`GuiIds.HOPPER` 32) | `GuiHopper / ContainerHopper` | `block_hopper` menu | #70 | [ ] | [ ] | [ ] |  |
+| Hopper (`GuiIds.HOPPER` 32) | `GuiHopper / ContainerHopper` | `block_hopper` menu | #70 | [x] | [ ] | [ ] | Slots and shift-click covered by GameTest `hopper_blocked_menu_and_recipe`; now a `GuiBuildCraft` so it carries the status ledger; drawing not checked in game. |
 
 ## silicon (`BuildCraftSilicon`)
 
@@ -169,7 +169,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Assembly Table (GUI id 0, block meta) | `GuiAssemblyTable / ContainerAssemblyTable` | `assembly_table_block` menu | #72 | [x] | [ ] | [ ] | Menu, data slots and the selection GUI return tested by GameTests `assembly_*`; the screen not yet seen in a client. |
-| Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [ ] | [ ] | [ ] |  |
+| Advanced Crafting Table (GUI id 1, block meta) | `GuiAdvancedCraftingTable / ContainerAdvancedCraftingTable` | `assembly_workbench_block` menu | #73 | [x] | [ ] | [ ] | Menu slots and data slots tested by GameTest `advanced_crafting_laser`; the screen not yet seen in a client. |
 
 ## transport (`BuildCraftTransport`)
 
@@ -315,13 +315,13 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Template (`templateItem`) | `ItemBptTemplate` | `template_item` | #77 | [ ] | [ ] | [ ] |  |
-| Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [ ] | [ ] | [ ] | Library id + author + name in data components. File format, rotation, mirroring and library files (`core/blueprints`) done in #75; PORTING-NOTES "Blueprint file format (#75)". |
+| Template (`templateItem`) | `ItemBptTemplate` | `template_item` | #77 | [x] | [ ] | [ ] | Library id, name and author in the `buildcraftreforged:blueprint` component (`BptItemData`); clean/used icon by the item model's `has_component` condition. GameTest `architect_scan_template`; icons and tooltip not checked in game. |
+| Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [x] | [ ] | [ ] | Library id + author + name in the `buildcraftreforged:blueprint` component (`BptItemData`), PORTING-NOTES "Architect table and blueprint items (#77)". GameTests `architect_scan_blueprint`, `architect_facing_turns_capture`; icons and tooltip not checked in game. File format, rotation, mirroring and library files (`core/blueprints`) done in #75; PORTING-NOTES "Blueprint file format (#75)". |
 | Land Mark (`markerBlock`) | `BlockMarker, TileMarker` | `marker_block` | #29 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Path Mark (`pathMarkerBlock`) | `BlockPathMarker, TilePathMarker` | `path_marker_block` | #30 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderFiller`; breaks and places as the owner and skips a refused spot; status panel (missing materials, red light). GameTests `filler_*`; models, lasers and GUI not checked in game. |
 | Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [ ] | [ ] | [ ] |  |
-| Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [ ] | [ ] | [ ] |  |
+| Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderArchitect`; 200-tick scan into the world's library; facing turns the capture; status panel. GameTests `architect_*`; model, lasers and GUI not checked in game. |
 | Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [ ] | [ ] | [ ] |  |
 
 ### Actions (builders, `BuildersActionProvider`: one per filler pattern)
@@ -340,7 +340,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [ ] | [ ] | [ ] |  |
+| Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [x] | [ ] | [ ] | 4.2.2 slots, progress arrow and name field; one PacketGuiReturn per typed character; status ledger added. Name packet checked by GameTest `architect_scan_blueprint`; screen and typing not checked in game. |
 | Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [ ] | [ ] | [ ] |  |
 | Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [x] | [ ] | [ ] | 4.2.2 slots, pattern widget and arrows; status ledger added. GUI return checked by GameTest `filler_actions_gui_and_save`; screen not checked in game. |
 | Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [ ] | [ ] | [ ] |  |
