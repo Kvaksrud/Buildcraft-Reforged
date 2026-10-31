@@ -155,7 +155,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [ ] | [ ] | [ ] |  |
+| Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
 | Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_chipset_0` | #74 | [ ] | [ ] | [ ] | Metadata suffix names are placeholders; #18 notes they become items or a data component. |

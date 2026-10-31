@@ -46,6 +46,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_KINDS_AND_ENDPOINTS = function("pipe_kinds_and_endpoints");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_PLUGS_AND_MODULES = function("pipe_plugs_and_modules");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_WATERLOGGING = function("pipe_waterlogging");
+    private static final ResourceKey<Consumer<GameTestHelper>> LASER_FEEDS_TARGET = function("laser_feeds_target");
+    private static final ResourceKey<Consumer<GameTestHelper>> LASER_TARGET_SEARCH = function("laser_target_search");
 
     private BuildcraftGameTests() {
     }
@@ -70,8 +72,11 @@ public final class BuildcraftGameTests {
             registry.register(PIPE_KINDS_AND_ENDPOINTS, PipeTests::kindsAndEndpoints);
             registry.register(PIPE_PLUGS_AND_MODULES, PipeTests::plugsAndModules);
             registry.register(PIPE_WATERLOGGING, PipeTests::waterlogging);
+            registry.register(LASER_FEEDS_TARGET, LaserTests::feedsTarget);
+            registry.register(LASER_TARGET_SEARCH, LaserTests::targetSearch);
         });
         FluidTankTests.register(event);
+        LaserTests.register(event);
     }
 
     @SubscribeEvent
@@ -114,6 +119,10 @@ public final class BuildcraftGameTests {
                 new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         event.registerTest(id("pipe_waterlogging"), new FunctionGameTestInstance(PIPE_WATERLOGGING,
                 new TestData<>(environment, EMPTY_STRUCTURE, 40, 0, true)));
+        event.registerTest(id("laser_feeds_target"), new FunctionGameTestInstance(LASER_FEEDS_TARGET,
+                new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
+        event.registerTest(id("laser_target_search"), new FunctionGameTestInstance(LASER_TARGET_SEARCH,
+                new TestData<>(environment, EMPTY_STRUCTURE, 160, 0, true)));
     }
 
     /** Test-only capabilities (see {@link PipeTests#ENERGY_BLOCK}). */

@@ -798,3 +798,66 @@ New code from `docs/TRANSPORT.md` 3.1–3.3 and 9.4; the 4.2.2 transport classes
 - **GameTests** (`PipeTests`): chest and pipe bits and breaking the chest; each kind against chest, cauldron and an
   energy handler; plugs, the Isolator and module bans; waterlogged pipes keep their connections through bucketing.
   The GameTest source set gives lodestones an energy handler as a stand-in endpoint.
+
+## Laser and laser rendering (#71)
+
+Ported: `silicon/BlockLaser`, `silicon/TileLaser`, `core/EntityLaser`, `core/EntityEnergyLaser`,
+`core/EntityPowerLaser`, `core/render/RenderLaser`, `core/render/RenderEnergyLaser`. New: `silicon/render/RenderLaserTile`
+(the block entity renderer) and `silicon/render/SiliconRenderers` (4.2.2 `SiliconProxyClient.registerRenderers`).
+`SiliconRenderBlock` became the JSON model `block/laser_block`. Recorded 31 Oct 2026.
+
+- **Block.** `laser_block`, block entity type `laser`. Metadata → `BlockLaser.FACING`, the clicked face, as 4.2.2's
+  `onBlockPlaced`; the blockstate rotates the up-facing model as the markers do. `Material.iron` + `setHardness(10F)`
+  → metal sound and map colour, `strength(10F)`, `requiresCorrectToolForDrops` (1.6.4 iron needed a pickaxe) and the
+  `minecraft:mineable/pickaxe` tag. Not an opaque cube (`noOcclusion`); the shape stays a full cube, as 4.2.2's bounds.
+  Recipe `ORR/DDR/ORR` (obsidian, redstone, diamond) as 4.2.2.
+- **Model.** `block/laser_block` has `SiliconRenderBlock`'s two boxes for the up facing (4 px base, 6 x 9 x 6 px
+  emitter) with `laser_top` on up faces, `laser_bottom` on down faces and `laser_side` on the rest, UVs from the box
+  bounds as `RenderBlocks` did. The `uvRotate*` tweaks per facing are not reproduced; the blockstate rotation decides
+  the side texture's orientation.
+- **Power, MJ × 10.** `configure(250, 1500, 250, 10000)`, perdition `PerditionCalculator(5F)` (0.5 MJ/t), at most
+  `getMaxPowerSent()` = 40 FE per tick to the target, `Type.MACHINE`. FE comes in on every side through
+  `PowerEnergyHandler.registerEnergyHandler` (`SiliconRegistry.registerCapabilities`). Saved under 4.2.2's
+  `powerProvider` tag.
+- **Target search** is 4.2.2's `findTable`: an 11 x 11 x 11 box around the laser cut at the laser's own layer on the
+  side away from the facing (the laser's own plane is included), every 100 ticks while it has no valid target, a
+  random target among those whose `requiresLaserEnergy()` is true. New: positions in unloaded chunks are skipped,
+  because 26.x `getBlockEntity` would load the chunk where 1.6.4's did not.
+- **The beam is render data, not an entity**, as `EntityBlock` (#29). `TileLaser` keeps its `EntityEnergyLaser`
+  (head, tail, visible, power average over 100 ticks) and writes it after an `active` flag in its network payload;
+  the client tile rebuilds it in `readPacketPayload`, and `RenderLaserTile` draws it through `RenderEnergyLaser`.
+  Positions are sent as doubles, not 4.2.2's data watcher ints (× 8192), which overflow beyond 262144 blocks from the
+  origin (the GameTest structures sit near x 14 000 000 and caught it); the power average is a `long`. Updates go every 3 ticks as 4.2.2's
+  `sendNetworkUpdate` throttle; turning the beam off, or the target becoming valid or invalid, is sent at once (4.2.2
+  killed the entity, which reached clients by itself). `EntityLaser.onUpdate` keeps only the length and angle maths;
+  the bounding box and NBT (which 4.2.2 called useless) are gone.
+- **Texture by power.** `EntityEnergyLaser.getTexture()` picks `textures/entity/laser_1..4.png` at ≤ 10, ≤ 20, ≤ 30 and
+  above FE/t (4.2.2: 1, 2, 3 MJ/t). `RenderEnergyLaser` keeps the 40 boxes whose texture offset steps back one pixel
+  every 10 frames, so the stripes move along the beam. Light is the laser's brightness, 210, used as packed light as
+  `RenderMarker` does.
+- **Active light.** `isActive()` is `isValidTable()` on the server, as 4.2.2, and the synced `active` flag on the
+  client, so `TileBuildCraft`'s auxiliary light (+8) agrees on both sides.
+- **Gates.** `IActionReceptor` with `action_on`/`action_off`: Off removes the beam and stops delivery until On.
+- **Not done here:** the status panel provider (plan section 10, #26). `RenderMarker` keeps its private copy of
+  `RenderLaser`'s box; it can switch to `RenderLaser` with an `EntityPowerLaser` when someone next touches it.
+
+### Laser target API (for #72, #73 and other mods)
+
+`buildcraftreforged.api.power.ILaserTarget`, implemented by the target's block entity:
+
+| Method | Contract |
+|---|---|
+| `boolean requiresLaserEnergy()` | True while the target has work that needs energy. Lasers only pick targets that return true, and drop a target (beam off) as soon as it returns false. |
+| `void receiveLaserEnergy(long energy)` | Called once per tick by each laser feeding the target, server side, with the FE it took from its store: up to 40 FE. The target keeps it; there is no return value and nothing is given back. |
+| `boolean isInvalidTarget()` | True once the target is gone; return `isRemoved()`. |
+| `int getXCoord()`, `getYCoord()`, `getZCoord()` | The target's block position; the beam ends at x + 0.475, y + 9/16, z + 0.475 (jittered by ±0.1 in x and z). |
+
+- Energy is FE as `long` (4.2.2's float MJ × 10). An assembly table that needs 4.2.2's `energy` MJ for a recipe
+  compares against `energy × 10` FE.
+- Lasers search 5 blocks each way, on the facing side of the laser, so a target is fed by every laser that faces it
+  within range. A laser keeps its target until `requiresLaserEnergy()` or `isInvalidTarget()` says otherwise, then
+  searches again within 100 ticks.
+- No capability is involved: the laser finds targets by `level.getBlockEntity(pos) instanceof ILaserTarget`.
+- `LaserTests` (GameTests `laser_feeds_target`, `laser_target_search`) has the smallest target, a test-only block
+  `gametest_laser_target` that wants 400 FE; they check delivery at 40 FE/t, the beam's head, tail, length and angle,
+  the payload round trip, the gate actions, the facing and range limits and an unpowered laser.
