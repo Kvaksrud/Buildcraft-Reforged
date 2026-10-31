@@ -319,7 +319,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Blueprint (`blueprintItem`) | `ItemBptBluePrint` | `blueprint_item` | #77 | [ ] | [ ] | [ ] | Library id + author + name in data components. |
 | Land Mark (`markerBlock`) | `BlockMarker, TileMarker` | `marker_block` | #29 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
 | Path Mark (`pathMarkerBlock`) | `BlockPathMarker, TilePathMarker` | `path_marker_block` | #30 | [x] | [ ] | [ ] | Ported in P1 with core (section 15). |
-| Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [ ] | [ ] | [ ] |  |
+| Filler (`fillerBlock`) | `BlockFiller, TileFiller` | `filler_block` | #79 | [x] | [ ] | [ ] | Area from markers, stripes box drawn by `RenderFiller`; breaks and places as the owner and skips a refused spot; status panel (missing materials, red light). GameTests `filler_*`; models, lasers and GUI not checked in game. |
 | Builder (`builderBlock`) | `BlockBuilder, TileBuilder` | `builder_block` | #78 | [ ] | [ ] | [ ] |  |
 | Architect Table (`architectBlock`) | `BlockArchitect, TileArchitect` | `architect_block` | #77 | [ ] | [ ] | [ ] |  |
 | Blueprint Library (`libraryBlock`) | `BlockBlueprintLibrary, TileBlueprintLibrary` | `library_block` | #80 | [ ] | [ ] | [ ] |  |
@@ -328,13 +328,13 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Filler pattern: fill | `ActionFiller + PatternFill` | `filler:buildcraft:fill` | #79 | [ ] | [ ] | [ ] |  |
-| Filler pattern: flatten | `ActionFiller + PatternFlatten` | `filler:buildcraft:flatten` | #79 | [ ] | [ ] | [ ] |  |
-| Filler pattern: horizon | `ActionFiller + PatternHorizon` | `filler:buildcraft:horizon` | #79 | [ ] | [ ] | [ ] |  |
-| Filler pattern: clear | `ActionFiller + PatternClear` | `filler:buildcraft:clear` | #79 | [ ] | [ ] | [ ] |  |
-| Filler pattern: box | `ActionFiller + PatternBox` | `filler:buildcraft:box` | #79 | [ ] | [ ] | [ ] |  |
-| Filler pattern: pyramid | `ActionFiller + PatternPyramid` | `filler:buildcraft:pyramid` | #79 | [ ] | [ ] | [ ] |  |
-| Filler pattern: stairs | `ActionFiller + PatternStairs` | `filler:buildcraft:stairs` | #79 | [ ] | [ ] | [ ] |  |
+| Filler pattern: fill | `ActionFiller + PatternFill` | `filler_fill` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:fill`. GameTest `filler_actions_gui_and_save`; pattern GameTest `filler_fill`; icon drawn by the gate GUI, not checked in game. |
+| Filler pattern: flatten | `ActionFiller + PatternFlatten` | `filler_flatten` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:flatten`. GameTest `filler_actions_gui_and_save`; pattern GameTest `filler_flatten`; icon drawn by the gate GUI, not checked in game. |
+| Filler pattern: horizon | `ActionFiller + PatternHorizon` | `filler_horizon` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:horizon`. GameTest `filler_actions_gui_and_save`; the pattern itself has no GameTest; icon drawn by the gate GUI, not checked in game. |
+| Filler pattern: clear | `ActionFiller + PatternClear` | `filler_clear` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:clear`. GameTest `filler_actions_gui_and_save`; pattern GameTest `filler_clear`; icon drawn by the gate GUI, not checked in game. |
+| Filler pattern: box | `ActionFiller + PatternBox` | `filler_box` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:box`. GameTest `filler_actions_gui_and_save`; pattern GameTest `filler_box`; icon drawn by the gate GUI, not checked in game. |
+| Filler pattern: pyramid | `ActionFiller + PatternPyramid` | `filler_pyramid` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:pyramid`. GameTest `filler_actions_gui_and_save`; pattern GameTest `filler_pyramid`; icon drawn by the gate GUI, not checked in game. |
+| Filler pattern: stairs | `ActionFiller + PatternStairs` | `filler_stairs` | #79 | [x] | [ ] | [ ] | 4.2.2 tag `filler:buildcraft:stairs`. GameTest `filler_actions_gui_and_save`; pattern GameTest `filler_stairs`; icon drawn by the gate GUI, not checked in game. |
 
 ### GUIs (builders, `builders.GuiHandler`)
 
@@ -342,7 +342,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Architect Table (`GuiIds.ARCHITECT_TABLE` 10) | `GuiTemplate / ContainerTemplate` | `architect_block` menu | #77 | [ ] | [ ] | [ ] |  |
 | Builder (`GuiIds.BUILDER` 11) | `GuiBuilder / ContainerBuilder` | `builder_block` menu | #78 | [ ] | [ ] | [ ] |  |
-| Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [ ] | [ ] | [ ] |  |
+| Filler (`GuiIds.FILLER` 12) | `GuiFiller / ContainerFiller` | `filler_block` menu | #79 | [x] | [ ] | [ ] | 4.2.2 slots, pattern widget and arrows; status ledger added. GUI return checked by GameTest `filler_actions_gui_and_save`; screen not checked in game. |
 | Blueprint Library (`GuiIds.BLUEPRINT_LIBRARY` 13) | `GuiBlueprintLibrary / ContainerBlueprintLibrary` | `library_block` menu | #80 | [ ] | [ ] | [ ] |  |
 
 ## New in Buildcraft Reforged

@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "buildcraftreforged:block/filler_top_off",
+    "bottom": "buildcraftreforged:block/filler_top_off",
+    "side": "buildcraftreforged:block/filler_flatten",
+    "particle": "buildcraftreforged:block/filler_flatten"
+  }
+}

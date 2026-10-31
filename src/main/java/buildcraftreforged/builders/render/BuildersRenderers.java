@@ -1,5 +1,6 @@
 /*
- * Buildcraft Reforged, 2026: the builders half of 4.2.2's CoreProxyClient.registerRenderers, for the markers.
+ * Buildcraft Reforged, 2026: the builders half of 4.2.2's CoreProxyClient.registerRenderers, for the markers and the
+ * filler's stripes box.
  */
 package buildcraftreforged.builders.render;
 
@@ -20,5 +21,6 @@ public final class BuildersRenderers {
     static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(BuildersRegistry.markerTile.get(), context -> new RenderMarker<>());
         event.registerBlockEntityRenderer(BuildersRegistry.pathMarkerTile.get(), context -> new RenderMarker<>());
+        event.registerBlockEntityRenderer(BuildersRegistry.fillerTile.get(), context -> new RenderFiller());
     }
 }

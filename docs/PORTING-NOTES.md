@@ -2550,3 +2550,80 @@ Decided 2026-10-31.
   the arm and stripes rendering (geometry, UVs, light, the render box), the red light, the status panel screen, the
   chat messages, the recipe in the crafting grid, and chunk loading with `quarry.loadsChunks` on (no test toggles the
   option).
+
+## Filler and patterns (#79)
+
+Ported `builders/BlockFiller`, `TileFiller`, `filler/FillerRegistry`, the seven `filler/pattern/Pattern*` classes and
+`FillerPattern`, `triggers/ActionFiller`, `triggers/BuildersActionProvider`, `gui/ContainerFiller` and `gui/GuiFiller`.
+New: `builders/render/RenderFiller`, `builders/gui/BuildersScreens`. Changed (additive): `BuildersRegistry`,
+`BuildersRenderers`, the pickaxe tag. Decided 2026-10-31.
+
+- **Patterns.** 4.2.2 has seven: fill, flatten, horizon, clear, box, pyramid, stairs. The cylinder and the other
+  6.x patterns are out (plan section 11). `FillerManager.registry` is a `FillerRegistry` made in `BuildersRegistry`'s
+  static block, with the patterns added in 4.2.2's order; the GUI's arrows step through them by unique tag, as the
+  4.2.2 `TreeMap` did.
+- **Names.** Block `filler_block` (4.2.2 `fillerBlock`), block entity `filler`, menu `filler_block`. Each pattern's
+  gate action is an entry of the action registry named `filler_<tag>` (`filler_fill`, `filler_box`, ...): 4.2.2 kept
+  the actions only in `FillerRegistry` (and the unused `fillerActions` array), and the PARITY rows' 4.2.2 tag
+  `filler:buildcraft:fill` has colons, which a registry path cannot. The unique tag stays `filler:buildcraft:<tag>`,
+  so `ActionManager.actions` still resolves it. `FillerRegistry.addPattern` registers the action through the
+  `DeferredRegister` it was made with, so a pattern added through the API must be added during mod construction.
+- **Block.** `Material.iron`, hardness 5, metal sound, pickaxe, drops itself. 4.2.2's `getBlockTexture` read the tile:
+  `blockFillerTopOn`/`TopOff` on top and bottom while active or not, the current pattern's icon on the four sides. The
+  block state now carries `active` and `pattern` (one value per 4.2.2 pattern plus `sides`, 4.2.2's
+  `blockFillerSides`, for a pattern from another mod), which `TileFiller` keeps in step on the server; the multipart
+  blockstate picks one of sixteen `cube_bottom_top` models and adds the status red light. The item shows
+  `filler_block_sides_on`, 4.2.2's `getIcon(side, meta)`. Using the block opens the GUI; sneaking passes. Recipe as
+  4.2.2 (`btb/ycy/gCg`): ink sac for 1.6.4's dye 0, yellow dye for dye 11, marker, crafting table, gold gear, chest.
+- **Area and lasers.** As 4.2.2: on its first server tick the filler takes the marker area next to it
+  (`Utils.getNearbyAreaProvider`), removes the markers and puts up the stripes box, which stays while the filler
+  exists. The box is render data (`Box.createLasers`), drawn by `RenderFiller` as `RenderQuarry` draws the quarry's.
+  Without an area the filler does nothing (State "No work area").
+- **Power.** FE: `configure(300, 500, 250, 1000)` and perdition 10 FE per tick (4.2.2 30, 50, 25, 100 MJ and 1/1).
+  One step costs 250 FE (4.2.2 `POWER_USAGE` 25 MJ) and `doWork` steps again while 250 FE is left, as 4.2.2, so at
+  the 500 FE/t cap it does two steps a tick. The stored energy is not saved, as in 4.2.2. Energy capability on every
+  side; item capability on every side (4.2.2 `IInventory`).
+- **Owner.** `FillerPattern`'s `fill`, `empty` and `flatten` take the filler's block entity where 4.2.2 passed its
+  `World`, and `breakBlock` and the placement run as the owner's fake player (`BuildCraftPlayer.get(tile)`; the
+  default player for a tile that is not a `TileBuildCraft`). Breaking asks `canBreak` first, also with
+  `filler.destroy` (4.2.2 `setBlockToAir`), and drops through `BlockUtil.breakBlock` with the `filler.lifespan.*`
+  lifespans. Placing is 4.2.2's `onItemUse` through `BuildCraftPlayer.useItemOn`, so NeoForge's placement event and
+  checks run and the stack shrinks in its slot. The item is used on the target's top face, not on the block below as
+  PORTING-NOTES "Owner tracking" suggested: a replaceable or air block below would otherwise take the block, and
+  1.6.4 placed at the target in those cases too (`ItemBlock.onItemUse` offset from an air or non-replaceable block).
+- **Skipping.** A spot the owner may not break, or where using the item left it soft (a refused placement, an item
+  that places no block, a soft block such as snow), is passed over until the pattern starts over (new pattern, Loop,
+  load). 4.2.2 retried such a spot for ever; docs/BUGFIXES.md "Filler retries a spot for ever". A spot an entity
+  stands in is retried, as 4.2.2 waited for it to move. Unbreakable blocks keep 4.2.2's rule: `canChangeBlock` false
+  ends the step, so bedrock in the area ends Fill and Clear early, as in 4.2.2.
+- **World height.** Flatten and Horizon fill holes down to the level's minimum Y + 1 (1.6.4: 1) and Horizon clears up
+  to the level's maximum Y (1.6.4: `getActualHeight`).
+- **Gates.** `BuildersActionProvider` offers the seven pattern actions next to a filler only; `TileFiller` takes them
+  and On, Off and Loop as 4.2.2 (`allowAction` true). Loop starts the pattern again once it is done.
+- **GUI.** `ContainerFiller` keeps 4.2.2's slots (27 filler slots at y 85, the player's at 153 and 211) and the pattern
+  widget at (80, 30), which draws the pattern's GUI sprite `buildcraftreforged:filler/<tag>` (4.2.2 drew the block
+  icon; the same art is copied to `textures/gui/sprites/filler/` and `textures/block/filler_<tag>.png`). `GuiFiller`
+  is 175 × 240 on 4.2.2's `filler.png`, with the arrow buttons at 4.2.2's positions; a press sends the pattern's
+  unique tag back as a `PacketGuiReturn`, which the server refuses for an unknown tag. The status ledger is added.
+- **Status panel.** State: "No work area" without a box, "Done", "Idle" while Off, "Blocked" with Reason "missing
+  materials" (and the red light) when the last step wanted a block and the inventory was empty, "No power", else
+  "Working". Power line: FE drawn. 4.2.2 kept spending 25 MJ a step while waiting for blocks, and still does.
+- **Save and sync.** Tags as 4.2.2: the inventory, `pattern` (unique tag; an unknown one falls back to Fill), `box`,
+  `done`, `lastMode` (out of range reads as Unknown). Network payload in 4.2.2's order: box, `done`, pattern tag.
+- **Not ported:** `GuiIds.FILLER` routing (the menu type replaces it) and 1.6.4's `addCreativeItems` (the block item is
+  in the machines tab).
+- **Tests.** GameTests (`FillerTests`, padded area): four markers give a 3 × 3 × 3 area beside the filler.
+  `filler_fill` (empty inventory: Blocked, "missing materials", red light; then 26 cobblestone around a dirt block that
+  stays, top light off, pattern face Fill), `filler_box` (all but the centre), `filler_pyramid` (the 3 × 3 floor and
+  the centre above it), `filler_stairs` (filler west of the box: 9, 6 and 3 blocks stepping east),
+  `filler_clear` (a dirt-filled area cleared, the dirt dropped), `filler_flatten` (a hole in the floor below filled, a
+  dirt block in the area removed), `filler_protected_break` (a stand-in claim on one dirt block during Clear: skipped,
+  the rest cleared, the owner's UUID seen), `filler_protected_place` (the same for one placement during Fill: skipped,
+  26 placed, the refused stack kept) and `filler_actions_gui_and_save` (the seven actions by registry name, unique tag
+  and icon, offered for a filler and not a chest; each switches the pattern; a filler without markers in every pattern
+  stays "No work area" and saves and loads its pattern and inventory, BuildCraft#2331; On/Off; the GUI return packet
+  takes a known tag and refuses an unknown one; the arrows' order wraps; the block's pattern face follows).
+  Horizon is not covered by a test.
+- **Not checked without a client:** the block models and textures (top light, pattern faces, red light), the stripes
+  box rendering, the GUI (layout, arrow buttons, pattern sprite and name, status ledger), the pattern icons in the gate
+  GUI, the recipe in the crafting grid, and real claim mods.

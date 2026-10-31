@@ -1,0 +1,156 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "active": "true",
+        "pattern": "sides"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_sides_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "sides"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_sides_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "box"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_box_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "box"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_box_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "clear"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_clear_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "clear"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_clear_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "fill"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_fill_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "fill"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_fill_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "flatten"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_flatten_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "flatten"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_flatten_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "horizon"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_horizon_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "horizon"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_horizon_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "pyramid"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_pyramid_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "pyramid"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_pyramid_off"
+      }
+    },
+    {
+      "when": {
+        "active": "true",
+        "pattern": "stairs"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_stairs_on"
+      }
+    },
+    {
+      "when": {
+        "active": "false",
+        "pattern": "stairs"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/filler_block_stairs_off"
+      }
+    },
+    {
+      "when": {
+        "blocked": "true"
+      },
+      "apply": {
+        "model": "buildcraftreforged:block/status_light"
+      }
+    }
+  ]
+}
