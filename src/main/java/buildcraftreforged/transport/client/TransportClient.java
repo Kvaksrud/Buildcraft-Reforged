@@ -55,5 +55,7 @@ public final class TransportClient {
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(TransportRegistry.gateMenu.get(), GuiGateInterface::new);
         event.register(TransportRegistry.filteredExtractorMenu.get(), GuiFilteredExtractor::new);
+        event.register(TransportRegistry.sorterMenu.get(), GuiSorter::new);
+        event.register(TransportRegistry.filteredColourTagMenu.get(), GuiFilteredColourTag::new);
     }
 }

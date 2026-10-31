@@ -4,7 +4,9 @@ import buildcraftreforged.api.transport.IPipeTile.PipeType;
 import buildcraftreforged.transport.PipeModuleType;
 import java.util.function.BooleanSupplier;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
+import net.neoforged.neoforge.transfer.resource.Resource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,6 +32,21 @@ public interface PipeWorld {
          */
         default boolean allowsOutput(Direction side) {
             return true;
+        }
+
+        /**
+         * The module's candidate filter and order (docs/TRANSPORT.md 4.2 steps 5-6; the Sorter and the Colour Sorter):
+         * reorders {@code sides[0 .. count)} and returns how many to try, or -1 for the uniform order. {@code colour}
+         * is the walk colour on entry ({@code PipeWalk.NO_COLOUR} for none).
+         */
+        default int orderCandidates(int[] sides, int count, @Nullable Resource resource, int colour,
+                RandomSource random) {
+            return -1;
+        }
+
+        /** The walk colour after entering this pipe, from the one it was entered with (the Colour Tag, 8.8). */
+        default int walkColour(int colour) {
+            return colour;
         }
     }
 

@@ -25,6 +25,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -40,6 +41,7 @@ import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.resource.Resource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
@@ -405,6 +407,18 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     @Override
     public boolean allowsOutput(Direction side) {
         return module == null || module.allowsOutput(this, side);
+    }
+
+    /** The Sorter and the Colour Sorter filter and order the walk's candidates (docs/TRANSPORT.md 8.5, 8.9). */
+    @Override
+    public int orderCandidates(int[] sides, int count, @Nullable Resource resource, int colour, RandomSource random) {
+        return module == null ? -1 : module.orderCandidates(this, sides, count, resource, colour, random);
+    }
+
+    /** The Colour Tag sets the walk colour (docs/TRANSPORT.md 8.8). */
+    @Override
+    public int walkColour(int colour) {
+        return module == null ? colour : module.walkColour(this, colour);
     }
 
     /** The gate and wires drop with the pipe (4.2.2 {@code Pipe.onBlockRemoval}), and the module as its item. */
