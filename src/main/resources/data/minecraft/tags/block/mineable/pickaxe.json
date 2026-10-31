@@ -11,6 +11,7 @@
     "buildcraftreforged:pump_block",
     "buildcraftreforged:flood_gate_block",
     "buildcraftreforged:machine_block",
-    "buildcraftreforged:filler_block"
+    "buildcraftreforged:filler_block",
+    "buildcraftreforged:architect_block"
   ]
 }

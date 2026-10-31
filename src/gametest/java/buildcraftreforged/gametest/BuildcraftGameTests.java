@@ -215,6 +215,7 @@ public final class BuildcraftGameTests {
             AdvancedCraftingTableTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            ArchitectTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
@@ -437,6 +438,11 @@ public final class BuildcraftGameTests {
         for (String name : FillerTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, FillerTests.MAX_TICKS)));
+        }
+        // #77 architect: a 3 x 3 x 3 marked area beside the table, scanned into the server's library.
+        for (String name : ArchitectTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, ArchitectTests.MAX_TICKS)));
         }
         // #45 oil fields: wells, lakes and spouts up to 20 blocks out, in a wider padded area.
         for (String name : OilFieldTests.TESTS.keySet()) {

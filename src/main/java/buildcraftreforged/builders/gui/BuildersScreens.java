@@ -19,5 +19,6 @@ final class BuildersScreens {
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(BuildersRegistry.fillerMenu.get(), GuiFiller::new);
+        event.register(BuildersRegistry.architectMenu.get(), GuiTemplate::new);
     }
 }

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "buildcraftreforged:block/architect_block" },
+    "facing=east": { "model": "buildcraftreforged:block/architect_block", "y": 90 },
+    "facing=south": { "model": "buildcraftreforged:block/architect_block", "y": 180 },
+    "facing=west": { "model": "buildcraftreforged:block/architect_block", "y": 270 }
+  }
+}
