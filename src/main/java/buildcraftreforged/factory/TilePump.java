@@ -31,6 +31,7 @@ import buildcraftreforged.core.fluids.FluidUtils;
 import buildcraftreforged.core.fluids.SingleUseTank;
 import buildcraftreforged.core.status.FlowMeter;
 import buildcraftreforged.core.status.IStatusProvider;
+import buildcraftreforged.core.status.MachineOutput;
 import buildcraftreforged.core.status.MachineStatus;
 import buildcraftreforged.core.status.StatusReason;
 import buildcraftreforged.core.status.StatusReport;
@@ -81,8 +82,11 @@ public class TilePump extends TileBuildCraft implements IMachine, IPowerReceptor
     private int tick = Utils.RANDOM.nextInt();
     private int numFluidBlocksFound = 0;
     private boolean powered = false;
-    /** Not in 4.2.2: the next block's fluid did not fit in the tank (status panel, Machine trigger). */
-    private boolean isBlocked;
+    /**
+     * Not in 4.2.2: blocked while the next block's fluid does not fit in the tank (status panel, Machine trigger). The
+     * pump's output is fluid, so it reports the state through {@link MachineOutput#setBlocked} (#63, #130).
+     */
+    private final MachineOutput output = new MachineOutput();
     /** Not in 4.2.2: the status panel's Flow and Power lines. */
     public final FlowMeter flowMeter = new FlowMeter(() -> level == null ? 0 : level.getGameTime());
 
@@ -136,7 +140,7 @@ public class TilePump extends TileBuildCraft implements IMachine, IPowerReceptor
         BlockIndex index = getNextIndexToPump(false);
 
         FluidStack fluidToPump = index != null ? BlockUtil.drainBlock(level, index.x, index.y, index.z, false) : null;
-        isBlocked = false;
+        output.setBlocked(StatusReason.NONE);
         if (fluidToPump != null) {
             if (isFluidAllowed(fluidToPump.getFluid()) && tank.fill(fluidToPump, false) == fluidToPump.getAmount()) {
 
@@ -152,7 +156,7 @@ public class TilePump extends TileBuildCraft implements IMachine, IPowerReceptor
                     flowMeter.fluidIn(fluidToPump.getAmount());
                 }
             } else if (isFluidAllowed(fluidToPump.getFluid())) {
-                isBlocked = true;
+                output.setBlocked(StatusReason.OUTPUT_FULL);
             }
         } else {
             if (tick % 128 == 0) {
@@ -409,7 +413,7 @@ public class TilePump extends TileBuildCraft implements IMachine, IPowerReceptor
 
     @Override
     public boolean isBlocked() {
-        return isBlocked;
+        return output.isBlocked();
     }
 
     @Override
@@ -574,7 +578,7 @@ public class TilePump extends TileBuildCraft implements IMachine, IPowerReceptor
 
     @Override
     public MachineStatus getStatusState() {
-        if (isBlocked)
+        if (output.isBlocked())
             return MachineStatus.BLOCKED;
         if (powered || !isActive())
             return MachineStatus.IDLE;
@@ -585,7 +589,7 @@ public class TilePump extends TileBuildCraft implements IMachine, IPowerReceptor
 
     @Override
     public StatusReason getStatusReason() {
-        return isBlocked ? StatusReason.OUTPUT_FULL : StatusReason.NONE;
+        return output.getReason();
     }
 
     @Override

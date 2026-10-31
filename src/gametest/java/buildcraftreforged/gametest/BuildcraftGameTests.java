@@ -30,6 +30,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  */
 @EventBusSubscriber(modid = BuildcraftReforged.MOD_ID)
 public final class BuildcraftGameTests {
+    /** The system property the {@code gameTestServer} run sets (build.gradle.kts). */
+    public static final String GAMETEST_PROPERTY = "buildcraftreforged.gametest";
     private static final Identifier EMPTY_STRUCTURE = Identifier.withDefaultNamespace("empty");
 
     private static final ResourceKey<Consumer<GameTestHelper>> NO_SOCKETS = function("no_sockets");
@@ -118,8 +120,20 @@ public final class BuildcraftGameTests {
     private BuildcraftGameTests() {
     }
 
+    /**
+     * True in the GameTest run only: {@code runGameTestServer} sets {@value #GAMETEST_PROPERTY}. The test-only blocks,
+     * capabilities, test data and the tests themselves are registered there and nowhere else, so the client and server
+     * dev runs carry none of them (they have no models). The sample blocks for manual checks ({@code sample_gui},
+     * {@code sample_status}) have models and stay in every dev run. Decided 2026-10-31 (#130).
+     */
+    public static boolean isGameTestRun() {
+        return Boolean.getBoolean(GAMETEST_PROPERTY);
+    }
+
     @SubscribeEvent
     static void registerFunctions(RegisterEvent event) {
+        if (!isGameTestRun())
+            return;
         event.register(Registries.TEST_FUNCTION, registry -> {
             registry.register(NO_SOCKETS, NoSocketsTest::noSockets);
             registry.register(WRENCH_ROTATES_BLOCK, WrenchTests::wrenchRotatesBlock);
@@ -186,6 +200,7 @@ public final class BuildcraftGameTests {
             ModuleTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             BlockedOutputTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             MiningWellTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            SeamTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FlowRecordTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
@@ -218,6 +233,8 @@ public final class BuildcraftGameTests {
 
     @SubscribeEvent
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        if (!isGameTestRun())
+            return;
         FluidTankTests.registerCapabilities(event);
         PipeTests.registerTestCapabilities(event);
         EngineTests.registerCapabilities(event);
@@ -227,6 +244,8 @@ public final class BuildcraftGameTests {
 
     @SubscribeEvent
     static void registerTests(RegisterGameTestsEvent event) {
+        if (!isGameTestRun())
+            return;
         Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(id("default"));
         event.registerTest(id("no_sockets"), new FunctionGameTestInstance(NO_SOCKETS,
                 new TestData<>(environment, EMPTY_STRUCTURE, NoSocketsTest.TICKS + 200, 0, true)));
@@ -350,6 +369,11 @@ public final class BuildcraftGameTests {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
                     padded(environment, Level.OVERWORLD, MiningWellTests.MAX_TICKS)));
         }
+        // #130 seams: machines with pipes, chests and engines, in the padded area.
+        for (String name : SeamTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, SeamTests.MAX_TICKS)));
+        }
         // #59 flow records: running lines watched for 300 ticks, in the padded area like item routing.
         for (String name : FlowRecordTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name),
@@ -405,6 +429,8 @@ public final class BuildcraftGameTests {
      */
     @SubscribeEvent
     static void addTestData(AddPackFindersEvent event) {
+        if (!isGameTestRun())
+            return;
         event.addPackFinders(id("gametest_data"), PackType.SERVER_DATA, Component.literal("Buildcraft Reforged GameTest data"),
                 PackSource.BUILT_IN, true, Pack.Position.TOP);
     }

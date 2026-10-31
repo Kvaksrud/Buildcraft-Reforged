@@ -81,6 +81,8 @@ neoForge {
             type = "gameTestServer"
             sourceSet = gametest
             systemProperty("neoforge.enabledGameTestNamespaces", modId)
+            // The GameTest-only blocks and tests register in this run alone (BuildcraftGameTests.isGameTestRun).
+            systemProperty("buildcraftreforged.gametest", "true")
             jvmArgument("-XX:StartFlightRecording:$socketRecording")
         }
         register("data") {

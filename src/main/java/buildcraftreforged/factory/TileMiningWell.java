@@ -7,7 +7,9 @@
  *
  * Modified by Buildcraft Reforged, 2026: power in FE (MJ x 10); the column is dug as the owner's fake player, and a
  * refused BreakBlockEvent stops the well (blocked) instead of breaking the block; the world bottom is the level's
- * minimum Y; invalidate becomes preRemoveSideEffects; the status panel (plan section 10) is new.
+ * minimum Y; invalidate becomes preRemoveSideEffects; the status panel (plan section 10) is new; the drops go out
+ * through a MachineOutput (#63, #130): what nothing beside the well takes waits there and blocks the well instead of
+ * being thrown out.
  */
 package buildcraftreforged.factory;
 
@@ -21,19 +23,20 @@ import buildcraftreforged.core.IMachine;
 import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.core.status.FlowMeter;
 import buildcraftreforged.core.status.IStatusProvider;
+import buildcraftreforged.core.status.MachineOutput;
 import buildcraftreforged.core.status.MachineStatus;
 import buildcraftreforged.core.status.StatusReason;
 import buildcraftreforged.core.status.StatusReport;
 import buildcraftreforged.core.utils.BlockUtil;
 import buildcraftreforged.core.utils.BuildCraftPlayer;
-import buildcraftreforged.core.utils.Utils;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import org.jspecify.annotations.Nullable;
 
@@ -51,6 +54,11 @@ public class TileMiningWell extends TileBuildCraft implements IMachine, IPowerRe
     private boolean isBlocked;
     /** Not in 4.2.2: the status panel's Flow and Power lines, counted per block dug. */
     public final FlowMeter flowMeter = new FlowMeter(() -> level == null ? 0 : level.getGameTime());
+    /**
+     * Not in 4.2.2 (#63, #130): the drops, pushed into the inventories and item pipes beside the well every tick. While
+     * any wait, the well digs no further and, once a push moves nothing, is blocked.
+     */
+    public final MachineOutput output = new MachineOutput(flowMeter);
 
     public TileMiningWell(BlockPos pos, BlockState state) {
         super(FactoryRegistry.miningWellTile.get(), pos, state);
@@ -80,6 +88,9 @@ public class TileMiningWell extends TileBuildCraft implements IMachine, IPowerRe
      */
     @Override
     public void doWork(PowerHandler workProvider) {
+        if (output.hasPending())
+            return;
+
         long mj = (long) (MINING_ENERGY_COST_PER_BLOCK * miningMultiplier());
         if (powerHandler.useEnergy(mj, mj, true) != mj)
             return;
@@ -127,41 +138,26 @@ public class TileMiningWell extends TileBuildCraft implements IMachine, IPowerRe
         if (stacks == null || stacks.isEmpty())
             return;
 
+        // 4.2.2 offered each stack to a random inventory, then a random item pipe, and threw out the rest.
         for (ItemStack stack : stacks) {
-            flowMeter.itemsOut(stack.getCount());
-
-            stack.shrink(Utils.addToRandomInventoryAround(world, xCoord, yCoord, zCoord, stack));
-            if (stack.getCount() <= 0)
-                continue;
-
-            stack.shrink(Utils.addToRandomPipeAround(world, xCoord, yCoord, zCoord, null, stack));
-            if (stack.getCount() <= 0)
-                continue;
-
-            // Throw the object away.
-            // TODO: factorize that code
-
-            float f = world.getRandom().nextFloat() * 0.8F + 0.1F;
-            float f1 = world.getRandom().nextFloat() * 0.8F + 0.1F;
-            float f2 = world.getRandom().nextFloat() * 0.8F + 0.1F;
-
-            ItemEntity entityitem = new ItemEntity(world, xCoord + f, yCoord + f1 + 0.5F, zCoord + f2, stack);
-
-            entityitem.lifespan = BuildCraftConfiguration.itemLifespan.get();
-            entityitem.setPickUpDelay(10);
-
-            float f3 = 0.05F;
-            entityitem.setDeltaMovement((float) world.getRandom().nextGaussian() * f3,
-                    (float) world.getRandom().nextGaussian() * f3 + 1.0F,
-                    (float) world.getRandom().nextGaussian() * f3);
-            world.addFreshEntity(entityitem);
+            output.add(stack);
         }
+        output.push(world, worldPosition);
+    }
+
+    @Override
+    public void updateEntity() {
+        if (level != null && !level.isClientSide())
+            output.push(level, worldPosition);
+        super.updateEntity();
     }
 
     /** 4.2.2 invalidate: the tile going away takes its pipe column with it. */
     @Override
     public void preRemoveSideEffects(BlockPos pos, BlockState state) {
         super.preRemoveSideEffects(pos, state);
+        if (level != null && !level.isClientSide())
+            output.dropAll(level, pos);
         if (level != null && !level.isClientSide() && pos.getY() > level.getMinY() + 2) {
             BlockMiningWell.removePipes(level, pos.getX(), pos.getY(), pos.getZ());
         }
@@ -174,7 +170,7 @@ public class TileMiningWell extends TileBuildCraft implements IMachine, IPowerRe
 
     @Override
     public boolean isBlocked() {
-        return isBlocked;
+        return isBlocked || output.isBlocked();
     }
 
     @Override
@@ -197,11 +193,23 @@ public class TileMiningWell extends TileBuildCraft implements IMachine, IPowerRe
         return false;
     }
 
+    @Override
+    protected void saveAdditional(ValueOutput data) {
+        super.saveAdditional(data);
+        output.save(data);
+    }
+
+    @Override
+    protected void loadAdditional(ValueInput data) {
+        super.loadAdditional(data);
+        output.load(data);
+    }
+
     // Status panel (plan section 10), not in 4.2.2.
 
     @Override
     public MachineStatus getStatusState() {
-        if (isBlocked)
+        if (isBlocked())
             return MachineStatus.BLOCKED;
         if (!isDigging)
             return MachineStatus.IDLE;
@@ -212,7 +220,7 @@ public class TileMiningWell extends TileBuildCraft implements IMachine, IPowerRe
 
     @Override
     public StatusReason getStatusReason() {
-        return isBlocked ? StatusReason.PROTECTED_BLOCK : StatusReason.NONE;
+        return isBlocked ? StatusReason.PROTECTED_BLOCK : output.getReason();
     }
 
     @Override

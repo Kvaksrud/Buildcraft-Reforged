@@ -361,7 +361,9 @@ without touching the block entity. The tests use a `PacketHandler.Sender` stand-
 
 ## GameTests (#33)
 
-- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. `BuildcraftGameTests`
+- GameTests live in the `gametest` source set: part of the mod in dev runs, never in the jar. Since #130 the test-only
+  blocks, capabilities, data pack and tests register only when `buildcraftreforged.gametest` is true, which the
+  `gameTestServer` run sets (`BuildcraftGameTests.isGameTestRun()`); see "Seams and dev-run cleanup (#130)". `BuildcraftGameTests`
   registers test functions (`RegisterEvent` on `Registries.TEST_FUNCTION`) and instances (`RegisterGameTestsEvent`)
   in the `buildcraftreforged` namespace. Run them with `./gradlew runGameTestServer`; there is no CI until release.
 - The source set also adds an always-on data pack (`gametest_data`) that puts `minecraft:debug_stick` in
@@ -2086,7 +2088,8 @@ Ported: `factory/BlockMiningWell`, `TileMiningWell`, `BlockPlainPipe`, and `Util
   `StatusPanel.BLOCKED` with the multipart red light. #63 was not merged when this was written; if it adds a shared
   blocked-output API, the well's flag is the one place to hook it. Output itself is never blocked: as in 4.2.2, what
   neither an inventory nor a pipe takes is thrown out above the well.
-- **Output.** Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
+- **Output (superseded by #130: the drops go through a `MachineOutput`, see "Seams and dev-run cleanup (#130)").**
+  Inventory first (`Utils.addToRandomInventoryAround`), then `Utils.addToRandomPipeAround` with no `from`
   (4.2.2 `ForgeDirection.UNKNOWN`), then thrown up with the configured `itemLifespan`. `addToRandomPipeAround` hands the
   stack to `IPipeTile.injectItem`, which routes it at once (#50). For the pipe to connect at all, item pipes now also
   connect to an `IMachine` whose `manageSolids()` is true, 4.2.2's rule in `PipeTransportItems.canPipeConnect`; the
@@ -2169,6 +2172,41 @@ Ported `factory/BlockPump`, `TilePump`, `PumpDimensionList`, `BlockFloodGate`, `
 - **Not checked without a client:** the two block models and their textures, the tube's look (geometry, UVs,
   texture, light, the render box when it reaches far down), the status light on the pump, the status panel screens,
   and the recipes in the crafting grid.
+
+## Seams and dev-run cleanup (#130)
+
+Decided 2026-10-31. Wires the seams left by pieces built in parallel and cleans up what the first dev-client run logged.
+
+- **Assembly table → pipe (`SEAM(#50)`).** As 4.2.2: what `Utils.addToRandomInventoryAround` does not take goes to
+  `Utils.addToRandomPipeAround` with no `from`, and only the rest is dropped. The table keeps 4.2.2's drop rather than a
+  `MachineOutput`: it only makes something when a player planned it and a laser powered it.
+- **`Utils.addToRandomInventoryAround` skips engines (`SEAM(#36)`).** A `TileEngine` neighbour is passed by, as in
+  4.2.2, so machine output never ends up in a stone engine's fuel slot. `MachineOutput.push` already skipped
+  `IPowerEmitter` block entities.
+- **Mining well → `MachineOutput`.** The drops are `add`ed to `TileMiningWell.output` (counting `itemsOut` in the flow
+  meter) and pushed every server tick, so chests, item pipes and other inventories beside the well take them as before.
+  What nothing takes waits in the well (saved as `pendingOutput`, dropped when the well is broken) and the well digs no
+  further: State Blocked, Reason "No destination" or "Output blocked", red light. 4.2.2 threw such drops out above the
+  well; plan section 8.3 says nothing is spilled. A refused break still reports `PROTECTED_BLOCK` first.
+- **Pump → `MachineOutput`.** The pump's output is fluid, so it keeps a `MachineOutput` only for its state:
+  `setBlocked(OUTPUT_FULL)` when the next block's fluid does not fit in the tank, `NONE` on the next check that it does.
+  The State, Reason and red light read it as before.
+- **No `@OnlyIn`.** Removed from `RenderLaser`, `RenderLaserTile`, `RenderEnergyLaser`, `RenderEngine`, `RenderMarker`
+  and `RenderEntityBlock`. They are only reached from `@EventBusSubscriber(value = Dist.CLIENT)` classes
+  (`*Renderers`, `EnergyProxyClient`) and from other renderers, so a dedicated server never loads them.
+- **GameTest-only registrations.** The `gameTestServer` run sets the system property `buildcraftreforged.gametest`;
+  `BuildcraftGameTests.isGameTestRun()` reads it. `BuildcraftGameTests` (test functions, test blocks, capabilities,
+  tests, the `gametest_data` pack), `OutputTestBlocks` and `TriggerTestBlocks` return early without it, so the client
+  and server dev runs register no `gametest_*`/`test_tank` blocks and log no missing models. The sample blocks for
+  manual checks (`sample_gui`, `sample_status`) have models and stay in every dev run. A new test-only block that
+  subscribes to `RegisterEvent` itself must check `isGameTestRun()` too. A separate test mod id was rejected: every
+  test class's `@EventBusSubscriber(modid = ...)` and test id would change while other sessions add tests.
+- **Tests.** GameTests `seam_assembly_table_to_pipe` (diamonds reach a chest through a stone pipe, nothing dropped),
+  `seam_inventory_skips_engine` (coal is not put into a stone engine; a chest beside it gets it),
+  `seam_mining_well_blocked_output` (one block dug, dirt pending and saved, Blocked, "No destination", red light,
+  nothing thrown; a chest beside it unblocks it and the well digs on) and `seam_pump_blocked_output` (a full tank:
+  Blocked, "Output blocked", red light, water left; emptying the tank clears it). `mining_well_digs` and
+  `mining_well_protected` now have a chest beside each well.
 
 ## Flow records and flow rendering (#59)
 
