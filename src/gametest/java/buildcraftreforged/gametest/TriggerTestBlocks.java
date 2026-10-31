@@ -29,6 +29,8 @@ final class TriggerTestBlocks {
 
     @SubscribeEvent
     static void register(RegisterEvent event) {
+        if (!BuildcraftGameTests.isGameTestRun())
+            return;
         event.register(Registries.BLOCK, registry -> {
             triggerTestBlock = new TestBlock(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, ID)));
             registry.register(ID, triggerTestBlock);
@@ -41,6 +43,8 @@ final class TriggerTestBlocks {
 
     @SubscribeEvent
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        if (!BuildcraftGameTests.isGameTestRun())
+            return;
         event.registerBlockEntity(Capabilities.Item.BLOCK, triggerTestTile, (tile, side) -> tile.inventory);
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, triggerTestTile, (tile, side) -> tile.tank);
     }

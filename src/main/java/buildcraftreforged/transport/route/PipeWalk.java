@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.neoforged.neoforge.transfer.resource.Resource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -24,6 +25,9 @@ public final class PipeWalk {
 
     /** {@code sourcePos} for a walk that has no source block (no endpoint is excluded). */
     public static final long NO_SOURCE = Long.MIN_VALUE;
+
+    /** The walk colour of an item that has none (docs/TRANSPORT.md 4.2; else an {@code EnumColor} ordinal). */
+    public static final int NO_COLOUR = -1;
 
     private static final Direction[] SIDES = Direction.values();
 
@@ -49,6 +53,25 @@ public final class PipeWalk {
 
         /** A simulated insert into this endpoint accepts at least one unit (4.2 step 4). */
         boolean accepts(PipeNetwork.Endpoint endpoint);
+
+        /** What is being routed, for the modules that filter by it (the Sorter, 8.5); null when unknown. */
+        default @Nullable Resource resource() {
+            return null;
+        }
+
+        /**
+         * Steps 5 and 6: the pipe's module filter and order (Sorter 8.5, Colour Sorter 8.9). Reorders
+         * {@code sides[0 .. count)} (side indices) into the order to try them in and returns how many to try, or -1 to
+         * leave them to the uniform permutation. {@code colour} is the walk colour the pipe was entered with.
+         */
+        default int order(PipeNode node, int[] sides, int count, int colour, RandomSource random) {
+            return node.pipe.orderCandidates(sides, count, resource(), colour, random);
+        }
+
+        /** The walk colour once the pipe has been entered (the Colour Tag sets it, 8.8), from the one it entered with. */
+        default int colourAfter(PipeNode node, int colour) {
+            return node.pipe.walkColour(colour);
+        }
     }
 
     /**
@@ -70,12 +93,25 @@ public final class PipeWalk {
         final int node;
         final int[] sides;
         final int count;
+        /** The walk colour for this pipe's children: set once the pipe is entered, so backing out restores it. */
+        final int colour;
         int cursor;
 
-        Frame(int node, int[] sides, int count) {
+        Frame(int node, int[] sides, int count, int colour) {
             this.node = node;
             this.sides = sides;
             this.count = count;
+            this.colour = colour;
+        }
+    }
+
+    /** The uniform random permutation of step 6 over {@code sides[0 .. count)}. */
+    public static void shuffle(int[] sides, int count, RandomSource random) {
+        for (int i = count - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            int swap = sides[i];
+            sides[i] = sides[j];
+            sides[j] = swap;
         }
     }
 
@@ -86,6 +122,15 @@ public final class PipeWalk {
      */
     public static @Nullable Route walk(PipeNetwork network, int start, @Nullable Direction in, long sourcePos, Rules rules,
             RandomSource random, int maxVisits) {
+        return walk(network, start, in, sourcePos, rules, random, maxVisits, NO_COLOUR);
+    }
+
+    /**
+     * {@link #walk(PipeNetwork, int, Direction, long, Rules, RandomSource, int)} for an item that starts with walk colour
+     * {@code colour} ({@link #NO_COLOUR} for none): the Filtered Colour Tag tags what it extracts (8.10).
+     */
+    public static @Nullable Route walk(PipeNetwork network, int start, @Nullable Direction in, long sourcePos, Rules rules,
+            RandomSource random, int maxVisits, int colour) {
         PipeNode[] nodes = network.nodes;
         if (!rules.canEnter(nodes[start]))
             return null;
@@ -124,13 +169,14 @@ public final class PipeWalk {
                     }
                     sides[count++] = side.get3DDataValue();
                 }
-                for (int i = count - 1; i > 0; i--) {
-                    int j = random.nextInt(i + 1);
-                    int swap = sides[i];
-                    sides[i] = sides[j];
-                    sides[j] = swap;
-                }
-                stack.add(new Frame(node, sides, count));
+                // Steps 5-6 with the colour the pipe was entered with; then the pipe's own colour applies onward.
+                int entered = stack.isEmpty() ? colour : stack.getLast().colour;
+                int ordered = rules.order(pipe, sides, count, entered, random);
+                if (ordered < 0)
+                    shuffle(sides, count, random);
+                else
+                    count = Math.min(ordered, count);
+                stack.add(new Frame(node, sides, count, rules.colourAfter(pipe, entered)));
             }
 
             // Step 7: try the next candidate of the innermost junction; step 8: back out of a dead end.

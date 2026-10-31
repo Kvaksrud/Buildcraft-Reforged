@@ -161,6 +161,7 @@
   "tile.engineWood": "Redstone Engine",
   "tile.engineStone": "Stirling Engine",
   "tile.engineIron": "Combustion Engine",
+  "subtitles.buildcraftreforged.engine_whine": "Engine overheating",
   "tile.blockOil": "Oil",
   "tile.blockFuel": "Fuel",
   "tile.spring.water": "Water Spring",
@@ -226,5 +227,12 @@
   "gui.status.heat.countdown": "%s, %s s",
   "item.moduleDirector": "Director Module",
   "item.moduleExtractor": "Extractor Module",
-  "item.moduleFilteredExtractor": "Filtered Extractor Module"
+  "item.moduleFilteredExtractor": "Filtered Extractor Module",
+  "item.moduleSorter": "Sorter Module",
+  "item.modulePickup": "Pickup Module",
+  "item.moduleVoid": "Void Module",
+  "item.moduleColourTag": "Colour Tag Module",
+  "item.moduleColourSorter": "Colour Sorter Module",
+  "item.moduleFilteredColourTag": "Filtered Colour Tag Module",
+  "item.moduleIsolator": "Isolator Module"
 }

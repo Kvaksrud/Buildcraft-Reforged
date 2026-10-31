@@ -123,6 +123,35 @@ the overheat mechanic (`20031e79e`, #40's business) and creative engines (`3f6fa
 in 4.2.2: not applicable. The one deliberate change, power pipes connecting to the redstone engine, is a plan
 section 7 decision recorded in `docs/PORTING-NOTES.md`.
 
+Triage for #44 and #40 (`energy/TileEngineIron`, `gui/GuiCombustionEngine`), decided 2026-10-31: the upstream history
+of `TileEngineIron.java` on the 6.4.x and 7.1.x lines lists the 1.7 port, headers, style, the MJ → RF and fuel API
+rewrites, the gate API refactor, the overheat mechanic (`20031e79e9`, `ba20bea0ec`: replaced by plan section 9) and
+these. `0366f3fae0` (engines refuse fluids on their output side) changes behaviour without a bug: rejected under
+policy point 2. `00a72e8f20` (BuildCraft#2502) undoes a `getTankInfo` change 4.2.2 does not have, and `b9f16462d8`,
+`b977138ec4` add null checks the port does not need (`FluidStack.EMPTY`): not applicable.
+
+#### Combustion engine keeps the old fuel's values after a refill
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`bf8403fd4e57313d60bf44d1f60a45aa0415894a`](https://github.com/BuildCraft/BuildCraft/commit/bf8403fd4e57313d60bf44d1f60a45aa0415894a) ("fix combustion engine never resetting its fuel value", 2 Apr 2015, 6.4 line) |
+| Upstream issue | none |
+| Class | `energy/TileEngineIron` (`burn`, `fill`) |
+| Symptom | `currentFuel` is reset only when the last millibucket's burn time ends; a different fuel added in those few ticks burns at the old fuel's rates until the tank empties. |
+| Decision | Pending: no upstream issue, and not reproduced in a 1.6.4 instance (policy point 1). The port keeps 4.2.2's behaviour. |
+| Applied in | — |
+
+#### Coolant used for free when the amount rounds to zero
+
+| Field | Value |
+|---|---|
+| Upstream hash | [`c93ce3a32613c3bfc0e82331633b6408e21f3da2`](https://github.com/BuildCraft/BuildCraft/commit/c93ce3a32613c3bfc0e82331633b6408e21f3da2) ("Stop the cooling when it round the use to zero", 7 Mar 2015, 6.4 line) |
+| Upstream issue | none |
+| Class | `energy/TileEngineIron` (`coolEngine`) |
+| Symptom | When less than one millibucket would do, `Math.round` drains 0 mB but the heat still drops. With water this is under 0.0023 °C a tick. |
+| Decision | Pending: no upstream issue, and not reproduced in a 1.6.4 instance (policy point 1). The port keeps 4.2.2's behaviour. |
+| Applied in | — |
+
 ### factory
 
 #### BuildCraft#2353: liquid dupe with the tank

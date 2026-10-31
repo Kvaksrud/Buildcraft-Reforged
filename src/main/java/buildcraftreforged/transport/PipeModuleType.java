@@ -46,10 +46,10 @@ public enum PipeModuleType implements StringRepresentable {
 
     /**
      * Whether a pipe with this module starts transfers on its own, ticked by the network (docs/TRANSPORT.md 6.1): the
-     * Extractor, the Filtered Extractor and the Pickup.
+     * Extractor, the Filtered Extractor, the Pickup and the Filtered Colour Tag (an extractor, 8.10).
      */
     public boolean isSource() {
-        return this == EXTRACTOR || this == FILTERED_EXTRACTOR || this == PICKUP;
+        return this == EXTRACTOR || this == FILTERED_EXTRACTOR || this == PICKUP || this == FILTERED_COLOUR_TAG;
     }
 
     /** Which pipe kinds take this module (docs/TRANSPORT.md 8.1, Q8). */

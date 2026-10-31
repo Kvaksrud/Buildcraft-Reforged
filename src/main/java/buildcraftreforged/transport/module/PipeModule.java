@@ -10,6 +10,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.transfer.resource.Resource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,8 +31,9 @@ import org.jspecify.annotations.Nullable;
  * <p>Modules need no power (PLAN 8.2). A module is fitted by using its item on a pipe without one and removed by
  * sneak-using a wrench, which hands back the item with the settings in {@link TransportRegistry#moduleSettings} (Q18).
  *
- * <p>Hooks the later modules add here: a candidate filter for the walk (Sorter, Colour Sorter, #56/#57) and colour
- * tagging on entry (#57).
+ * <p>The walk asks a module which sides it may leave by ({@link #allowsOutput}), how to filter and order its
+ * candidates ({@link #orderCandidates}: Sorter, Colour Sorter) and what colour items carry on ({@link #walkColour}:
+ * Colour Tag).
  */
 public class PipeModule {
 
@@ -46,6 +49,12 @@ public class PipeModule {
         case EXTRACTOR -> new ModuleExtractor(type);
         case FILTERED_EXTRACTOR -> new ModuleFilteredExtractor();
         case DIRECTOR -> new ModuleDirector();
+        case SORTER -> new ModuleSorter();
+        case PICKUP -> new ModulePickup();
+        case COLOUR_TAG -> new ModuleColourTag();
+        case COLOUR_SORTER -> new ModuleColourSorter();
+        case FILTERED_COLOUR_TAG -> new ModuleFilteredColourTag();
+        // The Void is a sink by type (PipeWalk.Rules.isSink) and the Isolator a connection rule (#48): no settings.
         default -> new PipeModule(type);
         };
     }
@@ -68,6 +77,29 @@ public class PipeModule {
     /** Whether the routing walk may leave the pipe by {@code side} (docs/TRANSPORT.md 4.2 step 4). Read live. */
     public boolean allowsOutput(TilePipe pipe, Direction side) {
         return true;
+    }
+
+    /**
+     * The walk's candidate filter and order at this pipe (docs/TRANSPORT.md 4.2 steps 5-6): reorders
+     * {@code sides[0 .. count)} (side indices) and returns how many of them to try, or -1 for the uniform random order.
+     * {@code resource} is what is routed (null when unknown), {@code colour} the walk colour on entry.
+     */
+    public int orderCandidates(TilePipe pipe, int[] sides, int count, @Nullable Resource resource, int colour,
+            RandomSource random) {
+        return -1;
+    }
+
+    /** The walk colour once the walk has entered the pipe, from the one it entered with (docs/TRANSPORT.md 8.8). */
+    public int walkColour(TilePipe pipe, int colour) {
+        return colour;
+    }
+
+    /**
+     * Both sides: an item other than a wrench or a block was used on the pipe. Returns whether the module took it; the
+     * client module has default settings, so decide from the item alone and change settings on the server only.
+     */
+    public boolean useItem(TilePipe pipe, Player player, ItemStack stack) {
+        return false;
     }
 
     /**

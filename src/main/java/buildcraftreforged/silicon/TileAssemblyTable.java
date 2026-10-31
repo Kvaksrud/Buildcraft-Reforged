@@ -152,7 +152,10 @@ public class TileAssemblyTable extends TileBuildCraft implements IMachine, Conta
                 remaining.shrink(Utils.addToRandomInventoryAround(level, worldPosition.getX(), worldPosition.getY(),
                         worldPosition.getZ(), remaining));
 
-                // SEAM(#50): 4.2.2 then offered the rest to a pipe next to the table (Utils.addToRandomPipeAround).
+                if (remaining.getCount() > 0) {
+                    remaining.shrink(Utils.addToRandomPipeAround(level, worldPosition.getX(), worldPosition.getY(),
+                            worldPosition.getZ(), null, remaining));
+                }
 
                 if (remaining.getCount() > 0) {
                     // 4.2.2 dropped currentRecipe.output.copy(), the whole output, whatever had been inserted.

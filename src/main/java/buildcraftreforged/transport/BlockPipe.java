@@ -159,6 +159,10 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
             return InteractionResult.PASS;
         if (WrenchHelper.isWrench(stack) && level.getBlockEntity(pos) instanceof TilePipe pipe && pipe.getModule() != null)
             return wrenchModule(pipe, level, pos, player, hand);
+        // A dye sets a Colour Tag's or Colour Sorter's colour (#57).
+        if (level.getBlockEntity(pos) instanceof TilePipe pipe && pipe.getModule() != null
+                && pipe.getModule().useItem(pipe, player, stack))
+            return InteractionResult.SUCCESS;
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
     }
 

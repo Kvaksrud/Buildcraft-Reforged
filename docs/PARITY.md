@@ -91,7 +91,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 |---|---|---|---|---|---|---|---|
 | Redstone Engine (`tile.engineWood`) | `BlockEngine (meta 0) + ItemEngine, TileEngineWood` | `engine_wood` | #37, #39 | [x] | [ ] | [ ] | One block per engine; facing in the block state. Engine base (`BlockEngine`, `ItemEngine`, `TileEngine`, `EnergyRegistry.engine`) done in #36; renderer, base/trunk/chamber textures and the `buildcraftreforged:engine` item model type in #39. 10 FE per 16 ticks, 10 FE pulses, 1 000 FE; power pipes connect (4.2.2 refused every pipe). GameTests `engine_wood_redstone_output`, `engine_delivery_through_kinesis_pipe`; model and piston not checked in game. |
 | Steam (Stirling) Engine (`tile.engineStone`) | `BlockEngine (meta 1) + ItemEngine, TileEngineStone` | `engine_stone` | #38, #39 | [x] | [ ] | [ ] | Renderer and textures from #39. Furnace burn times (`cooking_fuel`), PID output 10 / 3 to 10 FE/t, status OUT_OF_FUEL. GameTests `engine_stone_burns_fuel`, `engine_stone_output_control`, `engine_delivery_through_kinesis_pipe`; model and piston not checked in game. Inventory triggers wait for #41. |
-| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [ ] | [ ] | [ ] | Renderer and textures from #39; the engine adds its blockstate and item model (`docs/PORTING-NOTES.md`, #39). |
+| Combustion Engine (`tile.engineIron`) | `BlockEngine (meta 2) + ItemEngine, TileEngineIron` | `engine_iron` | #44, #39 | [x] | [ ] | [x] | Renderer and textures from #39. Fuel and coolant tanks from the #43 data maps (fluid capability, slot for buckets and ice); oil 30 FE/t, fuel 60 FE/t, 4.2.2 heating and water cooling. GameTests `engine_iron_burns_fuel`, `engine_iron_cooling`, `engine_iron_overheat`; model, piston and bucket clicks not checked in game. Fluid triggers wait for #41. |
 | Oil (fluid) (`oil`) | `BCFluid` | `oil` | #42 | [x] | [ ] | [ ] | `FluidType` `oil` plus source fluid `oil` and flowing fluid `flowing_oil`. Density 800, viscosity 1500, ticks every 7. |
 | Fuel (fluid) (`fuel`) | `BCFluid` | `fuel` | #42 | [x] | [ ] | [ ] | As above: `fuel` and `flowing_fuel`, ticks every 5. |
 | Oil (block) (`blockOil`) | `BlockBuildcraftFluid` | `block_oil` | #42 | [x] | [ ] | [ ] | Nether: fire instead of explosion (section 19.2). Flow, buckets and the Nether rule pass GameTests; textures and drips not seen in a client. |
@@ -121,7 +121,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Combustion engine (`GuiIds.ENGINE_IRON` 20) | `GuiCombustionEngine / ContainerEngine` | `engine_iron` menu | #44 | [ ] | [ ] | [ ] |  |
+| Combustion engine (`GuiIds.ENGINE_IRON` 20) | `GuiCombustionEngine / ContainerEngine` | `engine_iron` menu | #44 | [x] | [ ] | [ ] | Tank gauges from guiData ids 4 to 7, engine and status ledgers. Slot and tank sync covered by GameTest `engine_iron_menu`; drawing not checked in game. |
 | Stirling engine (`GuiIds.ENGINE_STONE` 21) | `GuiStoneEngine / ContainerEngine` | `engine_stone` menu | #38 | [x] | [ ] | [ ] | Engine ledger in FE, plus the status ledger. Slots, shift-click and burn-time sync covered by GameTests `engine_stone_menu` and `engine_stone_burns_fuel`; drawing, flame and ledgers not checked in game. |
 
 ## factory (`BuildCraftFactory`)
@@ -212,21 +212,21 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Quartz Transport Pipe (`PipeItemsQuartz`) | `PipeItemsQuartz (ItemPipe)` | plain item tier pipe, tier 6 (quartz) | #53 | [ ] | [ ] | [ ] |  |
 | Iron Transport Pipe (`PipeItemsIron`) | `PipeItemsIron (ItemPipe)` | Director module on an item tier pipe | #53, #55 | [x] | [ ] | [ ] |  |
 | Golden Transport Pipe (`PipeItemsGold`) | `PipeItemsGold (ItemPipe)` | plain item tier pipe, tier 5 (gold) | #53 | [ ] | [ ] | [ ] | 4.2.2 speed-up replaced by the tier rate. |
-| Diamond Transport Pipe (`PipeItemsDiamond`) | `PipeItemsDiamond (ItemPipe)` | Sorter module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
-| Obsidian Transport Pipe (`PipeItemsObsidian`) | `PipeItemsObsidian (ItemPipe)` | Pickup module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
-| Lapis Transport Pipe (`PipeItemsLapis`) | `PipeItemsLapis (ItemPipe)` | Colour Tag module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
-| Daizuli Transport Pipe (`PipeItemsDaizuli`) | `PipeItemsDaizuli (ItemPipe)` | Colour Sorter module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
-| Sandstone Transport Pipe (`PipeItemsSandstone`) | `PipeItemsSandstone (ItemPipe)` | Isolator module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
-| Void Transport Pipe (`PipeItemsVoid`) | `PipeItemsVoid (ItemPipe)` | Void module on an item tier pipe | #53, #56 | [ ] | [ ] | [ ] |  |
-| Emzuli Transport Pipe (`PipeItemsEmzuli`) | `PipeItemsEmzuli (ItemPipe)` | Filtered Colour Tag module on an item tier pipe | #53, #57 | [ ] | [ ] | [ ] |  |
+| Diamond Transport Pipe (`PipeItemsDiamond`) | `PipeItemsDiamond (ItemPipe)` | Sorter module on an item tier pipe | #53, #56 | [x] | [ ] | [ ] | GameTest `module_sorter_separates_items`. |
+| Obsidian Transport Pipe (`PipeItemsObsidian`) | `PipeItemsObsidian (ItemPipe)` | Pickup module on an item tier pipe | #53, #56 | [x] | [ ] | [ ] | GameTest `module_pickup_range`. |
+| Lapis Transport Pipe (`PipeItemsLapis`) | `PipeItemsLapis (ItemPipe)` | Colour Tag module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_colour_tag_and_sorter`. |
+| Daizuli Transport Pipe (`PipeItemsDaizuli`) | `PipeItemsDaizuli (ItemPipe)` | Colour Sorter module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_colour_tag_and_sorter`. |
+| Sandstone Transport Pipe (`PipeItemsSandstone`) | `PipeItemsSandstone (ItemPipe)` | Isolator module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_isolator`. |
+| Void Transport Pipe (`PipeItemsVoid`) | `PipeItemsVoid (ItemPipe)` | Void module on an item tier pipe | #53, #56 | [x] | [ ] | [ ] | GameTest `module_void_items_and_fluids`. |
+| Emzuli Transport Pipe (`PipeItemsEmzuli`) | `PipeItemsEmzuli (ItemPipe)` | Filtered Colour Tag module on an item tier pipe | #53, #57 | [x] | [ ] | [ ] | GameTest `module_filtered_colour_tag_presets`. |
 | Wooden Waterproof Pipe (`PipeFluidsWood`) | `PipeFluidsWood (ItemPipe)` | Extractor module on a fluid tier pipe | #51, #53, #55 | [ ] | [ ] | [ ] |  |
 | Cobblestone Waterproof Pipe (`PipeFluidsCobblestone`) | `PipeFluidsCobblestone (ItemPipe)` | plain fluid tier pipe, tier 2 (stone) | #51, #53 | [ ] | [ ] | [ ] | Judgement call, as for items. |
 | Stone Waterproof Pipe (`PipeFluidsStone`) | `PipeFluidsStone (ItemPipe)` | plain fluid tier pipe, tier 2 (stone) | #51, #53 | [ ] | [ ] | [ ] |  |
 | Iron Waterproof Pipe (`PipeFluidsIron`) | `PipeFluidsIron (ItemPipe)` | Director module on a fluid tier pipe | #51, #53, #55 | [ ] | [ ] | [ ] |  |
 | Golden Waterproof Pipe (`PipeFluidsGold`) | `PipeFluidsGold (ItemPipe)` | plain fluid tier pipe, tier 5 (gold) | #51, #53 | [ ] | [ ] | [ ] |  |
 | Emerald Waterproof Pipe (`PipeFluidsEmerald`) | `PipeFluidsEmerald (ItemPipe)` | Filtered Extractor module on a fluid tier pipe | #51, #53, #55 | [ ] | [ ] | [ ] | 4.2.2 opens no GUI for it. |
-| Sandstone Waterproof Pipe (`PipeFluidsSandstone`) | `PipeFluidsSandstone (ItemPipe)` | Isolator module on a fluid tier pipe | #51, #53, #57 | [ ] | [ ] | [ ] |  |
-| Void Waterproof Pipe (`PipeFluidsVoid`) | `PipeFluidsVoid (ItemPipe)` | Void module on a fluid tier pipe | #51, #53, #56 | [ ] | [ ] | [ ] |  |
+| Sandstone Waterproof Pipe (`PipeFluidsSandstone`) | `PipeFluidsSandstone (ItemPipe)` | Isolator module on a fluid tier pipe | #51, #53, #57 | [x] | [ ] | [ ] | GameTest `module_isolator`. |
+| Void Waterproof Pipe (`PipeFluidsVoid`) | `PipeFluidsVoid (ItemPipe)` | Void module on a fluid tier pipe | #51, #53, #56 | [x] | [ ] | [ ] | GameTest `module_void_items_and_fluids`. |
 | Wooden Kinesis Pipe (`PipePowerWood`) | `PipePowerWood (ItemPipe)` | plain power tier pipe, tier 1 (wood) | #52, #53 | [ ] | [ ] | [ ] | 4.2.2 engine input pipe; any power tier pipe accepts engines (section 7). |
 | Cobblestone Kinesis Pipe (`PipePowerCobblestone`) | `PipePowerCobblestone (ItemPipe)` | plain power tier pipe, tier 2 (stone) | #52, #53 | [ ] | [ ] | [ ] | Judgement call, as for items. |
 | Stone Kinesis Pipe (`PipePowerStone`) | `PipePowerStone (ItemPipe)` | plain power tier pipe, tier 2 (stone) | #52, #53 | [ ] | [ ] | [ ] |  |
@@ -303,10 +303,10 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Diamond pipe (`GuiIds.PIPE_DIAMOND` 50) | `GuiDiamondPipe / ContainerDiamondPipe` | Sorter module menu | #56 | [ ] | [ ] | [ ] |  |
+| Diamond pipe (`GuiIds.PIPE_DIAMOND` 50) | `GuiDiamondPipe / ContainerDiamondPipe` | Sorter module menu | #56 | [x] | [ ] | [ ] | GameTest `module_sorter_menu`. |
 | Gate interface (`GuiIds.GATES` 51) | `GuiGateInterface / ContainerGateInterface` | gate menu | #60 | [x] | [ ] | [ ] | GameTest `gate_*`. |
 | Emerald pipe (`GuiIds.PIPE_EMERALD_ITEM` 52) | `GuiEmeraldPipe / ContainerEmeraldPipe` | Filtered Extractor module menu | #55 | [x] | [ ] | [ ] | GameTest `module_filtered_extractor_menu`. |
-| Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [ ] | [ ] | [ ] |  |
+| Emzuli pipe (`GuiIds.PIPE_LOGEMERALD_ITEM` 53) | `GuiEmzuliPipe / ContainerEmzuliPipe` | Filtered Colour Tag module menu | #57 | [x] | [ ] | [ ] | GameTest `module_filtered_colour_tag_menu`. |
 | Filtered Buffer (`GuiIds.FILTERED_BUFFER` 60) | `GuiFilteredBuffer / ContainerFilteredBuffer` | `filtered_buffer_block` menu | #62 | [ ] | [ ] | [ ] |  |
 
 ## builders (`BuildCraftBuilders`)
@@ -391,19 +391,20 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 | Extractor module | — | `module_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Filtered Extractor module | — | `module_filtered_extractor` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 | Director module | — | `module_director` | #55, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Sorter module | — | `module_sorter` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Pickup module | — | `module_pickup` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Void module | — | `module_void` | #56, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Colour Tag module | — | `module_colour_tag` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Colour Sorter module | — | `module_colour_sorter` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Filtered Colour Tag module | — | `module_filtered_colour_tag` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
-| Isolator module | — | `module_isolator` | #57, #74 | [ ] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Sorter module | — | `module_sorter` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Pickup module | — | `module_pickup` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Void module | — | `module_void` | #56, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Colour Tag module | — | `module_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Colour Sorter module | — | `module_colour_sorter` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Filtered Colour Tag module | — | `module_filtered_colour_tag` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
+| Isolator module | — | `module_isolator` | #57, #74 | [x] | [ ] | [ ] | Assembly Table recipe in #74. |
 
 ### Other additions
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
+| Overheat timer, shut-down mode and `engines.*` config | — | `TileEngine.updateOverheatTimer`, sound `engine_whine` | #40 | [x] | [ ] | [x] | Section 9. Red starts the timer, explode or shut down (wrench restarts) when it runs out; "Red, N s" in the status panel. GameTests `engine_iron_overheat`, `engine_overheat_config`, `engine_orientation`. The whine plays vanilla's beacon hum until a sound of its own exists; not heard in a client. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |
 | Machine blocked trigger | `TriggerMachine` | `trigger_machine_blocked` | #31 | [x] | [ ] | [ ] | Section 8.3. Tag `buildcraft.work.blocked`; true while `IMachine.isBlocked()`. Its sprite `triggers/trigger_machine_blocked` is new art, not drawn yet. |
 | Status panel (shared ledger and the GUI of blocks without one) | — | menu `status` | #26 | [x] | [ ] | [ ] | Section 10. `core/status`, `StatusLedger`; red light `block/status_light`. Sample blocks `sample_gui` and `sample_status` (dev runs). Renders needs a client check. |

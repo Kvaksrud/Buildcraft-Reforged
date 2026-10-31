@@ -20,6 +20,7 @@ import buildcraftreforged.core.EntityBlock;
 import buildcraftreforged.core.IFramePipeConnection;
 import buildcraftreforged.core.inventory.ITransactor;
 import buildcraftreforged.core.inventory.Transactor;
+import buildcraftreforged.energy.TileEngine;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,7 +48,7 @@ import org.jspecify.annotations.Nullable;
 
 /*
  * Not ported yet, waiting for the classes they call:
- * - addToRandomInventoryAround: ported (#72); its TileEngine exclusion waits for #36.
+ * - addToRandomInventoryAround: ported (#72, engines skipped since #130).
  * - addToRandomPipeAround: ported (#66).
  * - checkPipesConnections: IPipeTile (#34, #48).
  * - checkLegacyPipesConnections: ported (#67).
@@ -76,13 +77,14 @@ public class Utils {
             if (!world.isLoaded(blockPos))
                 continue;
             BlockEntity tileInventory = world.getBlockEntity(blockPos);
+            if (tileInventory instanceof TileEngine)
+                continue;
             ITransactor transactor = tileInventory == null ? null : Transactor.getTransactorFor(tileInventory);
             if (transactor == null && tileInventory != null) {
                 var handler = world.getCapability(Capabilities.Item.BLOCK, blockPos, orientation.getOpposite());
                 if (handler != null)
                     transactor = Transactor.getTransactorFor(handler);
             }
-            // SEAM(#36): 4.2.2 also skipped a TileEngine (`!(tileInventory instanceof TileEngine)`).
             if (transactor != null && transactor.add(stack, orientation.getOpposite(), false).getCount() > 0) {
                 return transactor.add(stack, orientation.getOpposite(), true).getCount();
             }

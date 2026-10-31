@@ -8,9 +8,13 @@ import buildcraftreforged.core.TileBuildCraft;
 import buildcraftreforged.transport.graph.PipeNetworks;
 import buildcraftreforged.transport.graph.PipeWorld;
 import buildcraftreforged.transport.module.ModuleDirector;
+import buildcraftreforged.transport.flow.FlowRecord;
+import buildcraftreforged.transport.flow.FlowSync;
+import buildcraftreforged.transport.flow.FlowTracker;
 import buildcraftreforged.transport.module.PipeModule;
 import buildcraftreforged.transport.route.FluidPipeFlow;
 import buildcraftreforged.transport.route.FluidPipeState;
+import buildcraftreforged.transport.route.ItemPipeFlow;
 import buildcraftreforged.transport.route.PipeBudget;
 import buildcraftreforged.transport.route.PipeEnergyHandler;
 import buildcraftreforged.transport.route.PipeFluidHandler;
@@ -21,6 +25,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -36,6 +41,7 @@ import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.resource.Resource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
@@ -56,7 +62,8 @@ import org.jspecify.annotations.Nullable;
  * docs/TRANSPORT.md 6.2), power pipes through the energy capability ({@link PipeEnergyHandler}, 6.2 and 7.4); every
  * pipe keeps its throughput {@link PipeBudget} (5), and power pipes their {@link PowerPipeState}. Fluid pipes take
  * pushes through the fluid capability ({@link PipeFluidHandler}) and keep their lock and last flow in
- * {@link FluidPipeState} (7.3); the flow records of 3.1 belong to #59. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
+ * {@link FluidPipeState} (7.3). Every pipe keeps its flow record ({@link FlowTracker}, 9): measured on the server,
+ * synced to clients and read by the Pipe Contents trigger. The overflow stack of 3.1 is not needed: a transfer is one transaction (see
  * {@link buildcraftreforged.transport.route.ItemRouting}).
  */
 public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pipe {
@@ -79,14 +86,18 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     private int powerLimit;
     private final PipeFluidHandler[] fluidHandlers = new PipeFluidHandler[6];
     private final FluidPipeState fluidState = new FluidPipeState();
+    private final FlowTracker flowTracker;
 
     public TilePipe(BlockPos pos, BlockState state) {
         super(TransportRegistry.pipeTile.get(), pos, state);
         kind = state.getBlock() instanceof BlockPipe pipe ? pipe.kind : PipeType.ITEM;
+        flowTracker = new FlowTracker(kind, () -> FlowSync.markActive(this));
         if (kind == PipeType.POWER)
             gateHolder.flow = new PowerPipeFlow(this);
         else if (kind == PipeType.FLUID)
             gateHolder.flow = new FluidPipeFlow(this);
+        else if (kind == PipeType.ITEM)
+            gateHolder.flow = new ItemPipeFlow(this);
     }
 
     public byte getConnectionMask() {
@@ -128,6 +139,16 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
     /** Fluid pipes: the one-fluid lock and the last flow (docs/TRANSPORT.md 7.3, 9.2). Not saved. */
     public FluidPipeState getFluidState() {
         return fluidState;
+    }
+
+    /** The flow record of this pipe and its sync (docs/TRANSPORT.md 9). Not saved. */
+    public FlowTracker getFlowTracker() {
+        return flowTracker;
+    }
+
+    /** Server: a power pipe's overload (docs/TRANSPORT.md 7.4) now, for its flow record; false for other kinds. */
+    public boolean isFlowOverloaded() {
+        return kind == PipeType.POWER && level != null && powerState.isOverloaded(level.getGameTime(), getPowerRefill());
     }
 
     /**
@@ -388,6 +409,18 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         return module == null || module.allowsOutput(this, side);
     }
 
+    /** The Sorter and the Colour Sorter filter and order the walk's candidates (docs/TRANSPORT.md 8.5, 8.9). */
+    @Override
+    public int orderCandidates(int[] sides, int count, @Nullable Resource resource, int colour, RandomSource random) {
+        return module == null ? -1 : module.orderCandidates(this, sides, count, resource, colour, random);
+    }
+
+    /** The Colour Tag sets the walk colour (docs/TRANSPORT.md 8.8). */
+    @Override
+    public int walkColour(int colour) {
+        return module == null ? colour : module.walkColour(this, colour);
+    }
+
     /** The gate and wires drop with the pipe (4.2.2 {@code Pipe.onBlockRemoval}), and the module as its item. */
     @Override
     public void destroy() {
@@ -441,6 +474,7 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
         PipeModuleType type = getModuleType();
         data.writeByte(type == null ? -1 : type.ordinal());
         gateHolder.writeRenderState(data);
+        FlowRecord.STREAM_CODEC.encode(data, flowTracker.sent());
     }
 
     @Override
@@ -456,6 +490,9 @@ public class TilePipe extends TileBuildCraft implements IPipeTile, PipeWorld.Pip
             gateHolder.target = module == null ? null : module.gateTarget(this);
         }
         gateHolder.readRenderState(data);
+        FlowRecord record = FlowRecord.STREAM_CODEC.decode(data);
+        flowTracker.receive(record.kind() == kind ? record : FlowRecord.none(kind),
+                level == null ? 0 : level.getGameTime());
     }
 
     /** Client: the new mask picks another cached model and shape, so refresh the model data and re-mesh. */
