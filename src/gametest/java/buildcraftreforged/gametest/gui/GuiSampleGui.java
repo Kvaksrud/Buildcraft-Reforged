@@ -2,6 +2,7 @@ package buildcraftreforged.gametest.gui;
 
 import buildcraftreforged.BuildcraftReforged;
 import buildcraftreforged.core.gui.GuiBuildCraft;
+import buildcraftreforged.core.gui.StatusLedger;
 import buildcraftreforged.core.gui.buttons.GuiBetterButton;
 import buildcraftreforged.core.gui.buttons.StandardButtonTextureSets;
 import buildcraftreforged.core.network.PacketGuiReturn;
@@ -11,7 +12,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import org.jspecify.annotations.Nullable;
 
-/** The sample screen: drawn like 4.2.2's {@code GuiStoneEngine}, with a ledger like {@code GuiEngine.EngineLedger}. */
+/** The sample screen: drawn like 4.2.2's {@code GuiStoneEngine}, with a ledger like {@code GuiEngine.EngineLedger}
+ * and the status ledger (#26). */
 /* Client only. */
 public class GuiSampleGui extends GuiBuildCraft<ContainerSampleGui> {
     /** A copy of 4.2.2's {@code steam_engine_gui.png}. */
@@ -29,6 +31,7 @@ public class GuiSampleGui extends GuiBuildCraft<ContainerSampleGui> {
     protected void initLedgers(@Nullable Object inventory) {
         super.initLedgers(inventory);
         ledgerManager.add(new SampleLedger());
+        ledgerManager.add(new StatusLedger<>(this, container.statusWidget));
     }
 
     @Override

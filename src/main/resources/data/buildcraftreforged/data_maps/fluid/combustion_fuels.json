@@ -1,0 +1,30 @@
+{
+  "values": {
+    "buildcraftreforged:oil": {
+      "neoforge:conditions": [
+        {
+          "type": "neoforge:registered",
+          "registry": "minecraft:fluid",
+          "value": "buildcraftreforged:oil"
+        }
+      ],
+      "value": {
+        "power_per_cycle": 30,
+        "total_burning_time": 5000
+      }
+    },
+    "buildcraftreforged:fuel": {
+      "neoforge:conditions": [
+        {
+          "type": "neoforge:registered",
+          "registry": "minecraft:fluid",
+          "value": "buildcraftreforged:fuel"
+        }
+      ],
+      "value": {
+        "power_per_cycle": 60,
+        "total_burning_time": 25000
+      }
+    }
+  }
+}

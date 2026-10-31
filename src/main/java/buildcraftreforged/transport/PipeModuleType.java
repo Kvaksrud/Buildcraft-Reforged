@@ -43,6 +43,14 @@ public enum PipeModuleType implements StringRepresentable {
         return this == EXTRACTOR || this == FILTERED_EXTRACTOR || this == PICKUP || this == FILTERED_COLOUR_TAG;
     }
 
+    /**
+     * Whether a pipe with this module starts transfers on its own, ticked by the network (docs/TRANSPORT.md 6.1): the
+     * Extractor, the Filtered Extractor and the Pickup.
+     */
+    public boolean isSource() {
+        return this == EXTRACTOR || this == FILTERED_EXTRACTOR || this == PICKUP;
+    }
+
     @Override
     public String getSerializedName() {
         return name().toLowerCase(Locale.ENGLISH);
