@@ -3126,3 +3126,66 @@ stairs, now east, where `rotateLeft` puts them).
 **Not checked without a client:** the block model and its facing, the item icons (clean and used) and tooltip, the
 stripes box rendering, the GUI (layout, progress arrow, clicking the name field, typing, the blinking cursor, the status
 ledger), and a wrench from another mod.
+
+## Auto workbench and hopper (#69, #70)
+
+Ported `factory/BlockAutoWorkbench`, `TileAutoWorkbench`, `gui/ContainerAutoWorkbench`, `gui/GuiAutoCrafting`,
+`core/gui/slots/SlotWorkbench`, `factory/BlockHopper`, `TileHopper`, `gui/ContainerHopper` and `gui/GuiHopper`.
+Changed (additive): `FactoryRegistry`, `FactoryScreens`, the pickaxe tag; new axe tag. Decided 2026-11-01.
+
+- **The workbench pulls nothing.** 4.2.2's auto workbench (the 4.x design) never reads its neighbours: its
+  3 x 3 grid is a template, and other blocks fill it through its sides. An item goes in only onto a grid slot that
+  already holds it (`canPlaceItem`: never the result slot, never an empty slot, never a non-stackable item or one with
+  a crafting remainder); only the result slot comes out. Pipes, the vanilla hopper, the BuildCraft hopper and other
+  mods' blocks all reach it through the item capability (every face, `WorldlyContainer` rules). The pulling auto
+  workbench of 3.x and the 7.x buffer are not 4.2.2 and are not ported.
+- **Cadence as 4.2.2.** Every server tick `balanceSlots` moves one item between grid slots holding the same item; every
+  16th tick (`UPDATE_TIME`, from a random start) `updateCrafting` adds 16 to `progress` while a recipe matches and the
+  grid is not down to its last item per slot (`isLast`), so a craft takes 256 ticks (`CRAFT_TIME`). Nothing happens
+  while the result slot holds anything. Clicking the GUI's preview slot sets `useLast`, which lets the next craft use
+  the last items.
+- **Crafting.** The grid is a `TransientCraftingContainer` whose dummy menu marks the tile changed. The recipe comes
+  from the server's recipe manager (`CraftingHelper.findMatchingRecipe`); the client has none. The craft goes through a
+  vanilla `ResultSlot` held by the owner's fake player (#27, BuildCraft#1786): `onQuickCraft` for the whole stack and
+  then `onTake`, so `onCraftedBy` and NeoForge's crafting event fire once for the stack, as 1.6.4's
+  `onPickupFromSlot` fired the crafting handlers, and container items are put back in the grid (or into the fake
+  player's inventory, which is then emptied above the workbench, as 4.2.2 did).
+- **Menu.** Slots at 4.2.2's positions: preview (93, 27, a `SlotUntouchable` on a `ResultContainer`), result
+  (124, 35), grid from (30, 17), inventory from (8, 84), hotbar (8, 142). `progress` is a vanilla `DataSlot`
+  (4.2.2 `sendProgressBarUpdate` id 0). Only the server computes the preview (`slotsChanged`) and sends it as a slot;
+  the client adds the yellow "-Click to Craft-" lore when the grid is on its last items. As in 4.2.2 the preview is
+  recomputed every tick while the menu is open. `GuiAutoCrafting` draws 4.2.2's title, "Inventory" and progress arrow
+  on `autobench.png`, plus the status ledger.
+- **Hopper ("Chute" in 4.2.2's language file).** Four slots, every face (4.2.2 `IInventory`). Every second game tick it
+  offers one item to the item capability of the block below on its top face, slot by slot, and moves the first one
+  taken. 4.2.2 asked `Transactor.getTransactorFor` for the tile entity below, so it fed only inventories (4.2.2 pipes
+  were not one); now item pipes, machines and other mods' blocks take part the same way, through `TransactorHandler`.
+  It still pulls nothing from above. Hardness 5 (`BlockBuildCraft`'s default), iron, not opaque.
+- **Hopper model.** 4.2.2 drew the chute with `RenderHopper` (a 16 x 7 x 16 top, a frustum from 8 x 8 to 16 x 16 and a
+  6 x 3 x 6 spout, from the box texture `hopper.png`). It is a static JSON model now: the top box, the frustum as three
+  steps, and the spout, textured with `hopperTop`, `hopperSide` and `hopperBottom` (4.2.2's block icon). The hitbox
+  stays a full block, as in 4.2.2.
+- **Pipes in hand.** Both blocks pass a click with a pipe in hand, so the pipe is placed (4.2.2's `IItemPipe` check);
+  sneaking passes too; any other click opens the GUI.
+- **Status panel.** Workbench: Working while a craft is in progress, else Idle. Hopper: Idle when empty, Working while
+  it moves items, Blocked with "Output blocked" (the block below refuses; item pipes say which through
+  `IOutputRefusal`) or "No destination" (nothing below takes items), with the red light; Flow line counts items out.
+  `GuiHopper` is a `GuiBuildCraft` (4.2.2: a plain `GuiContainer`) so it can carry the ledger; it draws no title, as in
+  4.2.2.
+- **Save.** Workbench: result slot as `items`, grid as `matrix` (4.2.2's tags; the pre-4.x `stackList` is not read).
+  Hopper: `inventory` compound with `items`.
+- **Names.** Blocks `auto_workbench_block` and `block_hopper`; block entities `auto_workbench` and `hopper`; menus
+  `auto_workbench_block` and `block_hopper`. Recipes as 4.2.2: crafting table in a ring of four wooden gears; iron
+  ingots, a chest and a stone gear (`ICI/IGI/ I `).
+- **Not ported:** `BptBlockAutoWorkbench` (deprecated in 4.2.2; the builder, #78, decides), `RenderHopper` (see above),
+  1.6.4's `addCreativeItems`.
+- **Tests.** GameTests (`WorkbenchHopperTests`, padded area): `auto_workbench_crafts_from_chest` (chest → vanilla
+  hopper → workbench with a planks template → vanilla hopper → chest: 8 sticks arrive and one plank stays per slot),
+  `auto_workbench_rules_menu_and_save` (template-only insert, result-only extract, refusals, menu slots and preview,
+  the preview click crafting the last planks, save and load, recipe), `hopper_feeds_pipe` (hopper over two gold pipes
+  to a chest), `hopper_feeds_machine` (coal into a Stirling engine, planks into a workbench template, one item per two
+  ticks) and `hopper_blocked_menu_and_recipe` (Blocked over a full chest and over air, red light on and off, menu
+  slots, shift-click, recipe).
+- **Not checked without a client:** both block models and the item models, the red light on the hopper, both GUIs
+  (layout, progress arrow, the yellow tool tip, the status ledger), the recipes in the crafting grid, and clicks
+  through the real network path (the tests open the menus on the server).

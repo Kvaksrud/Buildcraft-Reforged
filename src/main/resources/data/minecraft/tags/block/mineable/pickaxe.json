@@ -12,6 +12,7 @@
     "buildcraftreforged:flood_gate_block",
     "buildcraftreforged:machine_block",
     "buildcraftreforged:filler_block",
-    "buildcraftreforged:architect_block"
+    "buildcraftreforged:architect_block",
+    "buildcraftreforged:block_hopper"
   ]
 }
