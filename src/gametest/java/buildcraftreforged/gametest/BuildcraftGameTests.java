@@ -50,6 +50,8 @@ public final class BuildcraftGameTests {
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_NETWORK_BUILD = function("pipe_network_build");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_NETWORK_MERGE_SPLIT = function("pipe_network_merge_split");
     private static final ResourceKey<Consumer<GameTestHelper>> PIPE_NETWORK_UNLOAD = function("pipe_network_unload");
+    private static final ResourceKey<Consumer<GameTestHelper>> TIER_PIPES_CRAFTABLE = function("tier_pipes_craftable");
+    private static final ResourceKey<Consumer<GameTestHelper>> TIER_PIPES_CAPS = function("tier_pipes_caps");
 
     private BuildcraftGameTests() {
     }
@@ -78,6 +80,8 @@ public final class BuildcraftGameTests {
             registry.register(PIPE_NETWORK_BUILD, PipeNetworkTests::buildAndEndpoints);
             registry.register(PIPE_NETWORK_MERGE_SPLIT, PipeNetworkTests::mergeAndSplit);
             registry.register(PIPE_NETWORK_UNLOAD, PipeNetworkTests::unloadAndReload);
+            registry.register(TIER_PIPES_CRAFTABLE, TierPipeTests::craftable);
+            registry.register(TIER_PIPES_CAPS, TierPipeTests::caps);
         });
         FluidTankTests.register(event);
     }
@@ -129,9 +133,12 @@ public final class BuildcraftGameTests {
             event.registerTest(network.identifier(), new FunctionGameTestInstance(network,
                     new TestData<>(environment, EMPTY_STRUCTURE, 60, 0, true)));
         }
+        for (ResourceKey<Consumer<GameTestHelper>> tierPipes : List.of(TIER_PIPES_CRAFTABLE, TIER_PIPES_CAPS)) {
+            event.registerTest(tierPipes.identifier(), new FunctionGameTestInstance(tierPipes,
+                    new TestData<>(environment, EMPTY_STRUCTURE, 20, 0, true)));
+        }
     }
 
-    /** Test-only capabilities (see {@link PipeTests#ENERGY_BLOCK}). */
     /**
      * Test-only data: puts a vanilla item in {@code c:tools/wrench} to stand in for another mod's wrench, and adds lava
      * as a combustion engine fuel (see {@link FuelTests}).

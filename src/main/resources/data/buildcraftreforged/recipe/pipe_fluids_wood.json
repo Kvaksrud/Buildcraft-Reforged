@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "buildcraftreforged:pipe_fluids",
+  "ingredients": [
+    "buildcraftreforged:pipe_waterproof",
+    "buildcraftreforged:pipe_items_wood"
+  ],
+  "result": {
+    "id": "buildcraftreforged:pipe_fluids_wood"
+  }
+}
