@@ -2551,6 +2551,20 @@ Decided 2026-10-31.
   chat messages, the recipe in the crafting grid, and chunk loading with `quarry.loadsChunks` on (no test toggles the
   option).
 
+## Engine wrench and engine Reason line (play-test feedback, 31 Oct 2026)
+
+- **Wrench.** A wrench click turns an engine to the next of its six faces in data-value order (down, up, north,
+  south, west, east), a sneaking click one face back, whether or not anything takes power there. 4.2.2 jumped to the
+  next face with a power receiver (`switchOrientation`), which placement still uses. `IRotatableBlock` gained
+  `rotatesBothWays()` and `rotateBlock(..., reverse)`; `ItemWrench` sends both clicks to such blocks. The wrench still
+  restarts an engine shut down by overheating before it turns anything.
+- **No re-aim on load.** 4.2.2 re-aimed an engine whose face had no receiver when its chunk loaded (`checkOrienation`);
+  with free turning that would undo the player's choice, so it is gone.
+- **Reason line.** A running engine that delivers nothing says why: `NO_POWER_TARGET` ("Not facing a power receiver")
+  or `PULSE_TOO_SMALL` ("Engine too weak for this machine") when the receiver's minimum intake is above
+  `maxEnergyExtracted()`. 4.2.2 balance is unchanged: a redstone engine (10 FE pulses) still cannot feed a quarry
+  (500 FE minimum) or a mining well (1 000 FE).
+- **Quarry faces.** The quarry takes power on all six faces, the front included (GameTest `quarry_power_on_every_face`).
 ## Chipsets, silicon recipes and the JEI categories (#74)
 
 Ported `core/ItemRedstoneChipset` and the recipe half of `BuildCraftSilicon.loadRecipes` and
