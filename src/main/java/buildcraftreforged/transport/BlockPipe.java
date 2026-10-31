@@ -51,9 +51,10 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     public final PipeType kind;
-    public final PipeMaterial material;
+    /** The tier material; null for the Structure Pipe, which sits outside the ladder (docs/TRANSPORT.md 2.1, 11). */
+    public final @Nullable PipeMaterial material;
 
-    protected BlockPipe(PipeType kind, PipeMaterial material, Properties properties) {
+    protected BlockPipe(PipeType kind, @Nullable PipeMaterial material, Properties properties) {
         super(properties);
         this.kind = kind;
         this.material = material;
@@ -68,13 +69,17 @@ public abstract class BlockPipe extends BlockBuildCraft implements SimpleWaterlo
         return properties.strength((float) DefaultProps.PIPES_DURABILITY).noOcclusion().dynamicShape();
     }
 
+    /** The tier, 1 to 10; 0 for the Structure Pipe. */
     public int getTier() {
-        return material.tier;
+        return material == null ? 0 : material.tier;
     }
 
-    /** The configured caps of this pipe's tier ({@code transport.tiers.<material>}); routing (#50–#52) applies them. */
+    /**
+     * The configured caps of this pipe's tier ({@code transport.tiers.<material>}); routing (#50–#52) applies them. The
+     * Structure Pipe carries nothing, so its caps are all zero.
+     */
     public PipeTierStats getTierStats() {
-        return PipeTierConfig.current(material);
+        return material == null ? PipeTierStats.NONE : PipeTierConfig.current(material);
     }
 
     /**

@@ -110,7 +110,7 @@ public final class AssemblyRecipeManager {
         Collection<RecipeHolder<AssemblyTableRecipe>> holders = map.byType(SiliconRegistry.assemblyRecipeType.get());
         return holders.stream()
                 .sorted(Comparator.comparing(holder -> holder.id().identifier()))
-                .map(holder -> holder.value().toAssemblyRecipe())
+                .flatMap(holder -> holder.value().toAssemblyRecipes().stream())
                 .toList();
     }
 

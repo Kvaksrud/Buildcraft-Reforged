@@ -818,6 +818,13 @@ engine's remaining half-stroke (`ceil(0.5 / pistonSpeed)` ticks). Idle, the stri
 **Recipe.** Planks, glass, planks, as the 4.2.2 wooden pipe; 4.2.2 gave 8 pipes for it, how many Basic Extractors it
 gives is part of Q17.
 
+As built (#58, 1 Nov 2026): the recipe is planks, glass, planks in a **column**, one extractor (Q17), because the same
+three in a row are already the wood item pipe's recipe (8 pipes). The pulse runs inside the transaction the engine
+inserts in, so a simulated insert moves nothing and only `10 × moved` FE leaves the engine. The narrow end is the
+8-pixel pipe width; the steps are 14, 10 and 8 pixels across. The record is sent in the block entity's own payload,
+not the pipes' `FlowRecordsPayload`. Gates and wire on the Basic Extractor (and so the Energy Pulser test) are not
+built yet: `PipeGateHolder` belongs to `TilePipe`, and giving the extractor a holder of its own is a follow-up.
+
 ---
 
 ## 11. Structure Pipe (#54)
@@ -826,6 +833,10 @@ gives is part of Q17.
 (`PipeTransportStructure.canPipeConnect`), carries nothing, holds gates, wire and facades. Kind `STRUCTURE`; it never
 joins an item, fluid or power network and has no budget, record or capability. Recipe: gravel + cobblestone item pipe
 in 4.2.2; the cobblestone item pipe no longer exists, so it is part of Q17.
+
+As built (#54, 1 Nov 2026): `BlockPipeStructure`, kind `STRUCTURE`, no material (tier 0, caps `PipeTierStats.NONE`),
+registered outside `PIPE_DEFINITIONS` as `pipe_structure_cobblestone` on the shared `pipe` block entity type. Recipe
+gravel + Stone Transport Pipe, shapeless, one pipe (Q17).
 
 ---
 

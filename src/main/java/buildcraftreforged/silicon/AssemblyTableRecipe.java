@@ -88,6 +88,14 @@ public class AssemblyTableRecipe implements Recipe<RecipeInput> {
         return new AssemblyRecipe(energy, result.create(), toInput(inputs));
     }
 
+    /**
+     * The 4.2.2 recipes this one stands for, as the table lists them: this one alone, or one per facade for the
+     * facade recipe type (#144, {@code transport.FacadeAssemblyRecipe}).
+     */
+    public List<AssemblyRecipe> toAssemblyRecipes() {
+        return List.of(toAssemblyRecipe());
+    }
+
     /** 4.2.2's input array: an ItemStack per item input; a tag followed by its Integer count per tag input. */
     private static Object[] toInput(List<Input> inputs) {
         List<Object> input = new ArrayList<>();
@@ -131,7 +139,7 @@ public class AssemblyTableRecipe implements Recipe<RecipeInput> {
     }
 
     @Override
-    public RecipeSerializer<AssemblyTableRecipe> getSerializer() {
+    public RecipeSerializer<? extends AssemblyTableRecipe> getSerializer() {
         return SiliconRegistry.assemblyRecipeSerializer.get();
     }
 

@@ -156,7 +156,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
 | Laser (`laserBlock`) | `BlockLaser, TileLaser` | `laser_block` | #71 | [x] | [ ] | [ ] | FE (MJ × 10). Beam and model not yet seen in a client. GameTests `laser_*`. |
-| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client. The 4.2.2 chipset, gate and pipe wire recipes and the module recipes ship (#74, `assembly/`); plugs and facades wait for #61. JEI category (#74). GameTests `assembly_*`, `silicon_*`. |
+| Assembly Table (`tile.assemblyTableBlock`) | `BlockLaserTable (meta 0) + ItemLaserTable, TileAssemblyTable` | `assembly_table_block` | #72 | [x] | [ ] | [ ] | Separate block, no metadata. JSON recipe type `buildcraftreforged:assembly`, energy in FE (MJ × 10). Model not yet seen in a client. The 4.2.2 chipset, gate and pipe wire recipes and the module recipes ship (#74, `assembly/`); plugs and facades (`assembly/pipe_plug`, `assembly/pipe_facade`, #144). JEI category (#74). GameTests `assembly_*`, `silicon_*`. |
 | Advanced Crafting Table (`tile.assemblyWorkbenchBlock`) | `BlockLaserTable (meta 1) + ItemLaserTable, TileAdvancedCraftingTable` | `assembly_workbench_block` | #73 | [ ] | [ ] | [ ] | Separate block, no metadata. |
 | Redstone Chipset (`redstoneChipset.0`) | `ItemRedstoneChipset (meta 0)` | `redstone_red_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_red_chipset`. GameTests `silicon_*`. |
 | Redstone Iron Chipset (`redstoneChipset.1`) | `ItemRedstoneChipset (meta 1)` | `redstone_iron_chipset` | #74 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe `assembly/redstone_iron_chipset`. GameTests `silicon_*`. |
@@ -197,8 +197,8 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Autarchic Gold OR Gate (`pipeGateAutarchic.4`) | `ItemGate autarchic (meta 4)` | `autarchic_gate_gold_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
 | Autarchic Diamond AND Gate (`pipeGateAutarchic.5`) | `ItemGate autarchic (meta 5)` | `autarchic_gate_diamond_and` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
 | Autarchic Diamond OR Gate (`pipeGateAutarchic.6`) | `ItemGate autarchic (meta 6)` | `autarchic_gate_diamond_or` | #60 | [x] | [ ] | [ ] | Registry name is the 4.2.2 icon name. Assembly recipe and the AND/OR swap with a Redstone Chipset (#74). GameTest `gate_*`, `silicon_*`. |
-| Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). |
-| Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61 | [ ] | [ ] | [ ] |  |
+| Facade (`pipeFacade`) | `ItemFacade` | `pipe_facade` | #61, #144 | [ ] | [ ] | [ ] | Captured `BlockState` in a data component (section 6). Assembly recipe per facade (`assembly/pipe_facade`, type `buildcraftreforged:assembly_facades`, #144); JEI subtype per state. GameTests `plug_facade_*`. |
+| Pipe Plug (`pipePlug`) | `ItemPlug` | `pipe_plug` | #61, #144 | [ ] | [ ] | [ ] | Assembly recipe `assembly/pipe_plug` (#144). GameTests `plug_facade_*`. |
 | Filtered Buffer (`filteredBufferBlock`) | `BlockFilteredBuffer, TileFilteredBuffer` | `filtered_buffer_block` | #62 | [ ] | [ ] | [ ] |  |
 
 ### Pipes (transport, `BuildCraftTransport.buildPipe`, superseded by section 8)
@@ -234,7 +234,7 @@ replaces or extends it. 1.0.0 ships when every row is ticked "behaves" (`docs/PL
 | Iron Kinesis Pipe (`PipePowerIron`) | `PipePowerIron (ItemPipe)` | Director module on a power tier pipe, as the Power Limiter (TRANSPORT Q7), with the Power Limiter action | #52, #53, #55, #60 | [ ] | [ ] | [ ] | #55 keeps the limit and the wrench; #52 applies it, #60 adds the action. |
 | Golden Kinesis Pipe (`PipePowerGold`) | `PipePowerGold (ItemPipe)` | plain power tier pipe, tier 5 (gold) | #52, #53 | [ ] | [ ] | [ ] |  |
 | Diamond Kinesis Pipe (`PipePowerDiamond`) | `PipePowerDiamond (ItemPipe)` | plain power tier pipe, tier 7 (diamond) | #52, #53 | [ ] | [ ] | [ ] |  |
-| Cobblestone Structure Pipe (`PipeStructureCobblestone`) | `PipeStructureCobblestone (ItemPipe)` | `pipe_structure_cobblestone` | #54 | [ ] | [ ] | [ ] |  |
+| Cobblestone Structure Pipe (`PipeStructureCobblestone`) | `PipeStructureCobblestone (ItemPipe)` | `pipe_structure_cobblestone` | #54 | [x] | [ ] | [ ] | Recipe gravel + Stone Transport Pipe (Q17). GameTests `structure_pipe_*`. Not yet seen in a client. |
 
 ### Triggers (transport, `PipeTriggerProvider` and `GateVanilla`)
 
@@ -403,7 +403,7 @@ Rows for content that replaces a 4.2.2 registration (section 8) or is a delibera
 
 | 4.2.2 name | 4.2.2 class | New registry name | Issue | Compiles | Renders | Behaves | Notes |
 |---|---|---|---|---|---|---|---|
-| Basic Extractor | — | `basic_extractor` | #58 | [ ] | [ ] | [ ] | Section 8.2. |
+| Basic Extractor | — | `basic_extractor` | #58 | [x] | [ ] | [ ] | Section 8.2. Engine pulses, recipe planks / glass / planks in a column. No gates or wire yet. GameTests `basic_extractor_*`. Model and suction not yet seen in a client. |
 | Recipe viewer: Assembly Table and Refinery categories | NEI plugins (external) | `platform/jei` | #32, #74 | [x] | [ ] | [ ] | Section 6. Optional JEI plugin; gate AND/OR swaps show in JEI's crafting category. Not yet seen in a client. |
 | Overheat timer, shut-down mode and `engines.*` config | — | `TileEngine.updateOverheatTimer`, sound `engine_whine` | #40 | [x] | [ ] | [x] | Section 9. Red starts the timer, explode or shut down (wrench restarts) when it runs out; "Red, N s" in the status panel. GameTests `engine_iron_overheat`, `engine_overheat_config`, `engine_orientation`. The whine plays vanilla's beacon hum until a sound of its own exists; not heard in a client. |
 | Engine Overheating trigger | — | `buildcraft.engine.overheating` | #41 | [ ] | [ ] | [ ] | Section 9. |

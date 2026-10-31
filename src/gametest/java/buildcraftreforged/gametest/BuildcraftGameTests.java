@@ -215,6 +215,9 @@ public final class BuildcraftGameTests {
             BlueprintTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             FillerTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             OilFieldTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            StructurePipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            BasicExtractorTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
+            PlugFacadeRecipeTests.TESTS.forEach((name, test) -> registry.register(function(name), test::accept));
             registry.register(POWER_ROUTING_ENGINE_TO_MACHINE, PowerRoutingTests::engineToMachine);
             registry.register(POWER_ROUTING_SPLITTING, PowerRoutingTests::splitting);
             registry.register(POWER_ROUTING_LIMITER, PowerRoutingTests::limiter);
@@ -436,6 +439,20 @@ public final class BuildcraftGameTests {
         for (String name : OilFieldTests.TESTS.keySet()) {
             event.registerTest(id(name), new FunctionGameTestInstance(function(name), new TestData<>(environment, Level.OVERWORLD,
                     EMPTY_STRUCTURE, OilFieldTests.MAX_TICKS, 0, true, Rotation.NONE, false, 1, 1, false, OilFieldTests.PADDING)));
+        }
+        // #54 Structure Pipe, #58 Basic Extractor (engines, chests and pipe lines) and #144 plug and facade recipes
+        // (lasers under a table), in the padded area.
+        for (String name : StructurePipeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, StructurePipeTests.MAX_TICKS)));
+        }
+        for (String name : BasicExtractorTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, BasicExtractorTests.MAX_TICKS)));
+        }
+        for (String name : PlugFacadeRecipeTests.TESTS.keySet()) {
+            event.registerTest(id(name), new FunctionGameTestInstance(function(name),
+                    padded(environment, Level.OVERWORLD, PlugFacadeRecipeTests.MAX_TICKS)));
         }
         for (ResourceKey<Consumer<GameTestHelper>> power : List.of(POWER_ROUTING_ENGINE_TO_MACHINE, POWER_ROUTING_SPLITTING,
                 POWER_ROUTING_LIMITER)) {

@@ -133,4 +133,51 @@ public final class ItemRouting {
         }
         return result;
     }
+
+    /**
+     * One pulse of the Basic Extractor (docs/TRANSPORT.md 10, #58): like {@link #extract(ServerLevel, PipeNetwork, int,
+     * Direction, ResourceHandler)} from the block beside the pipe of node {@code node} on side {@code facing}, but at
+     * most {@code maxItems}, and inside {@code outer}, the transaction the engine's pulse arrived in: nothing moves
+     * unless that commits. The first slot whose stack routes wins (Q13).
+     */
+    public static TransferResult extract(ServerLevel level, PipeNetwork network, int node, Direction facing,
+            ResourceHandler<ItemResource> source, int maxItems, TransactionContext outer) {
+        ResourceRouter.Settings settings = settings();
+        long now = level.getGameTime();
+        long items = Math.min(maxItems, ROUTER.available(network.nodes[node], now, settings) / ITEM_COST);
+        if (items <= 0)
+            return new TransferResult(0, TransferResult.Reason.NO_CAPACITY, null);
+        long sourcePos = BlockPos.offset(network.nodes[node].pos, facing);
+
+        TransferResult result = TransferResult.SOURCE_EMPTY;
+        for (int slot = 0; slot < source.size(); slot++) {
+            ItemResource resource = source.getResource(slot);
+            if (resource.isEmpty())
+                continue;
+            int want = (int) Math.min(items, source.getAmountAsInt(slot));
+            if (want <= 0)
+                continue;
+            try (Transaction transaction = Transaction.open(outer)) {
+                int offered;
+                try (Transaction simulation = Transaction.open(transaction)) {
+                    offered = source.extract(slot, resource, want, simulation);
+                }
+                if (offered <= 0)
+                    continue;
+                TransferResult attempt = ROUTER.push(network, node, facing, sourcePos, resource, offered, now,
+                        level.getRandom(), settings, pipe -> true, PipeWalk.NO_COLOUR, transaction);
+                if (!attempt.movedAny()) {
+                    if (attempt.reason() == TransferResult.Reason.NO_CAPACITY)
+                        return attempt;
+                    result = attempt;
+                    continue;
+                }
+                if (source.extract(slot, resource, attempt.moved(), transaction) != attempt.moved())
+                    continue;
+                transaction.commit();
+                return attempt;
+            }
+        }
+        return result;
+    }
 }

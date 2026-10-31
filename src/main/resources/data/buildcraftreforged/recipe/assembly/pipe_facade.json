@@ -1,0 +1,8 @@
+{
+  "type": "buildcraftreforged:assembly_facades",
+  "energy": 80000,
+  "inputs": [
+    { "item": "buildcraftreforged:pipe_structure_cobblestone", "count": 3 }
+  ],
+  "result": { "id": "buildcraftreforged:pipe_facade", "count": 6 }
+}
